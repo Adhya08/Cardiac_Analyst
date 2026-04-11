@@ -18,12 +18,14 @@ from ..models_db import VitalsLog, User
 from ..schemas import VitalsIn, VitalsOut, UserProfileIn, UserProfileOut
 from ..ml.risk_model import RiskModel
 from ..ml.vitals_validator import VitalsValidator
+from ..ml.risk_auditor import RiskAuditor
 
 router = APIRouter(prefix="/api/v1", tags=["vitals"])
 
 # Singleton model instance (loaded once at startup)
 _risk_model: Optional[RiskModel] = None
 _vitals_validator: Optional[VitalsValidator] = None
+_risk_auditor: Optional[RiskAuditor] = None
 
 
 def get_risk_model() -> RiskModel:
@@ -38,6 +40,13 @@ def get_vitals_validator() -> VitalsValidator:
     if _vitals_validator is None:
         _vitals_validator = VitalsValidator()
     return _vitals_validator
+
+
+def get_risk_auditor() -> RiskAuditor:
+    global _risk_auditor
+    if _risk_auditor is None:
+        _risk_auditor = RiskAuditor()
+    return _risk_auditor
 
 
 # ─────────────────────────────────────────────────────────
@@ -134,6 +143,10 @@ async def log_vitals(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Risk model inference failed: {str(e)}")
 
+    # 3. Clinical Audit (Expert Review AI)
+    auditor = get_risk_auditor()
+    audit_report = auditor.audit(vitals_dict, profile, risk_result)
+
     # Compute trend_delta from previous reading
     previous = (
         db.query(VitalsLog)
@@ -172,6 +185,7 @@ async def log_vitals(
         "id": record.id,
         "vitals": vitals_dict,
         "validation_report": validation_report,
+        "clinical_audit": audit_report,
         "timestamp": record.timestamp.isoformat(),
     }
 

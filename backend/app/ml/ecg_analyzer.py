@@ -1,5 +1,5 @@
 """
-ECG Analyzer — Real ECG analysis using Google Gemini Vision API (gemini-2.0-flash).
+ECG Analyzer — Real ECG analysis using Google Gemini Vision API (gemini-1.5-flash-latest).
 Migrated from deprecated google-generativeai to google-genai (google.genai).
 
 Supports: JPG, PNG, PDF ECG formats.
@@ -49,7 +49,7 @@ class ECGAnalyzer:
         if not api_key:
             raise ValueError("GEMINI_API_KEY must be set.")
         self.client = genai.Client(api_key=api_key)
-        self.model_name = "gemini-2.0-flash"
+        self.model_name = "gemini-2.5-flash"
 
     # ─────────────────────────────────────────────────────────
     # Public API

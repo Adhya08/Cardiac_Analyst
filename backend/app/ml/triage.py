@@ -100,25 +100,26 @@ def assess_emergency(
     if combo_triggered or yes_count >= EMERGENCY_THRESHOLD or vitals_red_flag:
         severity = "emergency"
         if combo_triggered and stemi_suspicious:
-            confidence_base = 0.92
+            confidence_base = 0.95
         elif combo_triggered:
-            confidence_base = 0.85
-        elif vitals_red_flag:
             confidence_base = 0.88
+        elif vitals_red_flag:
+            confidence_base = 0.90
         else:
-            confidence_base = 0.75
+            confidence_base = 0.80
         confidence = min(0.99, confidence_base + yes_count * 0.01)
-        risk_score = min(99.9, 72 + yes_count * 3.0 + (10 if vitals_red_flag else 0))
+        risk_score = min(99.9, 75 + yes_count * 3.0 + (10 if vitals_red_flag else 0))
 
-    elif yes_count >= 3 or (0 in yes_indices) or (4 in yes_indices and 6 in yes_indices):
+    elif yes_count >= 3 or (0 in yes_indices) or (2 in yes_indices) or (4 in yes_indices and 6 in yes_indices):
+        # 0: Chest pain, 2: Shortness of breath at rest, 4+6: Racing heart + syncope
         severity = "see_doctor"
-        confidence = 0.65 + yes_count * 0.04
-        risk_score = 30 + yes_count * 5.0
+        confidence = 0.68 + yes_count * 0.04
+        risk_score = 35 + yes_count * 5.0
 
     else:
         severity = "normal"
-        confidence = 0.70 + (1 - yes_count / 8) * 0.20
-        risk_score = max(2.0, 5.0 + yes_count * 4.0)
+        confidence = 0.75 + (1 - yes_count / 8) * 0.20
+        risk_score = max(2.0, 5.0 + yes_count * 4.5)
 
     return {
         "severity": severity,

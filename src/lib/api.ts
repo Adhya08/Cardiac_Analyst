@@ -232,6 +232,10 @@ export const api = {
     );
   },
 
+  async getECGAnalysis(ecgId: string): Promise<ECGResponse> {
+    return request<ECGResponse>(`${BASE}/ecg/${ecgId}`);
+  },
+
   // ── Emergency / Triage
   async getTriageQuestions(): Promise<{ questions: string[] }> {
     return request(`${BASE}/emergency/questions`);

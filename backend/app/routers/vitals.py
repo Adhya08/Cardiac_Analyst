@@ -17,11 +17,13 @@ from ..database import get_db
 from ..models_db import VitalsLog, User
 from ..schemas import VitalsIn, VitalsOut, UserProfileIn, UserProfileOut
 from ..ml.risk_model import RiskModel
+from ..ml.vitals_validator import VitalsValidator
 
 router = APIRouter(prefix="/api/v1", tags=["vitals"])
 
 # Singleton model instance (loaded once at startup)
 _risk_model: Optional[RiskModel] = None
+_vitals_validator: Optional[VitalsValidator] = None
 
 
 def get_risk_model() -> RiskModel:
@@ -29,6 +31,13 @@ def get_risk_model() -> RiskModel:
     if _risk_model is None:
         _risk_model = RiskModel(model_path="models_saved/risk_model.pkl")
     return _risk_model
+
+
+def get_vitals_validator() -> VitalsValidator:
+    global _vitals_validator
+    if _vitals_validator is None:
+        _vitals_validator = VitalsValidator()
+    return _vitals_validator
 
 
 # ─────────────────────────────────────────────────────────
@@ -106,6 +115,18 @@ async def log_vitals(
 
     vitals_dict = vitals.model_dump()
 
+    # 1. Validate Inputs (Clinical Data Correction AI)
+    validator = get_vitals_validator()
+    # Add height from profile for BMI calculation
+    val_input = {**vitals_dict, "height_cm": user.height_cm}
+    validation_report = validator.validate(val_input)
+
+    if validation_report["status"] == "invalid":
+        raise HTTPException(status_code=400, detail={
+            "error": "Physiologically impossible vitals detected.",
+            "issues": validation_report["issues"]
+        })
+
     # Run ML risk model
     try:
         model = get_risk_model()
@@ -150,6 +171,7 @@ async def log_vitals(
         **risk_result,
         "id": record.id,
         "vitals": vitals_dict,
+        "validation_report": validation_report,
         "timestamp": record.timestamp.isoformat(),
     }
 

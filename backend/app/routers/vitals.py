@@ -1,0 +1,205 @@
+"""
+Vitals API Router
+------------------
+POST /api/v1/vitals        — Log vitals, run LightGBM risk model, return SHAP.
+GET  /api/v1/vitals/history — 30-day vitals history with trend analysis.
+GET  /api/v1/user/profile  — Get user profile.
+PUT  /api/v1/user/profile  — Update user profile.
+"""
+import uuid
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+
+from fastapi import APIRouter, HTTPException, Depends, Query
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models_db import VitalsLog, User
+from ..schemas import VitalsIn, VitalsOut, UserProfileIn, UserProfileOut
+from ..ml.risk_model import RiskModel
+
+router = APIRouter(prefix="/api/v1", tags=["vitals"])
+
+# Singleton model instance (loaded once at startup)
+_risk_model: Optional[RiskModel] = None
+
+
+def get_risk_model() -> RiskModel:
+    global _risk_model
+    if _risk_model is None:
+        _risk_model = RiskModel(model_path="models_saved/risk_model.pkl")
+    return _risk_model
+
+
+# ─────────────────────────────────────────────────────────
+# User Profile Endpoints
+# ─────────────────────────────────────────────────────────
+
+@router.get("/user/profile")
+async def get_profile(
+    user_id: str = Query(default="default_user"),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return None
+    return {
+        "id": user.id,
+        "name": user.name,
+        "age": user.age,
+        "sex": user.sex,
+        "is_smoker": user.is_smoker,
+        "is_diabetic": user.is_diabetic,
+        "has_family_history": user.has_family_history,
+        "height_cm": user.height_cm,
+    }
+
+
+@router.put("/user/profile")
+async def update_profile(
+    profile: Dict[str, Any],
+    user_id: str = Query(default="default_user"),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        user = User(id=user_id)
+        db.add(user)
+
+    allowed_fields = {"name", "age", "sex", "is_smoker", "is_diabetic", "has_family_history", "height_cm"}
+    for key, value in profile.items():
+        if key in allowed_fields and hasattr(user, key):
+            setattr(user, key, value)
+
+    user.updated_at = datetime.utcnow()
+    db.commit()
+    return {"message": "Profile updated", "user_id": user_id}
+
+
+# ─────────────────────────────────────────────────────────
+# Vitals Endpoints
+# ─────────────────────────────────────────────────────────
+
+@router.post("/vitals")
+async def log_vitals(
+    vitals: VitalsIn,
+    user_id: str = Query(default="default_user"),
+    db: Session = Depends(get_db),
+):
+    """
+    Log vitals → run LightGBM + Framingham risk model → return SHAP explanation.
+    """
+    # Get or create user
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        user = User(id=user_id, name="User", age=45, sex="Male")
+        db.add(user)
+        db.commit()
+
+    profile = {
+        "age": user.age,
+        "sex": user.sex,
+        "is_smoker": user.is_smoker,
+        "is_diabetic": user.is_diabetic,
+        "has_family_history": user.has_family_history,
+    }
+
+    vitals_dict = vitals.model_dump()
+
+    # Run ML risk model
+    try:
+        model = get_risk_model()
+        risk_result = model.predict(vitals_dict, profile)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk model inference failed: {str(e)}")
+
+    # Compute trend_delta from previous reading
+    previous = (
+        db.query(VitalsLog)
+        .filter(VitalsLog.user_id == user_id)
+        .order_by(VitalsLog.timestamp.desc())
+        .first()
+    )
+
+    if previous:
+        risk_result["trend_delta"] = round(risk_result["risk_score"] - previous.risk_score, 2)
+
+    # Persist to database
+    record = VitalsLog(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        bp_sys=vitals.bp_sys,
+        bp_dia=vitals.bp_dia,
+        hr=vitals.hr,
+        weight=vitals.weight,
+        spo2=vitals.spo2,
+        glucose=vitals.glucose,
+        cholesterol=vitals.cholesterol,
+        risk_score=risk_result["risk_score"],
+        risk_tier=risk_result["risk_tier"],
+        lgbm_probability=risk_result["lgbm_probability"],
+        framingham_risk=risk_result["framingham_risk"],
+        shap_json=str(risk_result["shap_top5"]),
+        ecg_prompt=risk_result["ecg_prompt"],
+        timestamp=datetime.utcnow(),
+    )
+    db.add(record)
+    db.commit()
+
+    return {
+        **risk_result,
+        "id": record.id,
+        "vitals": vitals_dict,
+        "timestamp": record.timestamp.isoformat(),
+    }
+
+
+@router.get("/vitals/history")
+async def get_vitals_history(
+    user_id: str = Query(default="default_user"),
+    days: int = Query(default=30, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    """Get vitals history for the last N days with trend analysis."""
+    since = datetime.utcnow() - timedelta(days=days)
+
+    records = (
+        db.query(VitalsLog)
+        .filter(VitalsLog.user_id == user_id, VitalsLog.timestamp >= since)
+        .order_by(VitalsLog.timestamp.desc())
+        .all()
+    )
+
+    history = [
+        {
+            "id": r.id,
+            "timestamp": r.timestamp.isoformat(),
+            "bp_sys": r.bp_sys,
+            "bp_dia": r.bp_dia,
+            "hr": r.hr,
+            "weight": r.weight,
+            "spo2": r.spo2,
+            "glucose": r.glucose,
+            "cholesterol": r.cholesterol,
+            "risk_score": r.risk_score,
+            "risk_tier": r.risk_tier,
+        }
+        for r in records
+    ]
+
+    # Trend: compare last 7 days vs prior 7 days
+    recent = [r.bp_sys for r in records[:7]] if records else []
+    older = [r.bp_sys for r in records[7:14]] if len(records) > 7 else []
+    bp_trend = (sum(recent) / len(recent) - sum(older) / len(older)) if recent and older else 0.0
+
+    risk_history = [
+        {"timestamp": r.timestamp.isoformat(), "risk_score": r.risk_score, "risk_tier": r.risk_tier}
+        for r in records
+    ]
+
+    return {
+        "records": history,
+        "count": len(history),
+        "trend": {"bp_sys_trend": round(bp_trend, 1)},
+        "risk_history": risk_history,
+    }

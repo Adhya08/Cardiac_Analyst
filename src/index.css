@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #f59e0b;
+  --secondary-foreground: #020617;
+  --card: rgba(15, 23, 42, 0.6);
+  --card-foreground: #f8fafc;
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-50 min-h-screen selection:bg-emerald-500/30;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl;
+  }
+  
+  .glass-card-hover {
+    @apply hover:bg-slate-800/80 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-emerald-500/10;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-all duration-300 border border-white/5 active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .btn-danger {
+    @apply px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-red-900/40 animate-pulse active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all placeholder:text-slate-500;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-950;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-emerald-600;
+}
+
+.text-gradient-gold {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-gold-400 to-gold-600;
+}
+
+@keyframes scan {
+  from { left: 0%; }
+  to { left: 100%; }
+}
+
+@keyframes dash {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-scan {
+  animation: scan 4s linear infinite;
+}

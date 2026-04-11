@@ -1,0 +1,75 @@
+"""
+SQLAlchemy ORM Models — Database table definitions.
+"""
+import uuid
+from datetime import datetime
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text
+from .database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, default="User")
+    age = Column(Integer, default=45)
+    sex = Column(String, default="Male")
+    is_smoker = Column(Boolean, default=False)
+    is_diabetic = Column(Boolean, default=False)
+    has_family_history = Column(Boolean, default=False)
+    height_cm = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class VitalsLog(Base):
+    __tablename__ = "vitals_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, default="default_user", index=True)
+    bp_sys = Column(Integer, nullable=False)
+    bp_dia = Column(Integer, nullable=False)
+    hr = Column(Integer, nullable=False)
+    weight = Column(Float, nullable=False)
+    spo2 = Column(Float, nullable=False)
+    glucose = Column(Float, nullable=True)
+    cholesterol = Column(Float, nullable=True)
+    risk_score = Column(Float, nullable=False)
+    risk_tier = Column(String, nullable=False)
+    lgbm_probability = Column(Float, nullable=True)
+    framingham_risk = Column(Float, nullable=True)
+    shap_json = Column(Text, nullable=True)
+    ecg_prompt = Column(Boolean, default=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class ECGAnalysis(Base):
+    __tablename__ = "ecg_analyses"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, default="default_user", index=True)
+    file_path = Column(String, nullable=True)
+    file_name = Column(String, nullable=True)
+    urgency = Column(String, default="see_doctor_today")
+    heart_rate_bpm = Column(Integer, nullable=True)
+    rhythm = Column(String, nullable=True)
+    qtc_ms = Column(Integer, nullable=True)
+    image_quality = Column(String, nullable=True)
+    top_condition = Column(String, nullable=True)
+    top_condition_prob = Column(Float, nullable=True)
+    analysis_json = Column(Text, nullable=True)  # Full JSON stored here
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class TriageEvent(Base):
+    __tablename__ = "triage_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, default="default_user", index=True)
+    symptoms_json = Column(Text, nullable=True)
+    severity = Column(String, nullable=False)
+    confidence = Column(Float, nullable=True)
+    risk_score = Column(Float, nullable=True)
+    lat = Column(Float, nullable=True)
+    lon = Column(Float, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)

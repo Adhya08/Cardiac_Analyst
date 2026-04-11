@@ -22,10 +22,11 @@ class RiskAuditor:
         confidence = "medium"
 
         # ── 1. Extract values
-        age = profile.get("age", 50)
-        sbp = inputs.get("bp_sys", 120)
-        glucose = inputs.get("glucose", 100)
-        chol = inputs.get("cholesterol", 200)
+        age = profile.get("age", 50) or 50
+        sbp = inputs.get("bp_sys", 120) or 120
+        # Use 0 as safe default for optional fields so comparisons don't crash on None
+        glucose = inputs.get("glucose") or 0
+        chol = inputs.get("cholesterol") or 0
         
         lgbm_prob = model_outputs.get("lgbm_probability", 0)
         fram_risk = model_outputs.get("framingham_risk", 0)

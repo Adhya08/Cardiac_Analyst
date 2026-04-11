@@ -7,7 +7,7 @@ import { useDropzone } from 'react-dropzone';
 import { useStore } from '../store/useStore';
 import {
   Upload, FileText, CheckCircle2, Zap, AlertTriangle,
-  Eye, EyeOff, RefreshCw, ChevronDown, ChevronUp, Clock, History, ExternalLink,
+  Eye, EyeOff, RefreshCw, ChevronDown, ChevronUp, Clock, ExternalLink,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type ECGResponse, type ECGCondition } from '../lib/api';
@@ -21,11 +21,11 @@ const SEVERITY_COLORS = {
   normal: { bg: '', border: 'border-transparent', badge: 'bg-slate-800 text-slate-500', bar: 'bg-slate-700', text: 'text-slate-600' },
 };
 
-const URGENCY_CONFIG = (t: any) => ({
-  emergency: { label: `🚨 ${t.emergency}`, bg: 'bg-red-600', desc: t.potential_risk },
-  see_doctor_today: { label: `⚠️ ${t.see_doctor_today}`, bg: 'bg-amber-500/80', desc: t.eval_needed },
-  routine: { label: `✅ ${t.routine}`, bg: 'bg-emerald-600', desc: t.symptoms_non_emergent },
-});
+const URGENCY_CONFIG = {
+  emergency: { label: '🚨 EMERGENCY', bg: 'bg-red-600', desc: 'Immediate medical attention required.' },
+  see_doctor_today: { label: '⚠️ SEE DOCTOR TODAY', bg: 'bg-amber-500/80', desc: 'Visit a cardiologist within 24 hours.' },
+  routine: { label: '✅ ROUTINE', bg: 'bg-emerald-600', desc: 'No urgent action needed. Follow up with your doctor.' },
+};
 
 // Condition row component
 const ConditionRow: React.FC<{ cond: ECGCondition; language: 'en' | 'hi' }> = ({ cond, language }) => {
@@ -43,12 +43,10 @@ const ConditionRow: React.FC<{ cond: ECGCondition; language: 'en' | 'hi' }> = ({
       <div className="flex items-center justify-between gap-3 cursor-pointer" onClick={() => setExpanded(e => !e)}>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0 ${s.badge}`}>
-            {cond.severity === 'detected' ? (language === 'hi' ? 'पता चला' : 'DETECTED') : 
-             cond.severity === 'possible' ? (language === 'hi' ? 'संभावित' : 'POSSIBLE') : 
-             (language === 'hi' ? 'सामान्य' : 'NORMAL')}
+            {cond.severity}
           </span>
           <span className={`text-xs font-semibold truncate ${cond.severity !== 'normal' ? 'text-slate-200' : 'text-slate-500'}`}>
-            {(t.conditions as any)[cond.name] || cond.name}
+            {cond.name}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -172,8 +170,8 @@ export const ECGMode: React.FC = () => {
 
   const reset = () => { setStatus('idle'); setResult(null); setFile(null); setProgress(0); setErrorMsg(''); };
 
-  {/* Urgency banner */}
-  const urgencyConfig = result ? URGENCY_CONFIG(t)[result.urgency] : null;
+  // ── Urgency banner
+  const urgencyConfig = result ? URGENCY_CONFIG[result.urgency] : null;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -238,19 +236,18 @@ export const ECGMode: React.FC = () => {
                     item.urgency === 'emergency' ? 'bg-red-500 text-white' : 
                     item.urgency === 'see_doctor_today' ? 'bg-amber-500 text-black' : 'bg-slate-800 text-slate-400'
                   }`}>
-                    {item.urgency === 'emergency' ? t.emergency_badge : 
-                     item.urgency === 'see_doctor_today' ? t.see_doctor_badge : t.routine_badge}
+                    {item.urgency.replace(/_/g, ' ')}
                   </div>
                   <span className="text-[10px] text-slate-500 font-mono">
                     {new Date(item.timestamp).toLocaleDateString()}
                   </span>
                 </div>
                 <h4 className="text-xs font-bold text-slate-200 truncate mb-1">
-                  {(t.conditions as any)[item.top_condition || ''] || item.top_condition || (language === 'hi' ? 'सामान्य स्कैन' : 'Normal Scan')}
+                  {item.top_condition || 'Normal Scan'}
                 </h4>
                 <div className="flex items-center justify-between mt-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500">{t.prob_label}</span>
+                    <span className="text-[10px] text-slate-500">Prob:</span>
                     <span className="text-xs font-black text-emerald-400">{Math.round((item.top_condition_prob || 0) * 100)}%</span>
                   </div>
                   <button className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold uppercase">

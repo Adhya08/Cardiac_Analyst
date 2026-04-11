@@ -25,7 +25,7 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 @router.get("/hospitals/nearby")
-async def get_nearby_hospitals(
+def get_nearby_hospitals(
     lat: float = Query(..., description="User latitude"),
     lon: float = Query(..., description="User longitude"),
     radius_km: float = Query(default=10, ge=1, le=50),
@@ -119,7 +119,7 @@ async def get_nearby_hospitals(
 
 
 @router.get("/ambulance/nearby")
-async def get_nearby_ambulances(
+def get_nearby_ambulances(
     lat: float = Query(..., description="User latitude"),
     lon: float = Query(..., description="User longitude"),
 ):

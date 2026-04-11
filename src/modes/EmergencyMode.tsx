@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import HospitalMap from '../components/HospitalMap';
 import { api, type TriageResponse } from '../lib/api';
 import { translations } from '../lib/translations';
+import { useStore } from '../store/useStore';
 
 // Triage questions — same as backend (NICE CG95)
 const TRIAGE_QUESTIONS = [

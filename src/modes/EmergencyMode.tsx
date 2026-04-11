@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import HospitalMap from '../components/HospitalMap';
 import { api, type TriageResponse } from '../lib/api';
 import { translations } from '../lib/translations';
+import { useStore } from '../store/useStore';
 
 // Triage questions — same as backend (NICE CG95)
 const TRIAGE_QUESTIONS = [
@@ -28,7 +29,7 @@ type Step = 'triage' | 'analyzing' | 'result';
 
 export const EmergencyMode: React.FC = () => {
   const { language } = useStore();
-  const t = translations[language];
+  const t = translations[language as 'en' | 'hi'];
   const [step, setStep] = useState<Step>('triage');
   const [answers, setAnswers] = useState<Record<number, boolean>>({});
   const [triageResult, setTriageResult] = useState<TriageResponse | null>(null);

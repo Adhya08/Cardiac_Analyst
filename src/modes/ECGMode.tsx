@@ -7,7 +7,7 @@ import { useDropzone } from 'react-dropzone';
 import { useStore } from '../store/useStore';
 import {
   Upload, FileText, CheckCircle2, Zap, AlertTriangle,
-  Eye, EyeOff, RefreshCw, ChevronDown, ChevronUp, Clock, History, ExternalLink,
+  Eye, EyeOff, RefreshCw, ChevronDown, ChevronUp, Clock, ExternalLink,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type ECGResponse, type ECGCondition } from '../lib/api';
@@ -32,6 +32,7 @@ const ConditionRow: React.FC<{ cond: ECGCondition; language: 'en' | 'hi' }> = ({
   const [expanded, setExpanded] = useState(false);
   const s = SEVERITY_COLORS[cond.severity];
   const pct = Math.round(cond.probability * 100);
+  const t = translations[language as 'en' | 'hi'];
 
   if (cond.severity === 'normal' && pct < 10) {
     // Collapse low-probability normal findings
@@ -191,24 +192,70 @@ export const ECGMode: React.FC = () => {
 
       {/* ── Upload Zone (idle) ── */}
       {status === 'idle' && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          {...(getRootProps() as any)}
-          className={`glass-card p-16 border-dashed border-2 flex flex-col items-center justify-center gap-6 cursor-pointer transition-all ${isDragActive ? 'border-emerald-500 bg-emerald-500/5' : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5'} group`}
-        >
-          <input {...getInputProps()} />
-          <div className={`w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center transition-transform ${isDragActive ? 'scale-110' : 'group-hover:scale-110'}`}>
-            <Upload className="text-emerald-500 w-8 h-8" />
-          </div>
-          <div className="text-center">
-            <h3 className="text-xl font-bold">{isDragActive ? t.upload_zone_title : t.upload_zone_title}</h3>
-            <p className="text-slate-500 text-sm mt-2">{t.upload_zone_desc}</p>
-          </div>
-          <div className="flex gap-3 flex-wrap justify-center">
-            {['12-Lead ECG', 'AI Vision', 'Real Data'].map(tag => (
-              <span key={tag} className="text-[10px] font-bold py-1 px-3 bg-slate-800 rounded-full text-slate-400 uppercase tracking-widest">{tag}</span>
-            ))}
-          </div>
-        </motion.div>
+        <>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            {...(getRootProps() as any)}
+            className={`glass-card p-16 border-dashed border-2 flex flex-col items-center justify-center gap-6 cursor-pointer transition-all ${isDragActive ? 'border-emerald-500 bg-emerald-500/5' : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5'} group`}
+          >
+            <input {...getInputProps()} />
+            <div className={`w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center transition-transform ${isDragActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+              <Upload className="text-emerald-500 w-8 h-8" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-xl font-bold">{isDragActive ? t.upload_zone_title : t.upload_zone_title}</h3>
+              <p className="text-slate-500 text-sm mt-2">{t.upload_zone_desc}</p>
+            </div>
+            <div className="flex gap-3 flex-wrap justify-center">
+              {['12-Lead ECG', 'AI Vision', 'Real Data'].map(tag => (
+                <span key={tag} className="text-[10px] font-bold py-1 px-3 bg-slate-800 rounded-full text-slate-400 uppercase tracking-widest">{tag}</span>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Demo ECGs Section */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 mt-8">
+            <div className="flex items-center gap-2 text-slate-400 mb-2">
+              <Eye className="w-4 h-4" />
+              <h3 className="text-sm font-bold uppercase tracking-widest">Demo ECG Reports</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                { name: 'Normal Sinus Rhythm', file: 'normal.png', severity: 'normal' },
+                { name: 'Acute Anterior STEMI', file: 'stemi.png', severity: 'emergency' },
+                { name: 'Atrial Fibrillation', file: 'afib.png', severity: 'see_doctor_today' },
+                { name: 'Ventricular Tachycardia', file: 'vtach.png', severity: 'emergency' },
+                { name: 'Bradycardia', file: 'bradycardia.png', severity: 'see_doctor_today' },
+                { name: 'LBBB', file: 'lbbb.png', severity: 'see_doctor_today' },
+              ].map((demo, idx) => (
+                <div key={idx} className="glass-card p-4 hover:border-emerald-500/50 transition-colors group cursor-pointer flex flex-col items-center text-center gap-3"
+                     onClick={async () => {
+                        try {
+                          const response = await fetch(`/demo_ecgs/${demo.file}`);
+                          const blob = await response.blob();
+                          const file = new File([blob], demo.file, { type: 'image/png' });
+                          setFile(file);
+                          handleUpload(file);
+                        } catch (e) {
+                          console.error('Failed to load demo ECG', e);
+                        }
+                     }}>
+                  <img src={`/demo_ecgs/${demo.file}`} alt={demo.name} className="w-full h-24 object-cover rounded bg-white/5 opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <div className="w-full">
+                    <div className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase mb-2 inline-block ${
+                      demo.severity === 'emergency' ? 'bg-red-500 text-white' : 
+                      demo.severity === 'see_doctor_today' ? 'bg-amber-500 text-black' : 'bg-emerald-500 text-white'
+                    }`}>
+                      {demo.severity === 'emergency' ? 'Emergency' : demo.severity === 'see_doctor_today' ? 'Abnormal' : 'Normal'}
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-200 leading-tight">
+                      {demo.name}
+                    </h4>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </>
       )}
 
       {/* ── Recent History (Show when idle or error) ── */}

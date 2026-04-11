@@ -1,9 +1,11 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
 import { Shield, PhoneCall, Globe, LogOut } from 'lucide-react';
+import { translations } from '../lib/translations';
 
 export const Navbar: React.FC = () => {
   const { language, setLanguage, setMode, clearProfile } = useStore();
+  const t = translations[language];
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-slate-950/50 backdrop-blur-xl">
@@ -31,13 +33,13 @@ export const Navbar: React.FC = () => {
           className="btn-danger group h-10 px-6"
         >
           <PhoneCall className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-          <span className="hidden md:inline">SOS</span>
+          <span className="hidden md:inline font-black tracking-tighter ml-1">{t.sos}</span>
         </button>
 
         <button 
           onClick={clearProfile}
           className="p-2 text-slate-400 hover:text-white transition-colors"
-          title="Reset Data"
+          title={t.reset_data}
         >
           <LogOut className="w-5 h-5" />
         </button>

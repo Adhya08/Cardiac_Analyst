@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type HistoryRecord } from '../lib/api';
+import { translations } from '../lib/translations';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
   LineElement, Title, Tooltip, Legend, Filler,
@@ -23,7 +24,8 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 // Profile Setup Modal (inline)
 // ─────────────────────────────────────────────
 const ProfileSetup: React.FC<{ onSave: () => void }> = ({ onSave }) => {
-  const { setUser } = useStore();
+  const { setUser, language } = useStore();
+  const t = translations[language];
   const [form, setForm] = useState({ age: '', sex: 'Male', is_smoker: false, is_diabetic: false, has_family_history: false, height_cm: '' });
   const [saving, setSaving] = useState(false);
 
@@ -58,33 +60,33 @@ const ProfileSetup: React.FC<{ onSave: () => void }> = ({ onSave }) => {
           <User className="text-emerald-500 w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-lg font-bold">Set Up Your Profile</h3>
-          <p className="text-slate-400 text-xs">Required for accurate risk calculation</p>
+          <h3 className="text-lg font-bold">{t.setup_profile}</h3>
+          <p className="text-slate-400 text-xs">{t.required_risk}</p>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Age (years) *</label>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.age_years}</label>
           <input value={form.age} onChange={e => setForm(f => ({ ...f, age: e.target.value }))} type="number" className="input-field" placeholder="45" min={18} max={120} />
         </div>
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Biological Sex *</label>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.bio_sex}</label>
           <select value={form.sex} onChange={e => setForm(f => ({ ...f, sex: e.target.value }))} className="input-field">
-            <option>Male</option>
-            <option>Female</option>
-            <option>Other</option>
+            <option value="Male">{language === 'hi' ? 'पुरुष' : 'Male'}</option>
+            <option value="Female">{language === 'hi' ? 'महिला' : 'Female'}</option>
+            <option value="Other">{language === 'hi' ? 'अन्य' : 'Other'}</option>
           </select>
         </div>
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Height (cm, optional)</label>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.height_cm}</label>
           <input value={form.height_cm} onChange={e => setForm(f => ({ ...f, height_cm: e.target.value }))} type="number" className="input-field" placeholder="170" />
         </div>
         <div className="space-y-3 md:col-span-2 pt-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Risk Factors</label>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.risk_factors}</label>
           {[
-            { key: 'is_smoker', label: 'Current Smoker' },
-            { key: 'is_diabetic', label: 'Diabetes (diagnosed)' },
-            { key: 'has_family_history', label: 'Family History of Heart Disease' },
+            { key: 'is_smoker', label: t.smoker },
+            { key: 'is_diabetic', label: t.diabetic },
+            { key: 'has_family_history', label: t.family_history },
           ].map(({ key, label }) => (
             <label key={key} className="flex items-center gap-3 cursor-pointer group">
               <div
@@ -100,7 +102,7 @@ const ProfileSetup: React.FC<{ onSave: () => void }> = ({ onSave }) => {
       </div>
       <button onClick={handleSave} disabled={!form.age || saving} className="btn-primary w-full mt-6">
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : ''}
-        {saving ? 'Saving…' : 'Save Profile & Continue →'}
+        {saving ? t.saving : t.save_profile}
       </button>
     </motion.div>
   );
@@ -192,7 +194,8 @@ const VitalsChart: React.FC<{ history: HistoryRecord[] }> = ({ history }) => {
 // Main RoutineMode
 // ─────────────────────────────────────────────
 export const RoutineMode: React.FC = () => {
-  const { user, isProfileComplete, setMode, latestRisk, setLatestRisk, vitalsHistory, setVitalsHistory } = useStore();
+  const { user, isProfileComplete, setMode, latestRisk, setLatestRisk, vitalsHistory, setVitalsHistory, language } = useStore();
+  const t = translations[language];
   const [showForm, setShowForm] = useState(!latestRisk);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -244,8 +247,8 @@ export const RoutineMode: React.FC = () => {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <header>
-          <h2 className="text-3xl font-bold">Routine Screening</h2>
-          <p className="text-slate-400">Set up your profile to enable accurate AI risk calculation.</p>
+          <h2 className="text-3xl font-bold">{t.routine_screening}</h2>
+          <p className="text-slate-400">{t.required_risk}</p>
         </header>
         <ProfileSetup onSave={() => setShowProfile(false)} />
       </div>
@@ -260,17 +263,17 @@ export const RoutineMode: React.FC = () => {
       <div className="lg:col-span-8 space-y-8">
         <header className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold">Routine Screening</h2>
+            <h2 className="text-3xl font-bold">{t.routine_screening}</h2>
             <p className="text-slate-400 text-sm">
-              {user ? `${user.age}y ${user.sex} — Real LightGBM + Framingham risk model` : 'Log your vitals for AI risk analysis'}
+              {user ? `${user.age}y ${user.sex} — ${t.log_vitals_desc}` : t.log_vitals_desc}
             </p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setShowProfile(true)} className="btn-secondary py-2 px-3 text-xs">
-              <User className="w-3.5 h-3.5" /> Profile
+              <User className="w-3.5 h-3.5" /> {t.profile}
             </button>
             <button onClick={() => setShowForm(!showForm)} className="btn-secondary">
-              {showForm ? 'Dashboard' : <><Plus className="w-4 h-4" /> Log Vitals</>}
+              {showForm ? t.dashboard : <><Plus className="w-4 h-4" /> {t.log_vitals}</>}
             </button>
           </div>
         </header>
@@ -309,17 +312,17 @@ export const RoutineMode: React.FC = () => {
           /* ── Vitals Form ── */
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-8">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <Activity className="text-emerald-500 w-5 h-5" /> Daily Check-In
+              <Activity className="text-emerald-500 w-5 h-5" /> {t.daily_checkin}
             </h3>
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { name: 'bp_sys', label: 'Systolic BP (mmHg)', placeholder: '120', required: true },
-                { name: 'bp_dia', label: 'Diastolic BP (mmHg)', placeholder: '80', required: true },
-                { name: 'hr', label: 'Heart Rate (bpm)', placeholder: '72', required: true },
-                { name: 'weight', label: 'Weight (kg)', placeholder: '70', required: true, step: '0.1' },
-                { name: 'spo2', label: 'SpO2 (%)', placeholder: '98', required: true, step: '0.1' },
-                { name: 'glucose', label: 'Fasting Glucose (mg/dL)', placeholder: 'Optional' },
-                { name: 'cholesterol', label: 'Total Cholesterol (mg/dL)', placeholder: 'Optional' },
+                { name: 'bp_sys', label: t.bp_sys, placeholder: '120', required: true },
+                { name: 'bp_dia', label: t.bp_dia, placeholder: '80', required: true },
+                { name: 'hr', label: t.hr, placeholder: '72', required: true },
+                { name: 'weight', label: t.weight, placeholder: '70', required: true, step: '0.1' },
+                { name: 'spo2', label: t.spo2, placeholder: '98', required: true, step: '0.1' },
+                { name: 'glucose', label: t.glucose, placeholder: t.optional },
+                { name: 'cholesterol', label: t.cholesterol, placeholder: t.optional },
               ].map(f => (
                 <div key={f.name} className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{f.label}</label>
@@ -329,8 +332,8 @@ export const RoutineMode: React.FC = () => {
               <div className="md:col-span-2 pt-2">
                 <button type="submit" disabled={loading} className="btn-primary w-full shadow-emerald-500/20">
                   {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing with LightGBM…</>
-                  ) : 'Analyze Risk & Save'}
+                    <><Loader2 className="w-4 h-4 animate-spin" /> {t.analyzing_lgbm}</>
+                  ) : t.analyze_btn}
                 </button>
                 <p className="text-center text-[10px] text-slate-500 mt-3">
                   Processed server-side by LightGBM + Framingham equations · SHAP explainability
@@ -379,17 +382,17 @@ export const RoutineMode: React.FC = () => {
       {/* Right Column: Risk + SHAP */}
       <div className="lg:col-span-4 space-y-6">
         <section>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Risk Assessment</h3>
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">{t.risk_assessment}</h3>
           {risk ? (
             <>
               <RiskArc score={risk.risk_score} tier={risk.risk_tier} />
               <div className="glass-card p-4 mt-4 grid grid-cols-2 gap-3 text-center">
                 <div>
-                  <p className="text-[10px] text-slate-500 uppercase">LightGBM</p>
+                  <p className="text-[10px] text-slate-500 uppercase">{t.lightgbm_score}</p>
                   <p className="text-lg font-black text-white">{risk.lgbm_probability.toFixed(1)}%</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Framingham</p>
+                  <p className="text-[10px] text-slate-500 uppercase">{t.framingham_score}</p>
                   <p className="text-lg font-black text-white">{risk.framingham_risk.toFixed(1)}%</p>
                 </div>
               </div>
@@ -407,8 +410,8 @@ export const RoutineMode: React.FC = () => {
           <section className="glass-card p-6 space-y-5">
             <h4 className="text-sm font-bold flex items-center gap-2">
               <Info className="w-4 h-4 text-emerald-500" />
-              AI Explainability (SHAP)
-              <span className="ml-auto text-[9px] text-slate-600 font-normal">Real values</span>
+              {t.ai_explainability}
+              <span className="ml-auto text-[9px] text-slate-600 font-normal">{t.real_data}</span>
             </h4>
             <div className="space-y-4">
               {risk.shap_top5.map((f) => (

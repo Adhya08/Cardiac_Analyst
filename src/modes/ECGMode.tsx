@@ -2,12 +2,12 @@
  * ECGMode — Real ECG analysis via Gemini 2.5 Flash Vision API
  * File upload → FastAPI backend → Gemini analysis → structured 18-condition report
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useStore } from '../store/useStore';
 import {
   Upload, FileText, CheckCircle2, Zap, AlertTriangle,
-  Eye, EyeOff, RefreshCw, ChevronDown, ChevronUp,
+  Eye, EyeOff, RefreshCw, ChevronDown, ChevronUp, Clock, History, ExternalLink,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type ECGResponse, type ECGCondition } from '../lib/api';
@@ -100,6 +100,20 @@ export const ECGMode: React.FC = () => {
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
+  const [history, setHistory] = useState<any[]>([]);
+
+  const fetchHistory = async () => {
+    try {
+      const { ecg_sessions } = await api.getECGHistory();
+      setHistory(ecg_sessions);
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -139,6 +153,7 @@ export const ECGMode: React.FC = () => {
       setProgress(100);
       setResult(ecgResult);
       setStatus('done');
+      fetchHistory(); // Refresh history
 
       // Auto-switch to emergency mode if life-threatening
       if (ecgResult.urgency === 'emergency') {
@@ -187,6 +202,57 @@ export const ECGMode: React.FC = () => {
           <div className="flex gap-3 flex-wrap justify-center">
             {['12-Lead ECG', 'Gemini Vision AI', 'No Mock Data'].map(tag => (
               <span key={tag} className="text-[10px] font-bold py-1 px-3 bg-slate-800 rounded-full text-slate-400 uppercase tracking-widest">{tag}</span>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Recent History (Show when idle or error) ── */}
+      {(status === 'idle' || status === 'error') && history.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          <div className="flex items-center gap-2 text-slate-400 mb-2">
+            <Clock className="w-4 h-4" />
+            <h3 className="text-sm font-bold uppercase tracking-widest">Recent Studies</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {history.slice(0, 6).map((item) => (
+              <div key={item.ecg_id} className="glass-card p-4 hover:border-emerald-500/50 transition-colors group cursor-pointer"
+                   onClick={async () => {
+                     setStatus('analyzing');
+                     try {
+                        const full = await api.getECGAnalysis(item.ecg_id);
+                        setResult(full);
+                        setStatus('done');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                     } catch(e) { 
+                        setStatus('error'); 
+                        setErrorMsg('Failed to load study.'); 
+                     }
+                   }}>
+                <div className="flex justify-between items-start mb-3">
+                  <div className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
+                    item.urgency === 'emergency' ? 'bg-red-500 text-white' : 
+                    item.urgency === 'see_doctor_today' ? 'bg-amber-500 text-black' : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    {item.urgency.replace(/_/g, ' ')}
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {new Date(item.timestamp).toLocaleDateString()}
+                  </span>
+                </div>
+                <h4 className="text-xs font-bold text-slate-200 truncate mb-1">
+                  {item.top_condition || 'Normal Scan'}
+                </h4>
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500">Prob:</span>
+                    <span className="text-xs font-black text-emerald-400">{Math.round((item.top_condition_prob || 0) * 100)}%</span>
+                  </div>
+                  <button className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold">
+                    VIEW <ExternalLink className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         </motion.div>

@@ -1,6 +1,6 @@
 /**
- * ECGMode — Real ECG analysis via Gemini 2.5 Flash Vision API
- * File upload → FastAPI backend → Gemini analysis → structured 18-condition report
+ * ECGMode — Real ECG analysis via Advanced Vision AI
+ * File upload → FastAPI backend → AI analysis → structured 18-condition report
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
@@ -176,7 +176,7 @@ export const ECGMode: React.FC = () => {
       <header className="flex items-start justify-between">
         <div>
           <h2 className="text-3xl font-bold">ECG Diagnostic</h2>
-          <p className="text-slate-400 text-sm">18-condition AI analysis using <strong className="text-emerald-400">Gemini 2.5 Flash</strong></p>
+          <p className="text-slate-400 text-sm">18-condition analysis powered by <strong className="text-emerald-400">Advanced Vision AI</strong></p>
         </div>
         {status === 'done' && (
           <button onClick={reset} className="btn-secondary text-xs py-2">
@@ -267,10 +267,10 @@ export const ECGMode: React.FC = () => {
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-bold uppercase tracking-widest animate-pulse">
-              {status === 'uploading' ? 'Uploading ECG…' : 'Gemini AI Analysis…'}
+              {status === 'uploading' ? 'Uploading ECG…' : 'Medical AI Analysis…'}
             </h3>
             <p className="text-slate-400 text-sm">
-              {status === 'uploading' ? 'Securing transmission to backend…' : 'Gemini 2.5 Flash analysing 18 cardiac conditions…'}
+              {status === 'uploading' ? 'Securing transmission to backend…' : 'Advanced Vision AI analysing 18 cardiac conditions…'}
             </p>
           </div>
           <div className="w-72 h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -373,7 +373,7 @@ export const ECGMode: React.FC = () => {
               <div className="glass-card p-6 space-y-4">
                 <h3 className="text-sm font-bold flex items-center gap-2">
                   <FileText className="w-4 h-4 text-emerald-500" />
-                  AI Clinical Report (Gemini 2.5 Flash)
+                  AI Clinical Report (System Synthesis)
                   <span className={`ml-auto text-[9px] px-2 py-0.5 rounded-full uppercase font-bold ${result.image_quality === 'good' ? 'bg-emerald-500/20 text-emerald-400' : result.image_quality === 'fair' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>
                     Image: {result.image_quality}
                   </span>
@@ -414,7 +414,7 @@ export const ECGMode: React.FC = () => {
 
               <div className="glass-card p-4 text-center space-y-2">
                 <p className="text-[10px] text-slate-500 uppercase tracking-wider">Powered By</p>
-                <p className="text-sm font-bold text-white">Gemini 2.5 Flash</p>
+                <p className="text-sm font-bold text-white">Cardiac Analyst AI Engine</p>
                 <p className="text-[10px] text-slate-600">Real-time medical image analysis</p>
               </div>
             </div>

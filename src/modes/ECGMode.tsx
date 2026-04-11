@@ -161,7 +161,7 @@ export const ECGMode: React.FC = () => {
       <header className="flex items-start justify-between">
         <div>
           <h2 className="text-3xl font-bold">ECG Diagnostic</h2>
-          <p className="text-slate-400 text-sm">18-condition AI analysis using <strong className="text-emerald-400">Gemini 2.5 Flash Vision</strong></p>
+          <p className="text-slate-400 text-sm">18-condition AI analysis using <strong className="text-emerald-400">Gemini 2.5 Flash</strong></p>
         </div>
         {status === 'done' && (
           <button onClick={reset} className="btn-secondary text-xs py-2">
@@ -204,7 +204,7 @@ export const ECGMode: React.FC = () => {
               {status === 'uploading' ? 'Uploading ECG…' : 'Gemini AI Analysis…'}
             </h3>
             <p className="text-slate-400 text-sm">
-              {status === 'uploading' ? 'Securing transmission to backend…' : 'Gemini 2.5 Flash Vision analysing 18 cardiac conditions…'}
+              {status === 'uploading' ? 'Securing transmission to backend…' : 'Gemini 2.5 Flash analysing 18 cardiac conditions…'}
             </p>
           </div>
           <div className="w-72 h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -348,7 +348,7 @@ export const ECGMode: React.FC = () => {
 
               <div className="glass-card p-4 text-center space-y-2">
                 <p className="text-[10px] text-slate-500 uppercase tracking-wider">Powered By</p>
-                <p className="text-sm font-bold text-white">Gemini 2.5 Flash Vision</p>
+                <p className="text-sm font-bold text-white">Gemini 2.5 Flash</p>
                 <p className="text-[10px] text-slate-600">Real-time medical image analysis</p>
               </div>
             </div>

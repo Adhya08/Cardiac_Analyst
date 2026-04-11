@@ -29,18 +29,11 @@ ALLOWED_MIME_TYPES = {
 }
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB
 
-# Singleton ECG analyzer
-_ecg_analyzer: Optional[ECGAnalyzer] = None
-
-
 def get_ecg_analyzer() -> ECGAnalyzer:
-    global _ecg_analyzer
-    if _ecg_analyzer is None:
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise RuntimeError("GEMINI_API_KEY environment variable is not set.")
-        _ecg_analyzer = ECGAnalyzer(api_key=api_key)
-    return _ecg_analyzer
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY environment variable is not set.")
+    return ECGAnalyzer(api_key=api_key)
 
 
 @router.post("/upload")

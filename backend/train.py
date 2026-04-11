@@ -31,6 +31,8 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import StandardScaler
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import VotingClassifier, HistGradientBoostingClassifier
+from sklearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 import lightgbm as lgb
 import shap
@@ -49,37 +51,38 @@ COLUMNS = ["age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
 
 # High-quality mirrors for UCI Heart Disease
 DATA_SOURCES = [
-    # UCI Combined (1025 rows version) - High reliability
-    "https://raw.githubusercontent.com/ammara-shams/Heart-Disease-Prediction/master/heart.csv",
-    "https://raw.githubusercontent.com/johnshon-george/Heart-Disease-Prediction/master/heart.csv",
+    "https://raw.githubusercontent.com/Adhya08/Cardiac_Analyst/main/backend/data/heart.csv", # Project Local Mirror
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data", # Official UCI
     "https://raw.githubusercontent.com/kb22/Heart-Disease-Prediction/master/heart.csv",
-    # Statlog Heart
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/heart/heart.dat"
+    "https://raw.githubusercontent.com/johnshon-george/Heart-Disease-Prediction/master/heart.csv"
 ]
 
 def fetch_data():
     print("\n[1/6] Aggregating multi-source heart disease datasets...")
     dfs = []
     
-    for url in DATA_SOURCES[:3]: # CSV sources
+    for url in DATA_SOURCES:
         try:
-            print(f"  -> Fetching CSV from GitHub mirror...", end=" ")
+            print(f"  -> Testing source: {url.split('/')[-1]}...", end=" ")
             resp = requests.get(url, timeout=15)
             if resp.status_code == 200:
-                df = pd.read_csv(io.StringIO(resp.text))
-                # Normalize column names
+                if url.endswith('.data'):
+                    # UCI format: comma separated, no header, ? for missing
+                    df = pd.read_csv(io.StringIO(resp.text), header=None, na_values="?")
+                    df.columns = COLUMNS
+                else:
+                    df = pd.read_csv(io.StringIO(resp.text))
+                
                 df.columns = [c.lower() for c in df.columns]
-                if 'target' in df.columns:
-                    dfs.append(df)
-                    print(f"OK ({len(df)} rows)")
-                elif 'num' in df.columns:
-                    df = df.rename(columns={'num': 'target'})
+                if 'target' in df.columns or 'num' in df.columns:
+                    target_col = 'target' if 'target' in df.columns else 'num'
+                    df = df.rename(columns={target_col: 'target'})
                     dfs.append(df)
                     print(f"OK ({len(df)} rows)")
                 else:
-                    print("SKIP (No target)")
+                    print("SKIP (Missing target column)")
         except Exception as e:
-            print(f"FAILED: {e}")
+            print(f"ERROR: {e}")
 
     if not dfs:
         print("  [! ] No network data found. Using embedded 303-row Cleveland dataset.")
@@ -95,87 +98,109 @@ def fetch_data():
 
 def augment_data(X, y):
     """
-    Apply SMOTE and Gaussian Noise to create a robust synthetic augmentation.
-    This helps the model generalize better and reach higher accuracy thresholds.
+    Apply SMOTE for data balancing and synthetic generation.
     """
-    print("\n[2/6] Applying Clinical Data Augmentation...")
-    
-    # 1. SMOTE to balance and create synthetic samples
-    sm = SMOTE(sampling_strategy='auto', random_state=RANDOM_STATE)
+    print("\n[2/6] Applying Clinical Data Augmentation (SMOTE)...")
+    sm = SMOTE(random_state=RANDOM_STATE)
     X_res, y_res = sm.fit_resample(X, y)
-    
-    # 2. Add subtle Gaussian noise to synthetic samples to prevent overfitting
-    # Noise scale is 1% of the feature standard deviation
-    noise = np.random.normal(0, 0.01, X_res.shape) * np.std(X_res, axis=0)
-    X_aug = X_res + noise
-    
-    X_final = np.vstack([X, X_aug])
-    y_final = np.concatenate([y, y_res])
-    
-    print(f"  Initial size: {len(X)}")
-    print(f"  Augmented size: {len(X_final)}")
-    return X_final, y_final
+    print(f"  Balanced dataset size: {len(X_res)}")
+    return X_res, y_res
 
 def train():
     start_time = time.time()
     print("="*70)
-    print(" CARDIAC AI - PROFESSIONAL MODEL TRAINING (ACCURACY TARGET >90%)")
+    print(" CARDIAC AI - PROFESSIONAL MODEL FINE-TUNING (v2.5)")
     print("="*70)
 
-    # 1. Load
+    # 1. Load & Fetch
     df = fetch_data()
     if df is None:
-        # Emergency fallback data
-        print("  Using baseline Cleveland fallback...")
-        df = pd.DataFrame(np.random.randint(0, 100, size=(300, 14)), columns=COLUMNS) # Placeholder if total net fail
-        df['target'] = np.random.randint(0, 2, size=300)
+        print("  Generating Synthetic Clinical Dataset (UCI Distribution Sync)...")
+        np.random.seed(RANDOM_STATE)
+        n_samples = 1000
+        data = {
+            "age": np.random.normal(54, 9, n_samples),
+            "sex": np.random.choice([0, 1], size=n_samples, p=[0.32, 0.68]),
+            "cp": np.random.choice([1, 2, 3, 4], size=n_samples, p=[0.1, 0.2, 0.3, 0.4]),
+            "trestbps": np.random.normal(131, 17, n_samples),
+            "chol": np.random.normal(246, 51, n_samples),
+            "fbs": np.random.choice([0, 1], size=n_samples, p=[0.85, 0.15]),
+            "restecg": np.random.choice([0, 1, 2], size=n_samples, p=[0.49, 0.01, 0.50]),
+            "thalach": np.random.normal(149, 23, n_samples),
+            "exang": np.random.choice([0, 1], size=n_samples, p=[0.67, 0.33]),
+            "oldpeak": np.clip(np.random.exponential(1.1, n_samples), 0, 6),
+            "slope": np.random.choice([1, 2, 3], size=n_samples, p=[0.4, 0.46, 0.14]),
+            "ca": np.random.choice([0, 1, 2, 3], size=n_samples, p=[0.58, 0.21, 0.13, 0.08]),
+            "thal": np.random.choice([3, 6, 7], size=n_samples, p=[0.54, 0.06, 0.40]),
+        }
+        df = pd.DataFrame(data)
+        # Probabilistic target logic based on risk factors
+        risk_score = (
+            (df["age"] - 50) / 20 + 
+            (df["sex"] * 0.5) + 
+            (df["oldpeak"] * 0.8) + 
+            (df["ca"] * 1.2) + 
+            ((df["trestbps"] - 120) / 30)
+        )
+        df["target"] = (risk_score > 1.5).astype(int)
+        # Add some noise to labels
+        noise_idx = np.random.choice(n_samples, size=int(n_samples * 0.1), replace=False)
+        df.loc[noise_idx, "target"] = 1 - df.loc[noise_idx, "target"]
     
-    # Basic cleaning
+    # 2. Preprocessing
     df = df.fillna(df.median())
+    X = df[COLUMNS[:-1]]
+    y = df['target']
     
-    X = df.drop('target', axis=1).values
-    y = df['target'].values
-    
-    # 2. Train/Test Split
+    # 3. Stratified Split
     X_train_raw, X_test, y_train_raw, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y
+        X, y, test_size=0.15, random_state=RANDOM_STATE, stratify=y
     )
     
-    # 3. Augment Train only
+    # 4. Augment
     X_train, y_train = augment_data(X_train_raw, y_train_raw)
     
-    # 4. Training LightGBM
-    print("\n[3/6] Tuning LightGBM Hyperparameters...")
-    model = lgb.LGBMClassifier(
-        n_estimators=1500,
-        learning_rate=0.01, # Slower for better convergence
-        num_leaves=63,      # Deeper trees for complex patterns
-        max_depth=10,
-        min_child_samples=10,
+    # 5. Ensemble Architecture (Fine-Tuning)
+    print("\n[3/6] Building Fine-Tuned Ensemble (LGBM + HistGBM)...")
+    
+    lgbm = lgb.LGBMClassifier(
+        n_estimators=1000,
+        learning_rate=0.02,
+        num_leaves=31,
+        max_depth=8,
+        min_child_samples=20,
         subsample=0.8,
         colsample_bytree=0.8,
-        reg_alpha=0.1,
-        reg_lambda=0.1,
+        reg_alpha=0.5,
+        reg_lambda=0.5,
         random_state=RANDOM_STATE,
-        verbose=-1,
-        n_jobs=-1
+        verbose=-1
     )
     
-    model.fit(
-        X_train, y_train,
-        eval_set=[(X_test, y_test)],
-        callbacks=[
-            lgb.early_stopping(stopping_rounds=100),
-            lgb.log_evaluation(period=0)
-        ]
+    hgbm = HistGradientBoostingClassifier(
+        max_iter=500,
+        learning_rate=0.03,
+        max_depth=10,
+        random_state=RANDOM_STATE
     )
     
-    # 5. Calibration
-    print("\n[4/6] Calibrated Probability Scaling (Platt)...")
-    calibrated_model = CalibratedClassifierCV(model, method='sigmoid', cv=5)
-    calibrated_model.fit(X_test, y_test)
+    ensemble = VotingClassifier(
+        estimators=[('lgbm', lgbm), ('hgbm', hgbm)],
+        voting='soft'
+    )
     
-    # 6. Evaluation
+    # 6. Pipeline with Scaling
+    pipeline = Pipeline([
+        ('scaler', StandardScaler()),
+        ('model', ensemble)
+    ])
+    
+    # Calibration wrapper for reliable probabilities
+    print("\n[4/6] Calibrating Probability Curves...")
+    calibrated_model = CalibratedClassifierCV(pipeline, method='sigmoid', cv=3)
+    calibrated_model.fit(X_train, y_train)
+    
+    # 7. Metric Validation
     print("\n[5/6] Metric Validation...")
     y_pred = calibrated_model.predict(X_test)
     y_prob = calibrated_model.predict_proba(X_test)[:, 1]
@@ -183,25 +208,20 @@ def train():
     acc = accuracy_score(y_test, y_pred)
     auc = roc_auc_score(y_test, y_prob)
     
-    print(f"  Accuracy:  {acc*100:.2f}%")
-    print(f"  AUC-ROC:   {auc:.4f}")
+    print(f"  Fine-tuned Accuracy: {acc*100:.2f}%")
+    print(f"  Ensemble AUC-ROC:   {auc:.4f}")
     
-    # Cross Validation Check
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
-    cv_scores = cross_val_score(model, X, y, cv=skf)
-    print(f"  CV Accuracy Mean: {cv_scores.mean()*100:.2f}%")
-
-    # 7. SHAP
+    # 8. SHAP (Explaining the base LGBM component)
     print("\n[6/6] Building Explainability Engine...")
-    explainer = shap.TreeExplainer(model)
+    lgbm.fit(X_train, y_train) # Fit standalone for SHAP
+    explainer = shap.TreeExplainer(lgbm)
     
-    # Save
+    # Save Model Artifact
     model_data = {
         "model": calibrated_model,
         "explainer": explainer,
-        "feature_names": list(df.drop('target', axis=1).columns),
+        "feature_names": list(X.columns),
         "test_accuracy": float(acc),
-        "test_auc": float(auc),
         "trained_at": datetime.now().isoformat(),
     }
     
@@ -209,14 +229,9 @@ def train():
     joblib.dump(model_data, save_path, compress=3)
     
     print("\n" + "="*70)
-    print(f" SUCCESS: Model trained to {acc*100:.2f}% accuracy.")
-    if acc >= 0.90:
-        print(" Target ACHIEVED: Clinical Grade Model Ready.")
-    else:
-        print(" Target PENDING: Accuracy acceptable but needs more unique hospital logs.")
+    print(f" SUCCESS: Fine-tuned model reached {acc*100:.2f}% accuracy.")
     print(f" Saved: {save_path}")
     print(f" Total time: {time.time() - start_time:.1f}s")
     print("="*70 + "\n")
-
 if __name__ == "__main__":
     train()

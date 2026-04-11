@@ -1,73 +1,25 @@
-# React + TypeScript + Vite
+# ❤️ Cardiac Risk Prediction Web App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview  
+This project aims to build an intelligent, web-based platform for **early detection and real-time assessment of cardiac conditions**. The goal is to make heart health monitoring accessible, proactive, and actionable for everyone—anytime, anywhere.
 
-Currently, two official plugins are available:
+## Core Idea  
+The application acts as a **24/7 digital cardiac assistant**, helping users understand their heart health through continuous inputs and intelligent analysis. Instead of relying only on hospital visits, users can regularly assess their risk and take timely action when needed.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## What We Are Building  
 
-## React Compiler
+### 1. Routine Health Screening  
+Users can log daily health parameters (such as blood pressure, heart rate, etc.), and the system will analyze trends to estimate their cardiovascular risk over time.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2. ECG-Based Analysis  
+Users will be able to upload ECG reports, which will be analyzed to identify potential cardiac conditions and provide simple, easy-to-understand insights.
 
-## Expanding the ESLint configuration
+### 3. Emergency Detection & Support  
+In critical situations, the app will evaluate symptoms in real time and guide users with immediate actions, including identifying nearby medical help and emergency services.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Vision  
+To create a **simple yet powerful cardiac care companion** that shifts healthcare from reactive to proactive—helping people detect risks early, understand their condition, and respond quickly when it matters most.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+*This is an AI-assisted screening tool and not a substitute for professional medical advice.*

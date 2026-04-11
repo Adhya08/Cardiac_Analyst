@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import HospitalMap from '../components/HospitalMap';
 import { api, type TriageResponse } from '../lib/api';
+import { translations } from '../lib/translations';
 
 // Triage questions — same as backend (NICE CG95)
 const TRIAGE_QUESTIONS = [
@@ -26,6 +27,8 @@ const TRIAGE_QUESTIONS = [
 type Step = 'triage' | 'analyzing' | 'result';
 
 export const EmergencyMode: React.FC = () => {
+  const { language } = useStore();
+  const t = translations[language];
   const [step, setStep] = useState<Step>('triage');
   const [answers, setAnswers] = useState<Record<number, boolean>>({});
   const [triageResult, setTriageResult] = useState<TriageResponse | null>(null);
@@ -153,16 +156,16 @@ export const EmergencyMode: React.FC = () => {
                 <ShieldAlert className="text-red-500 w-8 h-8 animate-pulse" />
               </div>
               <div>
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Emergency Triage</h2>
-                <p className="text-slate-400 text-sm mt-1">Clinical assessment based on <strong>NICE CG95</strong> guidelines</p>
+                <h2 className="text-3xl font-black text-white uppercase tracking-tighter">{t.emergency_triage}</h2>
+                <p className="text-slate-400 text-sm mt-1">{t.triage_tagline}</p>
               </div>
             </header>
 
             {/* Progress */}
             <div className="space-y-2">
               <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
-                <span>Question {currentQ + 1} of {TRIAGE_QUESTIONS.length}</span>
-                <span>{Math.round(progress)}% complete</span>
+                <span>{t.question} {currentQ + 1} {t.of} {TRIAGE_QUESTIONS.length}</span>
+                <span>{Math.round(progress)}% {t.complete}</span>
               </div>
               <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                 <motion.div animate={{ width: `${progress}%` }} className="h-full bg-red-500 rounded-full" />
@@ -179,19 +182,18 @@ export const EmergencyMode: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <button onClick={() => handleAnswer(currentQ, true)}
-                    className="py-6 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-2xl tracking-widest transition-all active:scale-95 shadow-xl shadow-red-900/20">
-                    YES
+                    className="py-6 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-2xl tracking-widest transition-all active:scale-95 shadow-xl shadow-red-900/20 uppercase">
+                    {t.yes}
                   </button>
                   <button onClick={() => handleAnswer(currentQ, false)}
-                    className="py-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black text-2xl tracking-widest transition-all active:scale-95">
-                    NO
+                    className="py-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black text-2xl tracking-widest transition-all active:scale-95 uppercase">
+                    {t.no}
                   </button>
                 </div>
               </>
             ) : (
               <div className="text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mx-auto" />
-                <p className="text-slate-400 mt-3">Submitting…</p>
+                <p className="text-slate-400 mt-3">{t.submitting}</p>
               </div>
             )}
           </motion.div>
@@ -206,8 +208,8 @@ export const EmergencyMode: React.FC = () => {
               <ShieldAlert className="absolute inset-0 m-auto text-red-500 w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-bold">Assessing Situation…</h3>
-              <p className="text-slate-400 mt-2">Running clinical triage • Fetching nearby hospitals</p>
+              <h3 className="text-xl font-bold">{t.assessing_situation}</h3>
+              <p className="text-slate-400 mt-2">{t.triage_tagline}</p>
             </div>
           </motion.div>
         )}
@@ -235,12 +237,12 @@ export const EmergencyMode: React.FC = () => {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-1">
                   <h2 className="text-4xl font-black uppercase tracking-tighter">
-                    {isEmergency ? 'Emergency' : triageResult.severity === 'see_doctor' ? 'See Doctor Today' : 'Low Risk'}
+                    {isEmergency ? t.emergency : triageResult.severity === 'see_doctor' ? t.see_doctor_today : t.low_risk}
                   </h2>
                   <p className="opacity-80 font-medium">
-                    {isEmergency ? 'Potential high-risk cardiac event detected.' :
-                      triageResult.severity === 'see_doctor' ? 'Medical evaluation needed within 24 hours.' :
-                      'Symptoms appear non-emergent. Monitor closely.'}
+                    {isEmergency ? t.potential_risk :
+                      triageResult.severity === 'see_doctor' ? t.eval_needed :
+                      t.symptoms_non_emergent}
                   </p>
                   <p className="text-sm opacity-60">
                     Confidence: {(triageResult.confidence * 100).toFixed(0)}% · Risk score: {triageResult.risk_score.toFixed(0)}%
@@ -248,7 +250,7 @@ export const EmergencyMode: React.FC = () => {
                 </div>
                 {isEmergency && (
                   <a href="tel:112" className="flex items-center gap-3 bg-white text-red-600 px-8 py-4 rounded-2xl font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-xl">
-                    <PhoneCall className="w-6 h-6" /> CALL 112
+                    <PhoneCall className="w-6 h-6" /> {t.call_112}
                   </a>
                 )}
               </div>
@@ -295,7 +297,7 @@ export const EmergencyMode: React.FC = () => {
                 <div className="glass-card p-6 space-y-4">
                   <h3 className="text-sm font-bold flex items-center gap-2">
                     <Navigation className="w-4 h-4 text-emerald-500" />
-                    Nearest Hospitals
+                    {t.nearest_hospitals}
                     <span className="ml-auto text-[9px] text-slate-600 font-normal">Live data — Google Places API</span>
                   </h3>
 
@@ -356,7 +358,7 @@ export const EmergencyMode: React.FC = () => {
               <div className="md:col-span-4 space-y-4">
                 <div className="glass-card p-6 space-y-4">
                   <h3 className="text-sm font-bold flex items-center gap-2">
-                    <PhoneCall className="w-4 h-4 text-emerald-500" /> Dispatch Services
+                    <PhoneCall className="w-4 h-4 text-emerald-500" /> {t.dispatch_services}
                   </h3>
                   <div className="space-y-3">
                     {triageResult.ambulances.map((amb, i) => (
@@ -384,7 +386,7 @@ export const EmergencyMode: React.FC = () => {
                 </div>
 
                 <button onClick={reset} className="btn-secondary w-full text-xs py-3">
-                  <RefreshCw className="w-3.5 h-3.5" /> Redo Assessment
+                  <RefreshCw className="w-3.5 h-3.5" /> {t.redo_assessment}
                 </button>
               </div>
             </div>

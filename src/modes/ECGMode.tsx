@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type ECGResponse, type ECGCondition } from '../lib/api';
+import { translations } from '../lib/translations';
 
 type AnalysisStatus = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
 
@@ -94,6 +95,7 @@ const ConditionRow: React.FC<{ cond: ECGCondition; language: 'en' | 'hi' }> = ({
 // ─────────────────────────────────────────────
 export const ECGMode: React.FC = () => {
   const { user, language, setMode } = useStore();
+  const t = translations[language];
   const [status, setStatus] = useState<AnalysisStatus>('idle');
   const [result, setResult] = useState<ECGResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -175,12 +177,12 @@ export const ECGMode: React.FC = () => {
     <div className="max-w-6xl mx-auto space-y-8">
       <header className="flex items-start justify-between">
         <div>
-          <h2 className="text-3xl font-bold">ECG Diagnostic</h2>
-          <p className="text-slate-400 text-sm">18-condition analysis powered by <strong className="text-emerald-400">Advanced Vision AI</strong></p>
+          <h2 className="text-3xl font-bold">{t.ecg_diagnostic}</h2>
+          <p className="text-slate-400 text-sm">{t.ecg_tagline}</p>
         </div>
         {status === 'done' && (
           <button onClick={reset} className="btn-secondary text-xs py-2">
-            <RefreshCw className="w-3.5 h-3.5" /> New Upload
+            <RefreshCw className="w-3.5 h-3.5" /> {t.new_upload}
           </button>
         )}
       </header>
@@ -196,11 +198,11 @@ export const ECGMode: React.FC = () => {
             <Upload className="text-emerald-500 w-8 h-8" />
           </div>
           <div className="text-center">
-            <h3 className="text-xl font-bold">{isDragActive ? 'Drop your ECG here' : 'Upload ECG Study'}</h3>
-            <p className="text-slate-500 text-sm mt-2">Drag & drop or click — JPG, PNG, WebP, PDF supported</p>
+            <h3 className="text-xl font-bold">{isDragActive ? t.upload_zone_title : t.upload_zone_title}</h3>
+            <p className="text-slate-500 text-sm mt-2">{t.upload_zone_desc}</p>
           </div>
           <div className="flex gap-3 flex-wrap justify-center">
-            {['12-Lead ECG', 'Gemini Vision AI', 'No Mock Data'].map(tag => (
+            {['12-Lead ECG', 'AI Vision', 'Real Data'].map(tag => (
               <span key={tag} className="text-[10px] font-bold py-1 px-3 bg-slate-800 rounded-full text-slate-400 uppercase tracking-widest">{tag}</span>
             ))}
           </div>
@@ -212,7 +214,7 @@ export const ECGMode: React.FC = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="flex items-center gap-2 text-slate-400 mb-2">
             <Clock className="w-4 h-4" />
-            <h3 className="text-sm font-bold uppercase tracking-widest">Recent Studies</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest">{t.recent_studies}</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {history.slice(0, 6).map((item) => (
@@ -248,8 +250,8 @@ export const ECGMode: React.FC = () => {
                     <span className="text-[10px] text-slate-500">Prob:</span>
                     <span className="text-xs font-black text-emerald-400">{Math.round((item.top_condition_prob || 0) * 100)}%</span>
                   </div>
-                  <button className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold">
-                    VIEW <ExternalLink className="w-3 h-3" />
+                  <button className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold uppercase">
+                    {t.view} <ExternalLink className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -267,10 +269,10 @@ export const ECGMode: React.FC = () => {
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-bold uppercase tracking-widest animate-pulse">
-              {status === 'uploading' ? 'Uploading ECG…' : 'Medical AI Analysis…'}
+              {status === 'uploading' ? t.uploading_ecg : t.medical_ai_analysis}
             </h3>
             <p className="text-slate-400 text-sm">
-              {status === 'uploading' ? 'Securing transmission to backend…' : 'Advanced Vision AI analysing 18 cardiac conditions…'}
+              {status === 'uploading' ? 'Securing transmission to backend…' : t.analyzing_conditions}
             </p>
           </div>
           <div className="w-72 h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -285,9 +287,9 @@ export const ECGMode: React.FC = () => {
       {status === 'error' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-8 border-red-500/20 text-center space-y-4">
           <AlertTriangle className="w-12 h-12 text-red-400 mx-auto" />
-          <h3 className="text-lg font-bold text-red-300">Analysis Failed</h3>
+          <h3 className="text-lg font-bold text-red-300">{t.analysis_failed}</h3>
           <p className="text-slate-400 text-sm">{errorMsg}</p>
-          <button onClick={reset} className="btn-secondary">Try Again</button>
+          <button onClick={reset} className="btn-secondary">{t.try_again}</button>
         </motion.div>
       )}
 
@@ -316,10 +318,10 @@ export const ECGMode: React.FC = () => {
               {/* Measurements */}
               <div className="glass-card overflow-hidden">
                 <div className="p-4 border-b border-white/5 flex justify-between items-center bg-slate-900/50">
-                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">ECG Measurements</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{t.ecg_measurements}</span>
                   <button onClick={() => setShowHeatmap(!showHeatmap)}
                     className={`text-[10px] font-bold px-3 py-1 rounded-full transition-all ${showHeatmap ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                    {showHeatmap ? <><Eye className="w-3 h-3 inline mr-1" />HIGHLIGHTS ON</> : <><EyeOff className="w-3 h-3 inline mr-1" />HIGHLIGHTS OFF</>}
+                    {showHeatmap ? <><Eye className="w-3 h-3 inline mr-1" />{t.highlights_on}</> : <><EyeOff className="w-3 h-3 inline mr-1" />{t.highlights_off}</>}
                   </button>
                 </div>
                 <div className="p-6 grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -373,7 +375,7 @@ export const ECGMode: React.FC = () => {
               <div className="glass-card p-6 space-y-4">
                 <h3 className="text-sm font-bold flex items-center gap-2">
                   <FileText className="w-4 h-4 text-emerald-500" />
-                  AI Clinical Report (System Synthesis)
+                  {t.ai_clinical_report}
                   <span className={`ml-auto text-[9px] px-2 py-0.5 rounded-full uppercase font-bold ${result.image_quality === 'good' ? 'bg-emerald-500/20 text-emerald-400' : result.image_quality === 'fair' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>
                     Image: {result.image_quality}
                   </span>
@@ -382,7 +384,7 @@ export const ECGMode: React.FC = () => {
 
                 {result.recommendations.length > 0 && (
                   <div className="pt-3 border-t border-white/5">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Recommendations</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.recommendations}</p>
                     <ul className="space-y-1">
                       {result.recommendations.map((r, i) => (
                         <li key={i} className="flex gap-2 items-start text-xs text-slate-300">
@@ -403,7 +405,7 @@ export const ECGMode: React.FC = () => {
               <div className="glass-card p-5">
                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  18-Condition Classification
+                  {t.classification}
                 </h3>
                 <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                   {result.conditions.map(cond => (
@@ -413,8 +415,8 @@ export const ECGMode: React.FC = () => {
               </div>
 
               <div className="glass-card p-4 text-center space-y-2">
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Powered By</p>
-                <p className="text-sm font-bold text-white">Cardiac Analyst AI Engine</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">{t.powered_by}</p>
+                <p className="text-sm font-bold text-white">{t.ai_engine}</p>
                 <p className="text-[10px] text-slate-600">Real-time medical image analysis</p>
               </div>
             </div>

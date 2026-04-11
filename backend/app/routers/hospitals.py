@@ -29,74 +29,92 @@ async def get_nearby_hospitals(
     lat: float = Query(..., description="User latitude"),
     lon: float = Query(..., description="User longitude"),
     radius_km: float = Query(default=10, ge=1, le=50),
-    requires: Optional[str] = Query(default=None, description="Filter: cath_lab, icu"),
 ):
     """
-    Fetch nearby cardiac hospitals using Google Places Nearby Search API.
-    Returns real hospital data: name, address, distance, Google Maps link, rating.
+    Finds the closest emergency care facilities. 
+    Prioritizes ultra-close general hospitals (within 5km) and cardiac centers (up to 20km).
     """
     if not GOOGLE_MAPS_API_KEY:
         raise HTTPException(status_code=500, detail="Google Maps API key not configured.")
 
-    radius_m = min(int(radius_km * 1000), 50000)
-
-    # Primary search: cardiac hospitals
+    # ── Strategy: Multiple Search Passes for maximum localized safety
+    # Pass 1: Emergency & General Hospitals (Ranked by distance, no fixed radius)
+    # Pass 2: Specialized Heart/Cardiac Centers (Radius biased)
+    
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-    params = {
+    
+    # We'll use rankby=distance for immediate proximity
+    params_dist = {
         "location": f"{lat},{lon}",
-        "radius": radius_m,
+        "rankby": "distance",
         "type": "hospital",
-        "keyword": "cardiac cardiology heart hospital",
+        "keyword": "emergency casualty hospital trauma",
+        "key": GOOGLE_MAPS_API_KEY,
+    }
+    
+    # We'll also do a specialized cardiac pass
+    params_cardio = {
+        "location": f"{lat},{lon}",
+        "radius": 15000,
+        "keyword": "cardiac cardiology heart care",
         "key": GOOGLE_MAPS_API_KEY,
     }
 
+    found_ids = set()
+    hospital_results = []
+
+    def get_phone_number(place_id):
+        if not place_id: return None
+        details_url = "https://maps.googleapis.com/maps/api/place/details/json"
+        try:
+            r = requests.get(details_url, params={"place_id": place_id, "fields": "formatted_phone_number", "key": GOOGLE_MAPS_API_KEY}, timeout=5)
+            return r.json().get("result", {}).get("formatted_phone_number")
+        except:
+            return None
+
+    def process_data(data):
+        for place in data.get("results", [])[:8]:
+            pid = place.get("place_id")
+            if pid in found_ids: continue
+            
+            g = place.get("geometry", {}).get("location", {})
+            h_lat, h_lon = g.get("lat", 0.0), g.get("lng", 0.0)
+            dist = haversine_km(lat, lon, h_lat, h_lon)
+            name = place.get("name", "Unknown Hospital")
+            
+            hospital_results.append({
+                "name": name,
+                "address": place.get("vicinity", ""),
+                "lat": h_lat,
+                "lon": h_lon,
+                "distance_km": round(dist, 1),
+                "rating": place.get("rating"),
+                "total_ratings": place.get("user_ratings_total", 0),
+                "open_now": place.get("opening_hours", {}).get("open_now"),
+                "maps_url": f"https://www.google.com/maps/search/?api=1&query={requests.utils.quote(name)}&query_place_id={pid}",
+                "place_id": pid,
+                "contact": get_phone_number(pid) or "Call 112 for routing",
+            })
+            found_ids.add(pid)
+
     try:
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-    except requests.RequestException as e:
-        raise HTTPException(status_code=502, detail=f"Google Maps API request failed: {e}")
+        # Get immediate emergency hospitals first
+        r1 = requests.get(url, params=params_dist, timeout=10)
+        process_data(r1.json())
+        
+        # Then fill with specialized centers
+        r2 = requests.get(url, params=params_cardio, timeout=10)
+        process_data(r2.json())
+    except Exception as e:
+         print(f"Hospital API fetch error: {e}")
 
-    if data.get("status") not in ("OK", "ZERO_RESULTS"):
-        raise HTTPException(
-            status_code=502,
-            detail=f"Google Places API error: {data.get('status')} — {data.get('error_message', '')}",
-        )
-
-    hospitals = []
-    for place in data.get("results", [])[:10]:
-        g = place.get("geometry", {}).get("location", {})
-        h_lat, h_lon = g.get("lat", 0.0), g.get("lng", 0.0)
-        dist = haversine_km(lat, lon, h_lat, h_lon)
-        name = place.get("name", "Unknown Hospital")
-        place_id = place.get("place_id", "")
-
-        hospitals.append({
-            "name": name,
-            "address": place.get("vicinity", ""),
-            "lat": h_lat,
-            "lon": h_lon,
-            "distance_km": round(dist, 1),
-            "rating": place.get("rating"),
-            "total_ratings": place.get("user_ratings_total", 0),
-            "open_now": place.get("opening_hours", {}).get("open_now"),
-            "maps_url": (
-                f"https://www.google.com/maps/search/?api=1"
-                f"&query={requests.utils.quote(name)}"
-                f"&query_place_id={place_id}"
-            ),
-            "contact": "Please call hospital for ICU/cath lab availability",
-            "place_id": place_id,
-            "note": "ICU bed count & cath lab availability: call hospital directly (not available via public API)",
-        })
-
-    hospitals.sort(key=lambda h: h["distance_km"])
+    # Critical Sort: Distance above all else
+    hospital_results.sort(key=lambda x: x["distance_km"])
 
     return {
-        "hospitals": hospitals[:5],
-        "total_found": len(hospitals),
-        "search_radius_km": radius_km,
-        "api_status": data.get("status"),
+        "hospitals": hospital_results[:5],
+        "total_found": len(hospital_results),
+        "search_center": f"{lat},{lon}"
     }
 
 

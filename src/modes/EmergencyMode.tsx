@@ -309,7 +309,7 @@ export const EmergencyMode: React.FC = () => {
                     <div className="space-y-3">
                       {triageResult.hospitals.map((h, i) => (
                         <div key={h.place_id || i}
-                          className="p-4 bg-slate-900 rounded-2xl border border-white/5 flex justify-between items-center hover:bg-slate-800 transition-all group">
+                          className="p-4 bg-slate-900 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-slate-800 transition-all group">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0">{i + 1}</span>
@@ -321,14 +321,26 @@ export const EmergencyMode: React.FC = () => {
                               {h.open_now === true && <span className="text-emerald-500">● Open</span>}
                               {h.open_now === false && <span className="text-red-500">● Closed</span>}
                             </div>
+                            <div className="flex items-center gap-2 pl-7 mt-1">
+                              <PhoneCall className="w-3 h-3 text-emerald-500" />
+                              <span className="text-xs font-black text-emerald-500 tracking-tighter">{h.contact || 'No number found'}</span>
+                            </div>
                             {h.address && (
                               <p className="text-[10px] text-slate-600 pl-7">{h.address}</p>
                             )}
                           </div>
-                          <a href={h.maps_url} target="_blank" rel="noopener noreferrer"
-                            className="p-2 bg-slate-800 rounded-xl hover:bg-emerald-500 hover:text-white transition-all text-slate-400">
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            {h.contact && h.contact !== 'Call 112 for routing' && (
+                              <a href={`tel:${h.contact.replace(/\D/g, '')}`}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500 transition-all">
+                                <PhoneCall className="w-3.5 h-3.5" /> CALL
+                              </a>
+                            )}
+                            <a href={h.maps_url} target="_blank" rel="noopener noreferrer"
+                              className="p-2 bg-slate-800 rounded-xl hover:bg-blue-500 hover:text-white transition-all text-slate-400">
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </div>
                         </div>
                       ))}
                     </div>

@@ -6,10 +6,6 @@ export const translations = {
     emergency: "Emergency",
     sos: "SOS",
     reset_data: "Reset Data",
-    see_doctor_badge: "SEE DOCTOR TODAY",
-    routine_badge: "ROUTINE",
-    emergency_badge: "EMERGENCY",
-    prob_label: "Prob:",
     
     // Routine Mode
     routine_screening: "Routine Screening",
@@ -71,7 +67,6 @@ export const translations = {
     no: "NO",
     submitting: "Submitting...",
     assessing_situation: "Assessing Situation...",
-    emergency: "Emergency",
     see_doctor_today: "See Doctor Today",
     low_risk: "Low Risk",
     potential_risk: "Potential high-risk cardiac event detected.",
@@ -98,26 +93,6 @@ export const translations = {
     family_history: "Family History of Heart Disease",
     save_profile: "Save Profile & Continue →",
     saving: "Saving...",
-    conditions: {
-      "Normal Sinus Rhythm": "Normal Sinus Rhythm",
-      "Atrial Fibrillation": "Atrial Fibrillation",
-      "Atrial Flutter": "Atrial Flutter",
-      "STEMI": "STEMI (Heart Attack)",
-      "NSTEMI": "NSTEMI",
-      "Ventricular Tachycardia": "Ventricular Tachycardia",
-      "Heart Failure (LVH)": "Heart Failure (LVH)",
-      "Long QT Syndrome": "Long QT Syndrome",
-      "WPW Syndrome": "WPW Syndrome",
-      "Pericarditis": "Pericarditis",
-      "LBBB": "LBBB",
-      "RBBB": "RBBB",
-      "AV Block": "AV Block",
-      "Takotsubo Cardiomyopathy": "Takotsubo Cardiomyopathy",
-      "Hyperkalemia": "Hyperkalemia",
-      "Myocarditis": "Myocarditis",
-      "Sinus Bradycardia": "Sinus Bradycardia",
-      "Sinus Tachycardia": "Sinus Tachycardia",
-    }
   },
   hi: {
     // Navbar
@@ -126,10 +101,6 @@ export const translations = {
     emergency: "आपातकालीन",
     sos: "SOS",
     reset_data: "डेटा रीसेट करें",
-    see_doctor_badge: "आज ही डॉक्टर से मिलें",
-    routine_badge: "नियमित",
-    emergency_badge: "आपातकालीन",
-    prob_label: "संभावना:",
 
     // Routine Mode
     routine_screening: "नियमित स्क्रीनिंग",
@@ -191,7 +162,6 @@ export const translations = {
     no: "नहीं",
     submitting: "सबमिट हो रहा है...",
     assessing_situation: "स्थिति का आकलन जारी है...",
-    emergency: "आपातकालीन",
     see_doctor_today: "आज ही डॉक्टर से मिलें",
     low_risk: "कम जोखिम",
     potential_risk: "उच्च जोखिम वाली हृदय घटना का पता चला।",
@@ -218,25 +188,5 @@ export const translations = {
     family_history: "हृदय रोग का पारिवारिक इतिहास",
     save_profile: "प्रोफ़ाइल सहेजें और आगे बढ़ें →",
     saving: "सहेज रहा है...",
-    conditions: {
-      "Normal Sinus Rhythm": "सामान्य साइनस रिदम",
-      "Atrial Fibrillation": "एट्रियल फाइब्रिलेशन",
-      "Atrial Flutter": "एट्रियल फ्लटर",
-      "STEMI": "STEMI (हार्ट अटैक)",
-      "NSTEMI": "NSTEMI",
-      "Ventricular Tachycardia": "वेंट्रिकुलर टैचीकार्डिया",
-      "Heart Failure (LVH)": "हार्ट फेल्योर (LVH)",
-      "Long QT Syndrome": "लॉन्ग QT सिंड्रोम",
-      "WPW Syndrome": "WPW सिंड्रोम",
-      "Pericarditis": "पेरिकार्डिटिस",
-      "LBBB": "LBBB",
-      "RBBB": "RBBB",
-      "AV Block": "AV ब्लॉक",
-      "Takotsubo Cardiomyopathy": "टाकोटसुबो कार्डियोमायोपैथी",
-      "Hyperkalemia": "हाइपरकलेमिया",
-      "Myocarditis": "मायोकार्डिटिस",
-      "Sinus Bradycardia": "साइनस ब्रेडिकार्डिया",
-      "Sinus Tachycardia": "साइनस टैचीकार्डिया",
-    }
   }
 };

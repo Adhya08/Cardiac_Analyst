@@ -85,7 +85,7 @@ async def get_questions():
 
 
 @router.post("/triage")
-async def submit_triage(
+def submit_triage(
     data: TriageIn,
     db: Session = Depends(get_db),
 ):

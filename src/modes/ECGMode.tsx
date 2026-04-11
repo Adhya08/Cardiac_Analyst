@@ -202,7 +202,7 @@ export const ECGMode: React.FC = () => {
             <p className="text-slate-500 text-sm mt-2">{t.upload_zone_desc}</p>
           </div>
           <div className="flex gap-3 flex-wrap justify-center">
-            {['12-Lead ECG', 'AI Vision', 'Real Data'].map(tag => (
+            {['45+ Conditions', 'AI Vision', 'Real Data'].map(tag => (
               <span key={tag} className="text-[10px] font-bold py-1 px-3 bg-slate-800 rounded-full text-slate-400 uppercase tracking-widest">{tag}</span>
             ))}
           </div>
@@ -344,15 +344,68 @@ export const ECGMode: React.FC = () => {
                   ))}
                 </div>
 
-                {/* GradCAM highlights */}
-                {showHeatmap && result.gradcam_highlights.length > 0 && (
-                  <div className="p-4 bg-slate-900/40 border-t border-white/5">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">AI Attention Highlights (GradCAM)</p>
-                    <div className="flex flex-wrap gap-2">
-                      {result.gradcam_highlights.map((h, i) => (
-                        <span key={i} className={`text-[10px] px-2 py-1 rounded-lg font-medium ${h.severity === 'critical' ? 'bg-red-500/20 text-red-400' : h.severity === 'abnormal' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-400'}`}>
-                          {h.lead}: {h.finding}
-                        </span>
+                {/* Explainability Heatmap (12-Lead Grid visualization) */}
+                {showHeatmap && result.gradcam_highlights && result.gradcam_highlights.length > 0 && (
+                  <div className="p-5 bg-slate-900/40 border-t border-white/5">
+                    <div className="mb-4">
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-emerald-500" /> Explainability Heatmaps
+                      </h4>
+                      <p className="text-[10px] text-slate-500">Visualizing AI attention across the 12-lead grid.</p>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {/* Standard 4x3 12-lead layout */}
+                      {[
+                        ['I', 'aVR', 'V1', 'V4'],
+                        ['II', 'aVL', 'V2', 'V5'],
+                        ['III', 'aVF', 'V3', 'V6']
+                      ].map((row, rIdx) => (
+                        <React.Fragment key={rIdx}>
+                          {row.map(leadName => {
+                            const highlight = result.gradcam_highlights.find(h => h.lead.toUpperCase().includes(leadName.toUpperCase()));
+                            let bgClass = 'bg-slate-800/50 hover:bg-slate-800';
+                            let borderClass = 'border-slate-700/50';
+                            let glow = '';
+                            
+                            if (highlight) {
+                              if (highlight.severity === 'critical') {
+                                bgClass = 'bg-red-500/10 hover:bg-red-500/20';
+                                borderClass = 'border-red-500/50';
+                                glow = 'shadow-[inset_0_0_15px_rgba(239,68,68,0.2)]';
+                              } else if (highlight.severity === 'abnormal') {
+                                bgClass = 'bg-amber-500/10 hover:bg-amber-500/20';
+                                borderClass = 'border-amber-500/50';
+                                glow = 'shadow-[inset_0_0_15px_rgba(245,158,11,0.2)]';
+                              } else {
+                                bgClass = 'bg-blue-500/10 hover:bg-blue-500/20';
+                                borderClass = 'border-blue-500/50';
+                                glow = 'shadow-[inset_0_0_15px_rgba(59,130,246,0.2)]';
+                              }
+                            }
+                            
+                            return (
+                              <div key={leadName} className={`relative p-2 rounded-lg border transition-all duration-300 min-h-[60px] flex flex-col justify-between overflow-hidden ${bgClass} ${borderClass} ${glow}`}>
+                                <span className="text-[10px] font-bold text-slate-400 z-10">{leadName}</span>
+                                {highlight ? (
+                                  <div className="z-10 mt-1">
+                                    <p className={`text-[9px] font-semibold leading-tight ${highlight.severity === 'critical' ? 'text-red-300' : highlight.severity === 'abnormal' ? 'text-amber-300' : 'text-blue-300'}`}>
+                                      {highlight.finding}
+                                    </p>
+                                  </div>
+                                ) : null}
+                                {/* Heatmap overlay effect */}
+                                {highlight && (
+                                  <motion.div 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 0.6 }}
+                                    transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse" }}
+                                    className={`absolute inset-0 bg-gradient-to-t ${highlight.severity === 'critical' ? 'from-red-500/20' : highlight.severity === 'abnormal' ? 'from-amber-500/20' : 'from-blue-500/20'} to-transparent z-0 blur-md`} 
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </React.Fragment>
                       ))}
                     </div>
                   </div>

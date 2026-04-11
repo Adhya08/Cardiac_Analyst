@@ -3,7 +3,7 @@ ECG Analyzer — Real ECG analysis using Google Gemini Vision API (gemini-2.5-fl
 Migrated from deprecated google-generativeai to google-genai (google.genai).
 
 Supports: JPG, PNG, PDF ECG formats.
-Returns: 18-condition multi-label classification, measurements, urgency level,
+Returns: 45-condition multi-label classification, measurements, urgency level,
          plain-language patient explanation (English + Hindi), GradCAM-style highlights.
 """
 import io
@@ -16,26 +16,21 @@ from google.genai import types
 from PIL import Image
 
 
-# ── 18-condition cardiac condition list (as per PRD v2.0)
+# ── 45-condition cardiac condition list (as per PRD v2.0)
 CONDITION_LIST = [
-    "Normal Sinus Rhythm",
-    "Atrial Fibrillation",
-    "Atrial Flutter",
-    "STEMI",
-    "NSTEMI",
-    "Ventricular Tachycardia",
-    "Heart Failure (LVH)",
-    "Long QT Syndrome",
-    "WPW Syndrome",
-    "Pericarditis",
-    "LBBB",
-    "RBBB",
-    "AV Block",
-    "Takotsubo Cardiomyopathy",
-    "Hyperkalemia",
-    "Myocarditis",
-    "Sinus Bradycardia",
-    "Sinus Tachycardia",
+    "Normal Sinus Rhythm", "Atrial Fibrillation", "Atrial Flutter", "STEMI", "NSTEMI",
+    "Ventricular Tachycardia", "Heart Failure (LVH)", "Long QT Syndrome", "WPW Syndrome",
+    "Pericarditis", "LBBB", "RBBB", "AV Block", "Takotsubo Cardiomyopathy", "Hyperkalemia",
+    "Myocarditis", "Sinus Bradycardia", "Sinus Tachycardia", "Brugada Syndrome",
+    "Early Repolarization", "First-Degree AV Block", "Second-Degree AV Block Mobitz I (Wenckebach)",
+    "Second-Degree AV Block Mobitz II", "Third-Degree AV Block", "Supraventricular Tachycardia (SVT)",
+    "Premature Ventricular Contractions (PVCs)", "Premature Atrial Contractions (PACs)",
+    "Ventricular Fibrillation", "Torsades de Pointes", "Right Ventricular Hypertrophy (RVH)",
+    "Left Anterior Fascicular Block (LAFB)", "Left Posterior Fascicular Block (LPFB)",
+    "Bifascicular Block", "Trifascicular Block", "Hypokalemia", "Hypercalcemia", "Hypocalcemia",
+    "Digoxin Toxicity", "Pulmonary Embolism (S1Q3T3)", "Left Atrial Enlargement",
+    "Right Atrial Enlargement", "Wandering Atrial Pacemaker", "Multifocal Atrial Tachycardia (MAT)",
+    "Junctional Rhythm", "Accelerated Idioventricular Rhythm"
 ]
 
 
@@ -142,7 +137,7 @@ ANALYSIS INSTRUCTIONS:
 11. Hyperkalemia: peaked narrow T-waves, widened QRS, sine-wave pattern
 12. Takotsubo: anterior T-wave inversions, prolonged QTc, no coronary obstruction pattern
 13. Pericarditis: diffuse saddle-shaped ST elevation, PR depression in multiple leads
-14. Assess all 18 conditions: {condition_csv}
+14. Assess all 45 conditions: {condition_csv}
 15. If image quality is poor or leads are indistinguishable, clearly state limitations.
 16. Give priority to detecting artifacts or excessive baseline wander that could mimic pathology.
 
@@ -181,7 +176,7 @@ Return ONLY valid JSON with this exact structure:
 CRITICAL RULES:
 - If STEMI detected (ST elevation ≥1mm in ≥2 contiguous leads): urgency = "emergency", severity = "detected"
 - If Ventricular Tachycardia (wide complex, rate >100 bpm): urgency = "emergency"
-- All 18 conditions MUST appear in conditions array (even if probability = 0.01 and severity = "normal")
+- All 45 conditions MUST appear in conditions array (even if probability = 0.01 and severity = "normal")
 - Use probability 0.0-1.0 as decimal (NOT percentage)
 - If image is not an ECG or unreadable, set image_quality = "poor" and explain
 - severity thresholds: probability > 0.85 → "detected", 0.50-0.85 → "possible", <0.50 → "normal"
@@ -206,7 +201,7 @@ CRITICAL RULES:
             else:
                 return self._fallback_response("No JSON found in AI response.")
 
-        # Ensure all 18 conditions are present
+        # Ensure all 45 conditions are present
         existing = {c.get("name", "") for c in result.get("conditions", [])}
         for cond in CONDITION_LIST:
             if cond not in existing:

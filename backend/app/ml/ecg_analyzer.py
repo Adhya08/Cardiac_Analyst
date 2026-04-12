@@ -44,7 +44,7 @@ class ECGAnalyzer:
         if not api_key:
             raise ValueError("GEMINI_API_KEY must be set.")
         self.client = genai.Client(api_key=api_key)
-        self.model_name = "gemini-2.5-flash"
+        self.model_name = "gemini-2.5-pro"
 
     # ─────────────────────────────────────────────────────────
     # Public API
@@ -176,7 +176,7 @@ Return ONLY valid JSON with this exact structure:
 CRITICAL RULES:
 - If STEMI detected (ST elevation ≥1mm in ≥2 contiguous leads): urgency = "emergency", severity = "detected"
 - If Ventricular Tachycardia (wide complex, rate >100 bpm): urgency = "emergency"
-- All 45 conditions MUST appear in conditions array (even if probability = 0.01 and severity = "normal")
+- Only output conditions where probability > 0.10 or severity is "possible"/"detected". The backend will auto-pad the rest.
 - Use probability 0.0-1.0 as decimal (NOT percentage)
 - If image is not an ECG or unreadable, set image_quality = "poor" and explain
 - severity thresholds: probability > 0.85 → "detected", 0.50-0.85 → "possible", <0.50 → "normal"

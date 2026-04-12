@@ -55,7 +55,7 @@ Hospital map + ambulance routing + family guardian alert
 | F02 | Routine Risk Score | LightGBM computes 10-year ASCVD-aligned risk: Low / Borderline / Elevated |
 | F03 | SHAP Explainability Dashboard | Interactive bar chart — *"Your BP contributed 34% to this score"* |
 | F04 | ECG Escalation Trigger | Banner appears at risk >15% prompting ECG upload |
-| F13 | Longitudinal Trend Alerts | Web Push notification if BP rises >10 mmHg 3 weeks in a row |
+| F05 | Longitudinal Trend Alerts | Web Push notification if BP rises >10 mmHg 3 weeks in a row |
 
 ### Mode 2 — ECG-Enhanced Diagnosis
 | # | Feature | Description |
@@ -64,17 +64,17 @@ Hospital map + ambulance routing + family guardian alert
 | F06 | AI ECG Diagnosis | 15-disease multi-label classification via SE-ResNet + Transformer ensemble |
 | F07 | GradCAM Heatmap | Colored SVG overlay on ECG — shows exactly which leads triggered each diagnosis |
 | F08 | Plain-Language Report | Claude API generates 3–5 sentence patient-friendly explanation; English + Hindi |
-| F14 | ECG History Archive | Timeline of past ECG sessions with side-by-side comparison |
-| F19 | PDF Report Export | One-click branded PDF with ECG image, GradCAM, SHAP chart, AI text |
-| F20 | Bulk Clinic Upload | Up to 50 ECGs; results as downloadable CSV + per-patient reports |
+| F9 | ECG History Archive | Timeline of past ECG sessions with side-by-side comparison |
+| F10 | PDF Report Export | One-click branded PDF with ECG image, GradCAM, SHAP chart, AI text |
+| F11 | Bulk Clinic Upload | Up to 50 ECGs; results as downloadable CSV + per-patient reports |
 
 ### Mode 3 — Emergency Triage
 | # | Feature | Description |
 |---|---------|-------------|
-| F09 | Symptom Triage | 8 Yes/No questions → Rule engine + ML classifies severity |
-| F10 | One-Tap SOS | Persistent red button on every page; triggers tel:112, shares GPS, opens hospital map |
-| F12 | Ambulance Routing | Lists 112, 108, and private services with tel: links and GPS ETA |
-| F16 | Offline Emergency Cache | Service Worker caches hospital list + SOS page — works without internet |
+| F12 | Symptom Triage | 8 Yes/No questions → Rule engine + ML classifies severity |
+| F13 | One-Tap SOS | Persistent red button on every page; triggers tel:112, shares GPS, opens hospital map |
+| F14 | Ambulance Routing | Lists 112, 108, and private services with tel: links and GPS ETA |
+| F15 | Offline Emergency Cache | Service Worker caches hospital list + SOS page — works without internet |
 
 ### Cross-Cutting
 - 🌐 PWA installable on Android and iOS Safari (Add to Home Screen)

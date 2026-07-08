@@ -31,7 +31,7 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import StandardScaler
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.ensemble import VotingClassifier, HistGradientBoostingClassifier
+from sklearn.ensemble import VotingClassifier, HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 import lightgbm as lgb
@@ -49,10 +49,15 @@ DATA_DIR.mkdir(exist_ok=True)
 COLUMNS = ["age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
            "thalach", "exang", "oldpeak", "slope", "ca", "thal", "target"]
 
-# High-quality mirrors for UCI Heart Disease
+# High-quality mirrors and official UCI sources for Heart Disease
 DATA_SOURCES = [
     "https://raw.githubusercontent.com/Adhya08/Cardiac_Analyst/main/backend/data/heart.csv", # Project Local Mirror
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data", # Official UCI
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data", # Official Cleveland
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.hungarian.data", # Hungarian
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.switzerland.data", # Swiss
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.va.data", # VA Long Beach
+    "https://raw.githubusercontent.com/mrdbourke/zero-to-mastery-ml/master/data/heart-disease.csv", # ZTM tutorial mirror
+    "https://raw.githubusercontent.com/sharmaroshan/Heart-UCI-Dataset/master/heart.csv",
     "https://raw.githubusercontent.com/kb22/Heart-Disease-Prediction/master/heart.csv",
     "https://raw.githubusercontent.com/johnshon-george/Heart-Disease-Prediction/master/heart.csv"
 ]
@@ -67,11 +72,11 @@ def fetch_data():
             resp = requests.get(url, timeout=15)
             if resp.status_code == 200:
                 if url.endswith('.data'):
-                    # UCI format: comma separated, no header, ? for missing
-                    df = pd.read_csv(io.StringIO(resp.text), header=None, na_values="?")
+                    # UCI format: comma separated, no header, ?/-9 for missing
+                    df = pd.read_csv(io.StringIO(resp.text), header=None, na_values=["?", "-9", "-9.0"])
                     df.columns = COLUMNS
                 else:
-                    df = pd.read_csv(io.StringIO(resp.text))
+                    df = pd.read_csv(io.StringIO(resp.text), na_values=["?", "-9", "-9.0"])
                 
                 df.columns = [c.lower() for c in df.columns]
                 if 'target' in df.columns or 'num' in df.columns:
@@ -161,31 +166,39 @@ def train():
     X_train, y_train = augment_data(X_train_raw, y_train_raw)
     
     # 5. Ensemble Architecture (Fine-Tuning)
-    print("\n[3/6] Building Fine-Tuned Ensemble (LGBM + HistGBM)...")
+    print("\n[3/6] Building Fine-Tuned Ensemble (LGBM + HistGBM + RF)...")
     
     lgbm = lgb.LGBMClassifier(
-        n_estimators=1000,
-        learning_rate=0.02,
+        n_estimators=1200,
+        learning_rate=0.015,
         num_leaves=31,
         max_depth=8,
-        min_child_samples=20,
+        min_child_samples=15,
         subsample=0.8,
         colsample_bytree=0.8,
-        reg_alpha=0.5,
-        reg_lambda=0.5,
+        reg_alpha=0.7,
+        reg_lambda=0.7,
         random_state=RANDOM_STATE,
         verbose=-1
     )
     
     hgbm = HistGradientBoostingClassifier(
-        max_iter=500,
-        learning_rate=0.03,
+        max_iter=600,
+        learning_rate=0.02,
         max_depth=10,
+        random_state=RANDOM_STATE
+    )
+
+    rf = RandomForestClassifier(
+        n_estimators=600,
+        max_depth=12,
+        min_samples_split=4,
+        min_samples_leaf=2,
         random_state=RANDOM_STATE
     )
     
     ensemble = VotingClassifier(
-        estimators=[('lgbm', lgbm), ('hgbm', hgbm)],
+        estimators=[('lgbm', lgbm), ('hgbm', hgbm), ('rf', rf)],
         voting='soft'
     )
     

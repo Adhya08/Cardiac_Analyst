@@ -9,7 +9,9 @@ Returns: 45-condition multi-label classification, measurements, urgency level,
 import io
 import json
 import re
+import os
 import base64
+import requests
 from typing import Optional
 from google import genai
 from google.genai import types
@@ -153,13 +155,12 @@ Return ONLY valid JSON with this exact structure:
   "st_depression_leads": ["<lead names>"],
   "conditions": [
     {{
-      "name": "<exact name from the 18 conditions list>",
+      "name": "<exact name from the 45 conditions list>",
       "probability": <float 0.0-1.0>,
       "severity": "<normal|possible|detected>",
       "leads_affected": ["<lead names>"],
       "key_finding": "<specific ECG feature that triggered this>",
-      "explanation_en": "<2-3 sentence patient-friendly English explanation>",
-      "explanation_hi": "<same in Hindi>"
+      "explanation_en": "<2-3 sentence patient-friendly English explanation>"
     }}
   ],
   "gradcam_highlights": [
@@ -212,7 +213,6 @@ CRITICAL RULES:
                     "leads_affected": [],
                     "key_finding": "No abnormalities detected for this condition.",
                     "explanation_en": f"No signs of {cond} were identified on this ECG.",
-                    "explanation_hi": f"इस ECG पर {cond} के कोई संकेत नहीं पाए गए।",
                 })
 
         # Enforce severity thresholds
@@ -227,6 +227,44 @@ CRITICAL RULES:
 
         # Sort conditions: detected first, then possible, then normal (by probability)
         result["conditions"].sort(key=lambda c: -float(c.get("probability", 0)))
+
+        # Translate explanations to Hindi using Sarvam AI
+        sarvam_api_key = os.getenv("SARVAM_API_KEY")
+        for cond in result.get("conditions", []):
+            eng_text = cond.get("explanation_en", "")
+            if eng_text and sarvam_api_key:
+                try:
+                    res = requests.post(
+                        "https://api.sarvam.ai/translate",
+                        headers={
+                            "api-subscription-key": sarvam_api_key,
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "input": eng_text,
+                            "source_language_code": "en-IN",
+                            "target_language_code": "hi-IN",
+                            "speaker_gender": "Male",
+                            "mode": "formal",
+                            "model": "sarvam-translate:v1",
+                            "enable_preprocessing": True
+                        },
+                        timeout=5
+                    )
+                    if res.status_code == 200:
+                        # Assuming the API returns {"translated_text": "..."}
+                        # We'll safely check for it
+                        data = res.json()
+                        cond["explanation_hi"] = data.get("translated_text", "")
+                    else:
+                        cond["explanation_hi"] = f"[Translation API Error: {res.status_code}]"
+                except Exception as e:
+                    cond["explanation_hi"] = f"[Translation Error: {e}]"
+            else:
+                if not sarvam_api_key:
+                    cond["explanation_hi"] = "[SARVAM_API_KEY missing]"
+                else:
+                    cond["explanation_hi"] = ""
 
         # Ensure emergency upgrade for life-threatening conditions
         for cond in result.get("conditions", []):

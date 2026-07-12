@@ -24,6 +24,9 @@ scipy>=1.14.0
 # Google AI - Gemini
 google-genai>=1.0.0
 
+# Sarvam AI
+sarvamai>=0.1.0
+
 # HTTP Requests (for Google Maps API)
 requests>=2.32.3
 httpx>=0.28.0

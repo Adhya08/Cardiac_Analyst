@@ -158,10 +158,11 @@ export const ECGMode: React.FC = () => {
       setStatus('done');
       fetchHistory(); // Refresh history
 
-      // Auto-switch to emergency mode if life-threatening
-      if (ecgResult.urgency === 'emergency') {
-        setTimeout(() => setMode('emergency'), 3000);
-      }
+      // Wait for complete
+      setProgress(100);
+      setResult(ecgResult);
+      setStatus('done');
+      fetchHistory(); // Refresh history
     } catch (err: any) {
       setStatus('error');
       setErrorMsg(err.message || 'ECG analysis failed. Make sure the backend is running.');
@@ -170,6 +171,51 @@ export const ECGMode: React.FC = () => {
   };
 
   const reset = () => { setStatus('idle'); setResult(null); setFile(null); setProgress(0); setErrorMsg(''); };
+
+  const runDemoScan = async (filename: string, displayName: string) => {
+    try {
+      setStatus('uploading');
+      setProgress(20);
+      setErrorMsg('');
+      
+      const res = await fetch(`/demo_ecgs/${filename}`);
+      if (!res.ok) throw new Error(`Failed to load ${filename}`);
+      const blob = await res.blob();
+      const demoFile = new File([blob], displayName, { type: 'image/png' });
+      setFile(demoFile);
+      
+      // Proceed with upload steps
+      setProgress(40);
+      setStatus('analyzing');
+      setProgress(70);
+      
+      const ctx = {
+        age: user?.age,
+        sex: user?.sex,
+        conditions: [
+          user?.is_smoker && 'Smoker',
+          user?.is_diabetic && 'Diabetes',
+          user?.has_family_history && 'Family history of heart disease',
+        ].filter(Boolean).join(', '),
+      };
+      
+      const ecgResult = await api.uploadECG(demoFile, ctx);
+      setProgress(100);
+      setResult(ecgResult);
+      setStatus('done');
+      fetchHistory(); // Refresh history
+
+      // Wait for complete
+      setProgress(100);
+      setResult(ecgResult);
+      setStatus('done');
+      fetchHistory(); // Refresh history
+    } catch (err: any) {
+      setStatus('error');
+      setErrorMsg(err.message || 'Demo ECG analysis failed.');
+      setProgress(0);
+    }
+  };
 
   // ── Urgency banner
   const urgencyConfig = result ? URGENCY_CONFIG[result.urgency] : null;
@@ -190,24 +236,65 @@ export const ECGMode: React.FC = () => {
 
       {/* ── Upload Zone (idle) ── */}
       {status === 'idle' && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          {...(getRootProps() as any)}
-          className={`glass-card p-16 border-dashed border-2 flex flex-col items-center justify-center gap-6 cursor-pointer transition-all ${isDragActive ? 'border-emerald-500 bg-emerald-500/5' : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5'} group`}
-        >
-          <input {...getInputProps()} />
-          <div className={`w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center transition-transform ${isDragActive ? 'scale-110' : 'group-hover:scale-110'}`}>
-            <Upload className="text-emerald-500 w-8 h-8" />
-          </div>
-          <div className="text-center">
-            <h3 className="text-xl font-bold">{isDragActive ? t.upload_zone_title : t.upload_zone_title}</h3>
-            <p className="text-slate-500 text-sm mt-2">{t.upload_zone_desc}</p>
-          </div>
-          <div className="flex gap-3 flex-wrap justify-center">
-            {['45+ Conditions', 'AI Vision', 'Real Data'].map(tag => (
-              <span key={tag} className="text-[10px] font-bold py-1 px-3 bg-slate-800 rounded-full text-slate-400 uppercase tracking-widest">{tag}</span>
-            ))}
-          </div>
-        </motion.div>
+        <div className="space-y-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            {...(getRootProps() as any)}
+            className={`glass-card p-16 border-dashed border-2 flex flex-col items-center justify-center gap-6 cursor-pointer transition-all ${isDragActive ? 'border-emerald-500 bg-emerald-500/5' : 'border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5'} group`}
+          >
+            <input {...getInputProps()} />
+            <div className={`w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center transition-transform ${isDragActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+              <Upload className="text-emerald-500 w-8 h-8" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-xl font-bold">{isDragActive ? t.upload_zone_title : t.upload_zone_title}</h3>
+              <p className="text-slate-500 text-sm mt-2">{t.upload_zone_desc}</p>
+            </div>
+            <div className="flex gap-3 flex-wrap justify-center">
+              {['45+ Conditions', 'AI Vision', 'Real Data'].map(tag => (
+                <span key={tag} className="text-[10px] font-bold py-1 px-3 bg-slate-800 rounded-full text-slate-400 uppercase tracking-widest">{tag}</span>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Quick Trial Section */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-6 flex flex-col gap-4">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500 animate-pulse" /> Try example ECG scans (Demo)
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div 
+                onClick={(e) => { e.stopPropagation(); runDemoScan('normal_ecg_sample.png', 'normal_ecg_sample.png'); }}
+                className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all cursor-pointer flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <Heart className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">Normal Sinus Rhythm</p>
+                    <p className="text-[10px] text-slate-500 flex items-center gap-1">Clean 12-lead ECG sample</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">RUN &rarr;</span>
+              </div>
+              <div 
+                onClick={(e) => { e.stopPropagation(); runDemoScan('stemi_ecg_sample.png', 'stemi_ecg_sample.png'); }}
+                className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-red-500/40 hover:bg-red-500/5 transition-all cursor-pointer flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
+                    <ShieldAlert className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">Critical STEMI (Heart Attack)</p>
+                    <p className="text-[10px] text-slate-500 flex items-center gap-1">ST segment elevations in V2-V4</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">RUN &rarr;</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       {/* ── Recent History (Show when idle or error) ── */}
@@ -299,16 +386,26 @@ export const ECGMode: React.FC = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
           {/* Urgency banner */}
           {urgencyConfig && (
-            <div className={`p-4 rounded-2xl ${urgencyConfig.bg} text-white flex items-center justify-between gap-4`}>
+            <div className={`p-4 rounded-2xl ${urgencyConfig.bg} text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
               <div>
                 <p className="font-black text-lg uppercase tracking-wide">{urgencyConfig.label}</p>
                 <p className="text-sm opacity-80">{urgencyConfig.desc}</p>
               </div>
-              {result.urgency === 'emergency' && (
-                <a href="tel:112" className="bg-white text-red-600 px-6 py-3 rounded-xl font-black text-lg hover:scale-105 transition-transform">
-                  📞 Call 112
-                </a>
-              )}
+              <div className="flex flex-wrap gap-3">
+                {result.urgency === 'emergency' && (
+                  <button 
+                    onClick={() => setMode('emergency')} 
+                    className="bg-white/10 border border-white/20 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-white hover:text-red-600 transition-colors uppercase tracking-wider"
+                  >
+                    🏥 Find Nearby Hospitals
+                  </button>
+                )}
+                {result.urgency === 'emergency' && (
+                  <a href="tel:112" className="bg-white text-red-600 px-6 py-3 rounded-xl font-black text-lg hover:scale-105 transition-transform flex items-center justify-center">
+                    📞 Call 112
+                  </a>
+                )}
+              </div>
             </div>
           )}
 

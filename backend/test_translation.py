@@ -1,7 +1,12 @@
 import os
+import sys
+from pathlib import Path
 from dotenv import load_dotenv
 from app.ml.ecg_analyzer import ECGAnalyzer
 import json
+
+# Force UTF-8 output so Hindi characters print correctly on Windows
+sys.stdout.reconfigure(encoding="utf-8")
 
 # Load environment variables from .env
 load_dotenv()
@@ -15,8 +20,8 @@ def main():
     print("Initializing ECG Analyzer...")
     analyzer = ECGAnalyzer(api_key=gemini_key)
 
-    # Use a sample ECG from the repo
-    sample_path = "../demo_ecgs/normal_ecg_sample.png"
+    # Use a sample ECG from the repo (path relative to this script)
+    sample_path = Path(__file__).parent.parent / "demo_ecgs" / "normal_ecg_sample.png"
     if not os.path.exists(sample_path):
         print(f"Error: Could not find sample ECG at {sample_path}")
         return

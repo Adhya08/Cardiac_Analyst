@@ -24,8 +24,10 @@ scipy>=1.14.0
 # Google AI - Gemini
 google-genai>=1.0.0
 
-# Sarvam AI
+# Sarvam AI (translation + LLM chat)
 sarvamai>=0.1.0
+# OpenAI-compatible client — used to call Sarvam chat API (sarvam-m model)
+openai>=1.0.0
 
 # HTTP Requests (for Google Maps API)
 requests>=2.32.3

@@ -8,10 +8,6 @@
     {
       "source": "/uploads/:path*",
       "destination": "https://cardiac-backend.onrender.com/uploads/:path*"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ]
 }

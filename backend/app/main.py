@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import init_db
-from .routers import vitals, ecg, emergency, hospitals
+from .routers import vitals, ecg, emergency, hospitals, chat
 
 # ── Create FastAPI app
 app = FastAPI(
@@ -21,7 +21,8 @@ app = FastAPI(
     description=(
         "Cardiac Risk Prediction Platform v2.0.\n"
         "Modes: Routine Screening (LightGBM + Framingham), "
-        "ECG Diagnosis (Advanced Multi-Modal AI), "
+        "ECG Diagnosis (Gemini Vision AI), "
+        "Patient Chat & Summaries (Sarvam AI), "
         "Emergency Triage (NICE CG95 + Google Places)."
     ),
     version="2.0.0",
@@ -48,6 +49,7 @@ app.include_router(vitals.router)
 app.include_router(ecg.router)
 app.include_router(emergency.router)
 app.include_router(hospitals.router)
+app.include_router(chat.router)
 
 # ── Static: serve uploaded ECG images
 os.makedirs("uploads/ecg", exist_ok=True)

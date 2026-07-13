@@ -18,7 +18,7 @@ from google.genai import types
 from PIL import Image
 
 
-# ── 45-condition cardiac condition list (as per PRD v2.0)
+
 CONDITION_LIST = [
     "Normal Sinus Rhythm", "Atrial Fibrillation", "Atrial Flutter", "STEMI", "NSTEMI",
     "Ventricular Tachycardia", "Heart Failure (LVH)", "Long QT Syndrome", "WPW Syndrome",

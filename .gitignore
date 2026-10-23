@@ -33,6 +33,8 @@ env/
 .env
 .env.local
 .env.*.local
+kaggle.json
+.kaggle/
 
 # Testing/Coverage
 .pytest_cache/
@@ -51,3 +53,11 @@ Thumbs.db
 backend/models_saved/
 backend/uploads/
 *.db
+scratch/
+*.pth
+*.keras
+*.h5
+*.tflite
+training_eval/
+outputs_fold10/
+

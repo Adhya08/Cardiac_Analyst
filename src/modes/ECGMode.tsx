@@ -112,12 +112,18 @@ const ConditionRow: React.FC<{ cond: ECGCondition; language: 'en' | 'hi' }> = ({
   const pct = Math.min(100, Math.max(0, Math.round(score * 100)));
   const thresholdPct = Math.round(cond.threshold * 100);
 
+  const isNormDetected = cond.code === 'NORM' && cond.detected;
+  const badgeLabel = isNormDetected ? 'NORMAL PATTERN' : s.statusLabel;
+  const badgeClass = isNormDetected 
+    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+    : s.badge;
+
   return (
     <div className={`rounded-xl border p-3.5 transition-all ${s.bg} ${s.border}`}>
       <div className="flex items-center justify-between gap-3 cursor-pointer" onClick={() => setExpanded(e => !e)}>
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0 ${s.badge}`}>
-            {s.statusLabel}
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0 ${badgeClass}`}>
+            {badgeLabel}
           </span>
           <div className="min-w-0">
             <span className="text-xs font-bold text-slate-200 block truncate">

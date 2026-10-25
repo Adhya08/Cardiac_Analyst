@@ -966,7 +966,7 @@ def main():
 
 ## 4. Calibration Check (Reliability & Brier Scores)
 
-The Brier score measures the mean squared error between predicted probabilities and binary ground truth (lower is better; beating the training prior baseline confirms predictive skill over trivial guessing, though it does not guarantee calibrated probabilities). In the reliability bins below, uncalibrated raw sigmoid outputs exhibit noticeable overconfidence in the mid-to-high probability ranges.
+The Brier score measures the mean squared error between predicted probabilities and binary ground truth (lower is better; beating the training prior baseline confirms predictive skill over trivial guessing, though it does not guarantee calibrated probabilities). Reliability bins evaluate whether empirical event rates match predicted probabilities across probability intervals.
 
 | Class | Model Brier Score | Prior Baseline Brier Score | Skill & Reliability Assessment |
 | :--- | :--- | :--- | :--- |
@@ -974,7 +974,15 @@ The Brier score measures the mean squared error between predicted probabilities 
     for cls_name in DIAGNOSTIC_SUPERCLASSES:
         m_brier = calib_results[cls_name]["brier_score"]
         b_brier = baseline_brier[cls_name]
-        status = "Demonstrates predictive skill over prior baseline; exhibits mid-to-high-range overconfidence" if m_brier < b_brier else "Model Brier score exceeds prior baseline"
+        bins = calib_results[cls_name]["reliability_bins"]
+        populated_mid_high = [b for b in bins if b["count"] > 0 and b["mean_predicted_probability"] >= 0.4]
+        is_overconfident = (
+            len(populated_mid_high) > 0 and
+            any(b["mean_predicted_probability"] > b["observed_positive_fraction"] for b in populated_mid_high)
+        )
+        skill_str = "Demonstrates predictive skill over prior baseline" if m_brier < b_brier else "Model Brier score exceeds prior baseline"
+        calib_str = "exhibits mid-to-high-range overconfidence in populated bins" if is_overconfident else "no systematic mid-to-high overconfidence in populated bins"
+        status = f"{skill_str}; {calib_str}"
         report_md += f"| **{cls_name}** | {m_brier:.4f} | {b_brier:.4f} | {status} |\n"
 
     report_md += """
@@ -1005,8 +1013,9 @@ The Brier score measures the mean squared error between predicted probabilities 
 ## 6. Plain-Language Clinical Discussion & Honest Limitations
 
 ### Honest Assessment of Weaknesses
-1. **Hypertrophy (`HYP`) Performance**:
-   - `HYP` exhibits the lowest sensitivity ({per_class_results['HYP']['sensitivity_recall']*100:.2f}%) and lowest F1 score ({per_class_results['HYP']['f1_score']:.4f}) (lowest F1 class: `{lowest_f1_cls}`).
+1. **Hypertrophy (`HYP`) & Class Weaknesses**:
+   - The weakest class by F1 score is `{lowest_f1_cls}` ({per_class_results[lowest_f1_cls]['f1_score']:.4f}) and by sensitivity is `{lowest_sens_cls}` ({per_class_results[lowest_sens_cls]['sensitivity_recall']*100:.2f}%).
+   - Specifically for `HYP`, the model achieves a sensitivity of {per_class_results['HYP']['sensitivity_recall']*100:.2f}% and an F1 score of {per_class_results['HYP']['f1_score']:.4f}.
    - *Underlying Reason*: Hypertrophy diagnoses in ECG are based on subtle voltage amplitude criteria (e.g., Sokolow-Lyon or Cornell voltage) which exhibit high inter-patient anatomical variability and account for only {hyp_prior_pct:.1f}% of the training set.
 
 2. **Myocardial Infarction (`MI`) False Negatives**:

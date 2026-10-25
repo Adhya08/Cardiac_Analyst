@@ -288,7 +288,7 @@ The application was launched and verified locally:
 4. **Operational Status & Transition State**:
    - **Post-Transition Verified Behavior**:
      - ECG analysis uses local ONNX inference (`backend/models/model.onnx`, 12-lead ResNet1D) with zero external Gemini API calls.
-     - When an ECG signal is unparseable, noisy, or flatlined, the backend returns `status="analysis_unavailable"` (no fabricated fallbacks).
+     - When an ECG signal exhibits excessive noise/variance but remains usable, the backend returns `status="uncertain"` with `quality_status="poor_quality"`; when a signal is unparseable, flatlined, or corrupted, the backend returns `status="analysis_unavailable"` (no fabricated fallbacks).
      - The UI displays strictly the 5 supported PTB-XL diagnostic superclasses with real Fold 10 benchmark numbers from `EVALUATION_REPORT.md`.
    - **Pre-Transition Historical Deficiencies (Resolved)**:
      - *[Legacy/Resolved]*: The initial prototype required an external Google Gemini API key and emitted fallback predictions when absent. This has been fully eliminated.

@@ -1,0 +1,16 @@
+{
+  "id": "cyberfocus2410/cardiac-analyst-phase-5-onnx-convert",
+  "title": "Cardiac Analyst Phase 5 ONNX Convert",
+  "code_file": "convert_and_benchmark.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": "true",
+  "enable_gpu": "false",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [
+    "cyberfocus2410/cardiac-analyst-phase-4-full-training"
+  ]
+}

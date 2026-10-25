@@ -1,0 +1,31 @@
+{
+  "frameworks": {
+    "keras": {
+      "format": ".keras (HDF5/zip)",
+      "size_mb": 100.34,
+      "latency_ms_per_sample": 84.42,
+      "max_abs_diff_from_keras": 0.0,
+      "status": "baseline"
+    },
+    "onnx": {
+      "format": ".onnx (Open Neural Network Exchange)",
+      "size_mb": 33.37,
+      "latency_ms_per_sample": 7.46,
+      "max_abs_diff_from_keras": 2.086162567138672e-07,
+      "speedup_vs_keras": 11.32,
+      "size_reduction_percent": 66.7,
+      "parity_verified": true
+    },
+    "tflite": {
+      "format": ".tflite (FlatBuffer)",
+      "size_mb": 33.35,
+      "latency_ms_per_sample": 16.88,
+      "max_abs_diff_from_keras": 3.2782554626464844e-07,
+      "speedup_vs_keras": 5.0,
+      "size_reduction_percent": 66.8,
+      "parity_verified": true
+    }
+  },
+  "tolerance_threshold": 0.0001,
+  "recommendation": "Use ONNX Runtime (.onnx): 66.7% size reduction, 11.32x faster CPU inference, and 2.1e-7 numerical parity."
+}

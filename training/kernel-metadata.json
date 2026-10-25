@@ -1,0 +1,16 @@
+{
+  "id": "cyberfocus2410/cardiac-analyst-ptb-xl-training",
+  "title": "Cardiac Analyst PTB-XL Training",
+  "code_file": "train_kaggle.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "dataset_sources": [
+    "garethwmch/ptb-xl-1-0-3"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

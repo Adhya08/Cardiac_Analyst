@@ -243,24 +243,19 @@ class RiskModel:
         except Exception:
             framingham_risk = 15.0  # Safe default
 
+        lgbm_prob = 0.0
         used_lgbm = False
-        if not self.is_loaded:
-            # Graceful degradation: use Framingham only
-            risk_score = framingham_risk
-            lgbm_prob = framingham_risk / 100.0
-            shap_top5 = self._static_shap(vitals, profile)
-        else:
-            # Map vitals to UCI features
-            X = self.map_inputs(vitals, profile)
 
-            # LightGBM prediction
+        if self.is_loaded:
             try:
+                X = self.map_inputs(vitals, profile)
                 lgbm_prob = float(self.model.predict_proba(X)[0][1])
                 used_lgbm = True
             except Exception as e:
                 print(f"[RiskModel] LightGBM inference error: {e}")
-                lgbm_prob = framingham_risk / 100.0
+                used_lgbm = False
 
+        if used_lgbm:
             # Weighted fusion: Framingham (60%) + LGBM (40%)
             combined_prob = 0.60 * (framingham_risk / 100.0) + 0.40 * lgbm_prob
 
@@ -286,6 +281,12 @@ class RiskModel:
             except Exception as e:
                 print(f"[RiskModel] SHAP computation error: {e}")
                 shap_top5 = self._static_shap(vitals, profile)
+        else:
+            # Graceful degradation / fallback: use pure Framingham score
+            # Smoking is already accounted for inside compute_framingham_risk; family history bonus is not added.
+            risk_score = framingham_risk
+            lgbm_prob = framingham_risk / 100.0
+            shap_top5 = self._static_shap(vitals, profile)
 
         # Risk tier
         if risk_score < 7.5:

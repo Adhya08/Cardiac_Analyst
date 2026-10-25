@@ -1,0 +1,16 @@
+{
+  "id": "cyberfocus2410/cardiac-analyst-phase-4-full-training",
+  "title": "Cardiac Analyst Phase 4 Full Training",
+  "code_file": "train_keras_ptbxl.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "dataset_sources": [
+    "garethwmch/ptb-xl-1-0-3"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

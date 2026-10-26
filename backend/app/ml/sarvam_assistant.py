@@ -132,7 +132,7 @@ class SarvamAssistant:
         Generate a plain-language patient summary of an ECG analysis report.
 
         Args:
-            ecg_analysis: The full ECG analysis dict from Gemini.
+            ecg_analysis: The full ECG analysis dict from the local model.
             language:     "en" for English, "hi" for Hindi, "en-hi" for bilingual.
 
         Returns:

@@ -21,7 +21,7 @@ app = FastAPI(
     description=(
         "Cardiac Risk Prediction Platform v2.0.\n"
         "Modes: Routine Screening (LightGBM + Framingham), "
-        "ECG Diagnosis (Gemini Vision AI), "
+        "ECG Diagnosis (PTB-XL Residual 1D CNN), "
         "Patient Chat & Summaries (Sarvam AI), "
         "Emergency Triage (NICE CG95 + Google Places)."
     ),

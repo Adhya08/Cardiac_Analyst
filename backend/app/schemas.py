@@ -1,7 +1,7 @@
 """
 Pydantic Schemas — Request / Response validation models.
 """
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -76,13 +76,44 @@ class VitalsOut(BaseModel):
 # ─────────────────────────────────────────────
 
 class ECGConditionOut(BaseModel):
-    name: str
-    probability: float
-    severity: str  # "normal" | "possible" | "detected"
-    leads_affected: List[str]
-    key_finding: str
-    explanation_en: str
+    code: str = "NORM"  # "NORM" | "MI" | "STTC" | "CD" | "HYP"
+    name: str = "Normal ECG"
+    model_score: float = 0.0  # Explicitly labeled model score, NOT medical disease probability
+    threshold: float = 0.50
+    detected: bool = False
+    severity: str = "normal"  # "normal" | "possible" | "detected" | "unavailable"
+    leads_affected: List[str] = []
+    key_finding: str = ""
+    explanation_en: str = ""
     explanation_hi: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_legacy_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "model_score" not in data and "probability" in data:
+                data["model_score"] = float(data["probability"])
+            if "code" not in data:
+                name = str(data.get("name", "")).upper()
+                if "INFARCT" in name or "ATTACK" in name:
+                    data["code"] = "MI"
+                elif "ST" in name or "ISCHEM" in name:
+                    data["code"] = "STTC"
+                elif "CONDUCTION" in name or "BLOCK" in name:
+                    data["code"] = "CD"
+                elif "HYPERTROPHY" in name:
+                    data["code"] = "HYP"
+                else:
+                    data["code"] = "NORM"
+            if "threshold" not in data:
+                data["threshold"] = 0.50
+            if "detected" not in data:
+                score = float(data.get("model_score", 0.0))
+                thresh = float(data.get("threshold", 0.50))
+                data["detected"] = score >= thresh
+            if "severity" not in data:
+                data["severity"] = "detected" if data.get("detected") else "normal"
+        return data
 
 
 class ECGGradCAMHighlight(BaseModel):
@@ -92,7 +123,16 @@ class ECGGradCAMHighlight(BaseModel):
 
 
 class ECGOut(BaseModel):
-    ecg_id: str
+    status: str = Field(default="ok", description="Status of analysis: 'ok', 'uncertain', or 'analysis_unavailable'")
+    model_version: str = "ptbxl-resnet1d-v1.0"
+    supported_labels: List[str] = ["NORM", "MI", "STTC", "CD", "HYP"]
+    model_scores: Dict[str, float] = Field(default_factory=dict, description="Deterministic raw model scores [0-1] per superclass")
+    quality_status: str = Field(default="good", description="Signal quality status: 'good', 'poor_quality', or 'unusable'")
+    uncertainty_flag: bool = Field(default=False, description="True if prediction confidence is low or near decision boundary")
+    abstain_reason: Optional[str] = None
+
+    ecg_id: Optional[str] = None
+    persistence_error: Optional[str] = None
     heart_rate_bpm: Optional[int] = None
     rhythm: Optional[str] = None
     pr_interval_ms: Optional[int] = None
@@ -101,14 +141,14 @@ class ECGOut(BaseModel):
     axis_degrees: Optional[int] = None
     st_elevation_leads: List[str] = []
     st_depression_leads: List[str] = []
-    conditions: List[ECGConditionOut]
+    conditions: List[ECGConditionOut] = []
     gradcam_highlights: List[ECGGradCAMHighlight] = []
-    overall_assessment: str
-    urgency: str  # "routine" | "see_doctor_today" | "emergency"
-    recommendations: List[str]
-    image_quality: str  # "good" | "fair" | "poor"
+    overall_assessment: str = "ECG analysis completed."
+    urgency: str = "routine"  # "routine" | "see_doctor_today" | "emergency" | "unavailable"
+    recommendations: List[str] = []
+    image_quality: Optional[str] = "good"
     image_quality_note: Optional[str] = None
-    disclaimer: str
+    disclaimer: str = "Research and educational prototype only. Not a medical device."
 
 
 # ─────────────────────────────────────────────

@@ -599,3 +599,21 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     3 passed in 33.80s
     ```
 
+### Fix 4: Protection of File Storage (`/uploads`) & Elimination of Public Static Mount
+- **Vulnerability Addressed**: [READINESS.md](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/READINESS.md) §3 Finding #3 (Public Static File Directory `/uploads` allowed unauthenticated HTTP access to raw patient ECG recordings).
+- **Remediation**:
+  - Edited [`backend/app/main.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/main.py): removed `app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")`. Raw patient ECG files are no longer served statically without authentication.
+  - Confirmed all uploaded files are saved with cryptographic UUID filenames (`uploads/ecg/{ecg_id}.{ext}`).
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_uploads_protection.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_uploads_protection.py)
+  - Failing output on old code:
+    ```text
+    FAILED backend/tests/test_uploads_protection.py::test_uploads_not_served_statically_without_auth - AssertionError: Expected 404 or 401, but got 200 (file leaked publicly!)
+    ```
+  - Passing output on new code:
+    ```text
+    backend/tests/test_uploads_protection.py::test_uploads_not_served_statically_without_auth PASSED [100%]
+    1 passed in 19.42s
+    ```
+
+

@@ -28,7 +28,7 @@
 | `public/manifest.json` | PWA manifest for standalone browser installation. |
 | `public/sw.js` | Service worker script for offline asset caching. |
 | `public/favicon.svg`, `icons.svg` | Application logos and vector icons. |
-| `public/demo_ecgs/` | Statically served sample ECG image scans (`normal_ecg_sample.png`, `stemi_ecg_sample.png`). |
+| `public/samples/` | Statically served sample ECG digital CSV signals. |
 | `src/main.tsx` | React 19 bootstrap entry point rendering `App.tsx` and handling service worker registration. |
 | `src/App.tsx` | Top-level layout container featuring the navigation bar, sidebar mode switcher, and transition animations. |
 | `src/index.css`, `src/App.css` | Global styling tokens, dark glassmorphism effects, and custom UI components. |

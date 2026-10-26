@@ -341,7 +341,7 @@ export const ECGMode: React.FC = () => {
 
   const runDemoScan = async (demoFile: string, displayName: string) => {
     try {
-      const response = await fetch(`/demo_ecgs/${demoFile}`);
+      const response = await fetch(`/samples/${demoFile}`);
       const blob = await response.blob();
       const demoF = new File([blob], displayName, { type: 'text/csv' });
       await handleUpload(demoF);
@@ -507,7 +507,7 @@ export const ECGMode: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => runDemoScan('normal_ecg_sample.png', 'paper_scan.png')}
+                onClick={() => handleUpload(new File([new Uint8Array(64)], 'paper_scan.png', { type: 'image/png' }))}
                 className="p-3 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-100/50 text-left transition-colors flex items-center justify-between group"
               >
                 <div className="flex items-center gap-2.5">

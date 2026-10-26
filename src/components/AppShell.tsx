@@ -34,8 +34,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           onOpenProfile={() => setIsProfileModalOpen(true)}
         />
 
-        {/* Content Area with Top Padding for Fixed TopBar (82px) */}
-        <main className="flex-1 pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-[1600px] w-full mx-auto">
+        {/* Content Area with Top Padding for Fixed TopBar (64px) */}
+        <main className="flex-1 pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-[1600px] w-full mx-auto">
           {children}
         </main>
       </div>

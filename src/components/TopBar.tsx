@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import {
-  Menu, Globe, PhoneCall, AlertTriangle,
+  Menu, Globe, PhoneCall,
   User, ChevronRight
 } from 'lucide-react';
 import { useStore, type NavigationMode } from '../store/useStore';
@@ -83,24 +83,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-64'
       }`}
     >
-      {/* 1. Regulatory Medical Prototype Notice Banner */}
-      <div className="bg-amber-50 border-b border-amber-200/80 px-4 py-1.5 flex items-center justify-between text-amber-900 text-[11px] font-medium">
-        <div className="flex items-center gap-2 mx-auto sm:mx-0">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-          <span>
-            <strong className="font-bold text-amber-800 uppercase tracking-wider mr-1">
-              Research & Educational Prototype:
-            </strong>
-            Not a certified medical device. For investigative workflows only. In emergencies, immediately call 112.
-          </span>
-        </div>
-
-        <div className="hidden md:flex items-center gap-2 font-mono text-[10px] text-amber-700 font-bold">
-          <span>PTB-XL Fold 10 Benchmark Validated</span>
-        </div>
-      </div>
-
-      {/* 2. Main Top Application Bar */}
+      {/* Main Top Application Bar */}
       <div className="px-5 py-3 flex items-center justify-between gap-4">
         {/* Left: Mobile hamburger + Page Breadcrumb */}
         <div className="flex items-center gap-3">

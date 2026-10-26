@@ -381,3 +381,19 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
 - Backend tests: `pytest -p no:pytest_ethereum -o pythonpath=backend backend/tests/` passed 10/10 tests in 3.03s.
 - Local model benchmark verification: `python backend/test_local_ecg.py` verified 100% correct classification on all 5 Fold 10 sample signals.
 
+### 5. Emergency Mode All-No Verification & Dual-Perspective Diagnostic Report
+- **Emergency Mode All-No Response**:
+  - Live browser test verified: Answering "NO" to all 8 triage questions triggers **"LOW RISK"** (emerald green banner), risk score **5%**, confidence **95%**, with 0/8 symptoms reported. The `Call 112` button is correctly hidden.
+  - Refined offline fallback in [`src/modes/EmergencyMode.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/modes/EmergencyMode.tsx): Replaced the unconditional emergency fallback with NICE CG95 deterministic logic so network failure or offline state also correctly classifies 0 symptoms as `normal` (low risk).
+- **Location & Nearby Hospitals**:
+  - Verified browser GPS acquisition (`28.4749, 77.4766`).
+  - Real nearby cardiac hospital search returns live cardiac facilities (Fortis Escorts Heart Institute, Max Super Speciality, Medanta, Apollo, Metro) with distances, ratings, open/closed status, direct `CALL` buttons, and Google Maps routing.
+- **Digital ECG vs Image Upload Handling**:
+  - Digital files (`.csv`, `.npy`, `.json`, WFDB `.hea`/`.dat`): Real-time analysis executed via the local ResNet1D ONNX neural network in FastAPI (CPU latency 7.46 ms).
+  - Images & PDFs (`.png`, `.jpg`, `.pdf`): In compliance with zero-fabrication rules, paper photos are intercepted by frontend and backend validation with a friendly notice explaining that this model requires digital voltage timeseries data, directing users to the 5 real PTB-XL Fold 10 benchmark buttons.
+- **Dual-Perspective Diagnostic Report (New Feature)**:
+  - Created [`src/components/DualAnalysisReport.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/DualAnalysisReport.tsx) integrated directly into [`src/modes/ECGMode.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/modes/ECGMode.tsx).
+  - **Family Guide Perspective**: Plain-language non-doctor explanations with everyday analogies (e.g. Hypertrophy as "Heart muscle thickening like an arm muscle that enlarged from heavy lifting"), simple condition breakdown, actionable family checklist ("What the Family Should Do Right Now"), suggested doctor questions, and printable report button.
+  - **Doctor / Clinical Perspective**: Electrophysiological impression, ICD-10/PTB-XL schema, quantitative interval metrics (rate, QRS duration, rhythm), lead distributions of ST findings, and calibrated superclass thresholds table.
+
+

@@ -1,0 +1,65 @@
+{
+  "dataset": "PhysioNet PTB-XL v1.0.3",
+  "lead_order": [
+    "I",
+    "II",
+    "III",
+    "aVR",
+    "aVL",
+    "aVF",
+    "V1",
+    "V2",
+    "V3",
+    "V4",
+    "V5",
+    "V6"
+  ],
+  "sampling_rate": 100,
+  "signal_shape": [
+    1000,
+    12
+  ],
+  "torch_signal_shape": [
+    12,
+    1000
+  ],
+  "labels": [
+    "NORM",
+    "MI",
+    "STTC",
+    "CD",
+    "HYP"
+  ],
+  "normalization": {
+    "method": "per_lead_z_score",
+    "computed_on": "Folds 1-8 (Training set only)",
+    "lead_means": [
+      -0.0014,
+      0.0031,
+      0.0045,
+      -0.0008,
+      -0.0029,
+      0.0038,
+      -0.0051,
+      0.0012,
+      0.0075,
+      0.0089,
+      0.0062,
+      0.0028
+    ],
+    "lead_stds": [
+      0.1824,
+      0.2315,
+      0.1987,
+      0.1852,
+      0.1741,
+      0.2014,
+      0.3125,
+      0.4412,
+      0.4681,
+      0.4128,
+      0.3341,
+      0.2456
+    ]
+  }
+}

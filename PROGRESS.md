@@ -456,5 +456,41 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
 - **Backend Test Suite**: `pytest` passed 10/10 tests in 13.15s.
 - **End-to-End Browser Audit**: Verified in headless browser via subagent recording `clinical_redesign_audit_1793007704716.webp` across all 5 navigation modes.
 
+---
+
+## Phase 9: Metadata, Specification Integrity, Repository Hygiene & Licensing
+
+### 1. Live Site Description & Meta Alignment
+- Removed legacy unverified claims (`97% STEMI sensitivity`) from `index.html` and `public/manifest.json`.
+- Updated site title to `Cardiac Analyst | Clinical-Grade 12-Lead ECG & ASCVD Analysis`.
+- Replaced meta description with true measured capability: `Clinical cardiac analysis platform featuring 12-lead digital ECG classification via 1D Residual CNN (0.9265 Macro AUROC on PTB-XL held-out test), ASCVD vitals risk scoring, and NICE CG95 emergency triage.`
+- Aligned theme color to clinical teal (`#0F8B83`).
+
+### 2. Full Documentation & Specification Synchronization
+- Rewrote [`CardiacApp_PRD_FRD_WebApp_v2.md`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/CardiacApp_PRD_FRD_WebApp_v2.md) to eliminate outdated theoretical concepts (SE-ResNet + Transformer ensemble, 15 conditions, Claude/Gemini API reports, AWS EKS/SageMaker microservices, $\ge 97\%$ targets).
+- Standardized documentation on the actual implemented system:
+  - 1D Residual CNN on ONNX Runtime CPU (33.37 MB, 7.46 ms latency).
+  - 5 PTB-XL diagnostic superclasses (`NORM`, `MI`, `STTC`, `CD`, `HYP`).
+  - Held-out Fold 10 evaluation report metrics (2,158 records, Macro AUROC 0.9265 [95% CI: 0.9194, 0.9330], Macro F1 0.7520).
+  - Deterministic Dual Analysis Report (Doctor Electrophysiology vs Family Plain-Language Guide).
+  - Modular local FastAPI backend with SQLite persistence.
+- Updated [`README.md`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/README.md) diagrams, tables, and API references to reflect current zero-Gemini diagnostic architecture.
+
+### 3. Repository Hygiene & Git Audit
+- Removed legacy paper scan demo images (`normal_ecg_sample.png`, `stemi_ecg_sample.png`).
+- Renamed `public/demo_ecgs/` to `public/samples/` to eliminate all `demo_ecgs` directories.
+- Updated `src/modes/ECGMode.tsx` to fetch samples from `/samples/` and use in-memory synthetic files for defensive photo rejection tests.
+- Audited git commit history: Confirmed that historical log files (`backend_logs.txt`, `frontend_logs.txt`) created in commit `7d377ff` and deleted in `449edb5` contained zero API keys, passwords, tokens, or private secrets.
+- Verified `.gitignore` actively ignores all log dumps (`*.log`, `backend_logs.txt`, `frontend_logs.txt`), `scratch/`, and database files.
+
+### 4. Formal Licensing & Clinical Disclaimer
+- Created formal [`LICENSE`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/LICENSE) file under the MIT License.
+- Appended mandatory Clinical & Medical Device Terms of Use:
+  - Explicitly states the software is an academic research and educational technology prototype.
+  - Clarifies that the tool is NOT certified as a medical device by FDA, EMA, or CDSCO.
+  - Requires independent qualified clinical evaluation for all medical decisions.
+  - Updated license badge in `README.md` to link directly to the `LICENSE` file.
+
+
 
 

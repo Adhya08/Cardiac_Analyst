@@ -232,6 +232,9 @@ async function request<T>(url: string, opts?: RequestInit): Promise<T> {
 
   const res = await fetch(url, { ...opts, headers });
   if (!res.ok) {
+    if (res.status === 401 && !url.includes('/auth/login')) {
+      clearStoredAuth();
+    }
     const errText = await res.text().catch(() => res.statusText);
     throw new Error(`API Error ${res.status}: ${errText}`);
   }
@@ -352,6 +355,14 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+    });
+  },
+
+  async triggerSOS(data?: { lat?: number; lon?: number }): Promise<any> {
+    return request(`${BASE}/emergency/sos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data || {}),
     });
   },
 

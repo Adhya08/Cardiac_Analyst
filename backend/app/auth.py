@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import bcrypt
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -94,6 +94,31 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None or not user.is_active:
         raise credentials_exception
+    return user
+
+
+def get_optional_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """
+    Optional authentication for public utility endpoints (emergency triage, SOS).
+    Returns User if a valid Bearer token is provided, or None if missing/invalid/expired.
+    Never raises 401 and never assigns a fallback default_user.
+    """
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1].strip()
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or not user.is_active:
+        return None
     return user
 
 

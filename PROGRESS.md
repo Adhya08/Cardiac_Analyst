@@ -682,9 +682,27 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     backend/tests/test_emergency_public_access.py::test_emergency_triage_with_valid_token_saves_to_user PASSED [ 50%]
     backend/tests/test_emergency_public_access.py::test_emergency_sos_endpoint_without_token PASSED [ 66%]
     backend/tests/test_emergency_public_access.py::test_emergency_hospitals_and_ambulances_without_token PASSED [ 83%]
-    backend/tests/test_emergency_public_access.py::test_emergency_ip_rate_limiting PASSED [100%]
-    6 passed in 21.29s
+### Fix 1b - Item 2: Route Security Audit Test & Strict Public Allowlist
+- **Vulnerability Addressed**:
+  - Risk of unintentional route exposure where newly added endpoints omit authentication dependencies.
+- **Remediation**:
+  - Implemented dynamic route crawler test suite [`backend/tests/test_route_security_audit.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_route_security_audit.py).
+  - Defined explicit, minimal `PUBLIC_ALLOWLIST` (health probes, auth register/login, and public emergency life-safety utilities).
+  - Crawls all routes in the application and asserts that any route NOT in `PUBLIC_ALLOWLIST` returns 401 Unauthorized when requested without a token.
+  - Secured [`backend/app/routers/chat.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/chat.py) by adding `get_current_user` to `/api/v1/chat/message`, `/api/v1/chat/summarize`, and `/api/v1/chat/advice`.
+- **Automated Test Evidence**:
+  - Failing output on old code:
+    ```text
+    FAILED backend/tests/test_route_security_audit.py::test_every_route_is_allowlisted_or_returns_401
+    AssertionError: CRITICAL SECURITY AUDIT FAILURE: The following routes are NOT in PUBLIC_ALLOWLIST and do NOT return 401 Unauthorized when accessed without a token: [('POST', '/api/v1/chat/advice', 503), ('POST', '/api/v1/chat/message', 422), ('POST', '/api/v1/chat/summarize', 422)]
     ```
+  - Passing output on remediated code:
+    ```text
+    backend/tests/test_route_security_audit.py::test_public_allowlist_is_minimal PASSED [ 50%]
+    backend/tests/test_route_security_audit.py::test_every_route_is_allowlisted_or_returns_401 PASSED [100%]
+    2 passed in 10.60s
+    ```
+
 
 
 

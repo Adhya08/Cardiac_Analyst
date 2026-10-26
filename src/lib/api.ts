@@ -178,10 +178,59 @@ export interface ECGContext {
 }
 
 // ─────────────────────────────────────────────────────────
+// Auth Helper & Storage
+// ─────────────────────────────────────────────────────────
+const AUTH_TOKEN_KEY = 'cardiac_auth_token';
+const AUTH_USER_KEY = 'cardiac_auth_user';
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: UserProfile & { email?: string; role?: string; is_active?: boolean };
+}
+
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredAuth(token: string, user: any): void {
+  try {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  } catch {}
+}
+
+export function clearStoredAuth(): void {
+  try {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+  } catch {}
+}
+
+export function getStoredUser(): any | null {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────
 // Helper
 // ─────────────────────────────────────────────────────────
 async function request<T>(url: string, opts?: RequestInit): Promise<T> {
-  const res = await fetch(url, { ...opts });
+  const token = getStoredToken();
+  const headers = new Headers(opts?.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const res = await fetch(url, { ...opts, headers });
   if (!res.ok) {
     const errText = await res.text().catch(() => res.statusText);
     throw new Error(`API Error ${res.status}: ${errText}`);
@@ -193,10 +242,54 @@ async function request<T>(url: string, opts?: RequestInit): Promise<T> {
 // API client
 // ─────────────────────────────────────────────────────────
 export const api = {
-  // ── User Profile
+  // ── Authentication & Account System
+  async register(data: { email: string; password: string; name?: string; role?: string; age?: number; sex?: string }): Promise<AuthResponse> {
+    const res = await request<AuthResponse>(`${BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    setStoredAuth(res.access_token, res.user);
+    return res;
+  },
+
+  async login(credentials: { email: string; password: string }): Promise<AuthResponse> {
+    const res = await request<AuthResponse>(`${BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+    setStoredAuth(res.access_token, res.user);
+    return res;
+  },
+
+  async getMe(): Promise<UserProfile | null> {
+    try {
+      return await request<UserProfile>(`${BASE}/auth/me`);
+    } catch {
+      return null;
+    }
+  },
+
+  async updateMe(profile: Partial<UserProfile>): Promise<UserProfile> {
+    return request<UserProfile>(`${BASE}/auth/me`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profile),
+    });
+  },
+
+  logout(): void {
+    clearStoredAuth();
+  },
+
+  // ── User Profile (Legacy / Guest)
   async getProfile(userId = 'default_user'): Promise<UserProfile | null> {
     try {
-      const r = await fetch(`${BASE}/user/profile?user_id=${userId}`);
+      const token = getStoredToken();
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const r = await fetch(`${BASE}/user/profile?user_id=${userId}`, { headers });
       if (!r.ok) return null;
       return r.json();
     } catch {

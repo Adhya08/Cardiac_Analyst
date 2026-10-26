@@ -51,11 +51,17 @@ htmlcov/
 # OS
 Thumbs.db
 
-# Project specific
+# Project specific & User Data
 backend/models_saved/
 backend/uploads/
+uploads/
 *.db
+*.sqlite
+*.sqlite3
+cardiac_data.db
+backend/cardiac_data.db
 scratch/
+demo_ecgs/
 *.pth
 *.keras
 *.h5

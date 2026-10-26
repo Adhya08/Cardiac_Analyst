@@ -45,6 +45,7 @@ Replace the external Gemini Vision API dependency for ECG analysis with a locall
 | **5. Final Evaluation (Fold 10)** | Single test run on Fold 10, extract performance matrix | ✅ Completed |
 | **6. Model Export & Backend Integration** | Export weights to ONNX, create local inference pipeline in FastAPI, remove Gemini ECG | ✅ Completed |
 | **7. Frontend & End-to-End Verification** | Connect React UI to local model endpoints, remove unverified claims, end-to-end check | ✅ Completed |
+| **8. Governance, Accounts & Quality Gates** | Repository hygiene, `.gitignore` rules, `LICENSE`, `PRIVACY.md`, `TERMS.md`, user account system with JWT/bcrypt, access control, and 38 automated test suites | ✅ Completed |
 
 ---
 
@@ -490,6 +491,67 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   - Clarifies that the tool is NOT certified as a medical device by FDA, EMA, or CDSCO.
   - Requires independent qualified clinical evaluation for all medical decisions.
   - Updated license badge in `README.md` to link directly to the `LICENSE` file.
+
+---
+
+## Phase 8: Governance, Account Security, Access Control & Test Automation
+
+### 1. Privacy Policy & Terms of Service
+- Created [`PRIVACY.md`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/PRIVACY.md):
+  - Local-first data processing architecture.
+  - No data selling, tracking, or telemetry monetization.
+  - Zero raw ECG waveform or vitals transmission to third-party generative AI models.
+  - Full data deletion and export rights under GDPR/HIPAA standards.
+- Created [`TERMS.md`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/TERMS.md):
+  - Non-certified medical device research disclaimer.
+  - Immediate emergency escalation protocol (112/911/999).
+  - Explicit absence of physician-patient relationship.
+  - Limitation of liability and "AS IS" warranty terms.
+
+### 2. User Account System & Cryptographic Access Control
+- **Database Schema Evolution**:
+  - Added `email`, `hashed_password`, `role`, and `is_active` to `User` model in [`backend/app/models_db.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/models_db.py).
+  - Added automatic safe SQLite migrations in [`backend/app/database.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/database.py) using `ALTER TABLE` inspection.
+- **Authentication Engine**:
+  - Implemented [`backend/app/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/auth.py) with `bcrypt` (12 rounds) salted hashing and signed JWT (`HS256`, 24h expiry).
+  - Implemented `get_current_user` (strict 401 verification) and `get_optional_user` (graceful guest fallback) dependencies.
+- **API Endpoints**:
+  - Created [`backend/app/routers/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/auth.py):
+    - `POST /api/v1/auth/register` (email uniqueness, password length $\ge 8$, returns JWT).
+    - `POST /api/v1/auth/login` (verifies bcrypt hash, returns JWT).
+    - `GET /api/v1/auth/me` (retrieves authenticated profile).
+    - `PUT /api/v1/auth/me` (updates authenticated clinical demographics).
+- **Multi-Tenant User Isolation**:
+  - In [`backend/app/routers/vitals.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/vitals.py) and [`backend/app/routers/ecg.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/ecg.py), bound data persistence to authenticated `current_user.id`.
+  - Enforced strict 403 Forbidden access denial when any patient attempts to access or query another user's private vitals or ECG records.
+
+### 3. Frontend Account Management
+- Updated [`src/lib/api.ts`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/lib/api.ts) with `register()`, `login()`, `getMe()`, `logout()`, and automatic `Authorization: Bearer <token>` injection on all fetch requests.
+- Updated [`src/components/ProfileModal.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/ProfileModal.tsx) to provide unified tabbed navigation between "Account Access" (Sign In, Register, Clinician Status, Sign Out) and "Patient Demographics".
+
+### 4. Automated Pytest Verification Suite (38 Tests Passing)
+- **Authentication & Access Control** ([`backend/tests/test_auth_access_control.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_auth_access_control.py)):
+  - Registration success, duplicate email rejection (400), weak password rejection (422).
+  - Login success, incorrect password (401), nonexistent user (401).
+  - Protected `/auth/me` unauthorized (401) vs authorized (200) update.
+  - Patient data isolation: Vitals history snooping rejected (403), ECG history snooping rejected (403).
+- **Input Validation & Boundary Testing** ([`backend/tests/test_input_validation.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_input_validation.py)):
+  - Systolic BP boundaries (rejection < 60 or > 250 mmHg).
+  - Heart rate boundaries (rejection < 20 or > 250 bpm).
+  - Oxygen saturation boundaries (rejection < 40% or > 100%).
+  - Weight boundaries (rejection < 20 kg or > 300 kg).
+  - Demographics age (18–120) and biological sex validation.
+  - Rejection of image/PDF scans with informative clinical messaging.
+- **Emergency Path & Triage Engine** ([`backend/tests/test_emergency_path.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_emergency_path.py)):
+  - All 8 NO symptoms returning `severity="normal"` without false emergency triggers.
+  - Cardinal STEMI Triad triggering `severity="emergency"` and `stemi_suspicious=True`.
+  - Syncope and cardiogenic shock combinations triggering immediate emergency protocol.
+  - Vitals red flags (hypertensive crisis SBP > 180, shock SBP < 90, tachycardia HR > 150) triggering emergency escalation.
+  - Deterministic nearby hospital and ambulance lookup (112, 108).
+- **Local ECG Inference Pipeline** ([`backend/tests/test_ecg_pipeline.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_ecg_pipeline.py)):
+  - Valid PTB-XL digital signal evaluation across all 5 classes (`NORM`, `MI`, `STTC`, `CD`, `HYP`).
+  - AST audit confirming zero Gemini/cloud calls in diagnostic path.
+
 
 
 

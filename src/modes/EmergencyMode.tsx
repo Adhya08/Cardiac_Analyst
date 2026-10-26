@@ -104,7 +104,7 @@ export const EmergencyMode: React.FC = () => {
           'Call 112 immediately.',
           'Sit or lie down. Do not drive yourself.',
           'Unlock your front door.',
-          'Chew one aspirin (325mg) if not allergic.',
+          'Remain calm and rest quietly until emergency medical personnel arrive.',
         ],
         hospitals: [],
         ambulances: [

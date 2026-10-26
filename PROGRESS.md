@@ -737,9 +737,41 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     backend/tests/test_third_party_data_flow.py::test_chat_message_requires_explicit_consent PASSED [ 25%]
     backend/tests/test_third_party_data_flow.py::test_chat_summarize_requires_explicit_consent PASSED [ 50%]
     backend/tests/test_third_party_data_flow.py::test_chat_advice_requires_explicit_consent PASSED [ 75%]
-    backend/tests/test_third_party_data_flow.py::test_chat_cannot_summarize_unauthorized_patient_ecg PASSED [100%]
-    4 passed in 7.15s
+### Fix 1b - Item 5: Login Brute-Force Lockout, IP Rate Limiting & Registration Password Strength
+- **Problems Addressed**:
+  - Susceptibility to online credential stuffing and brute-force dictionary attacks against `/api/v1/auth/login`.
+  - Lack of password complexity requirements on registration, permitting vulnerable passwords.
+- **Remediation**:
+  - Implemented `check_password_complexity` in [`backend/app/routers/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/auth.py):
+    - Enforces minimum 8 characters.
+    - Requires uppercase, lowercase, numeric digit, and special symbol (`!@#$%^&*...`).
+    - Rejects weak passwords with `HTTP 422 Unprocessable Content`.
+  - Implemented brute-force lockout and IP rate limiting in [`backend/app/rate_limiter.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/rate_limiter.py) & `auth.py`:
+    - Enforces sliding window rate limit of 20 attempts/minute per IP on `/login`.
+    - Tracks failed login attempts per client IP and normalized email.
+    - After 5 consecutive failed attempts, triggers temporary 15-minute (900s) lockout returning `HTTP 429 Too Many Requests` with `Retry-After`.
+    - Resets failed attempt counter immediately upon valid credential authentication.
+  - **Architecture Specification for Future Email Verification & Password Reset**:
+    1. *Data Model*: Add `email_verification_tokens` and `password_reset_tokens` tables (`user_id`, `token_hash`, `expires_at`, `used_at`) and `email_verified: Boolean` on `User`.
+    2. *Cryptographic Security*: Generate 256-bit URL-safe tokens via `secrets.token_urlsafe(32)`; store strictly SHA-256 hashes in DB.
+    3. *Endpoints*: `POST /auth/forgot-password` (generic 200 to prevent user enumeration), `POST /auth/reset-password` (invalidates token and bumps `token_version` to revoke existing JWTs).
+    4. *Anti-Abuse*: Rate limit password reset requests to max 3 requests/hour per IP/email.
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_login_protection.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_login_protection.py)
+  - Failing output on old code:
+    ```text
+    FAILED backend/tests/test_login_protection.py::test_login_temporary_lockout_after_failures
+    AssertionError: Expected 429 lockout on 6th failed attempt, got 401
     ```
+  - Passing output on remediated code:
+    ```text
+    backend/tests/test_login_protection.py::test_registration_rejects_weak_passwords PASSED [ 25%]
+    backend/tests/test_login_protection.py::test_registration_accepts_strong_password PASSED [ 50%]
+    backend/tests/test_login_protection.py::test_login_temporary_lockout_after_failures PASSED [ 75%]
+    backend/tests/test_login_protection.py::test_successful_login_resets_failures PASSED [100%]
+    4 passed in 9.41s
+    ```
+
 
 
 

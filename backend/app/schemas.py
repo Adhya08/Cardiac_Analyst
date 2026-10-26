@@ -23,7 +23,7 @@ class UserProfileIn(BaseModel):
 class UserRegisterIn(UserProfileIn):
     email: str = Field(..., pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$", description="Valid email address")
     password: str = Field(..., min_length=8, description="Password minimum 8 characters")
-    role: Optional[str] = Field(default="clinician", pattern="^(clinician|patient|researcher)$")
+    role: Optional[str] = Field(default="patient", description="Ignored on public registration; always creates patient")
 
 
 class UserLoginIn(BaseModel):
@@ -34,7 +34,7 @@ class UserLoginIn(BaseModel):
 class UserProfileOut(UserProfileIn):
     id: str
     email: Optional[str] = None
-    role: Optional[str] = "clinician"
+    role: Optional[str] = "patient"
     is_active: bool = True
     created_at: Optional[datetime] = None
 

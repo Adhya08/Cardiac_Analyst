@@ -4,9 +4,12 @@ FastAPI Main Application
 Cardiac Risk Prediction Platform — Backend v2.0
 """
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()  # Load backend/.env *before* any other imports
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+load_dotenv()  # Fallback to current working directory .env
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

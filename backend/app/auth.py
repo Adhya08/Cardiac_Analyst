@@ -5,6 +5,13 @@ Implements bcrypt password hashing, JWT stateless access tokens, and
 FastAPI dependencies for role-based and user-isolated access control.
 """
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Ensure backend/.env is discovered even if executed from repo root, without overriding test monkeypatch
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env", override=False)
+load_dotenv(override=False)
+
 from datetime import datetime, timedelta
 from typing import Optional
 import bcrypt

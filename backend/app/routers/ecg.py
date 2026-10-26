@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models_db import ECGAnalysis, User
 from ..schemas import ECGOut
-from ..auth import get_optional_user
+from ..auth import get_current_user, verify_patient_access
 from ..ml.ecg_analyzer import get_ecg_analyzer
 
 router = APIRouter(prefix="/api/v1/ecg", tags=["ecg"])
@@ -32,19 +32,21 @@ MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB
 @router.post("/upload", response_model=ECGOut)
 async def upload_ecg(
     file: UploadFile = File(...),
-    user_id: str = Form(default="default_user"),
+    user_id: Optional[str] = Form(default=None),
     age: int = Form(default=50),
     sex: str = Form(default="Male"),
     conditions: str = Form(default=""),
     bp_sys: Optional[int] = Form(default=None),
     hr: Optional[int] = Form(default=None),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Upload a digital 12-lead ECG record (CSV, NPY, JSON).
-    Image/PDF scans are explicitly unsupported in this version to guarantee deterministic diagnostic quality.
+    Strictly authenticated: record saved for current user or granted patient.
     """
+    target_id = user_id if user_id else current_user.id
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
     filename_orig = file.filename or "ecg.csv"
     content_type = file.content_type or "text/csv"
 
@@ -107,13 +109,12 @@ async def upload_ecg(
         top_score = float(result["conditions"][0].get("model_score", 0.0))
 
     result["ecg_id"] = ecg_id
-    effective_user_id = current_user.id if current_user else user_id
 
     # ── Persist to Database
     try:
         record = ECGAnalysis(
             id=ecg_id,
-            user_id=effective_user_id,
+            user_id=target_id,
             file_path=filepath,
             file_name=filename_orig,
             urgency=result.get("urgency", "routine"),
@@ -139,20 +140,13 @@ async def upload_ecg(
 
 @router.get("/history")
 async def get_ecg_history(
-    user_id: str = "default_user",
-    current_user: Optional[User] = Depends(get_optional_user),
+    user_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get all ECG sessions for a user, ordered by most recent with access control."""
-    if current_user:
-        if user_id != "default_user" and user_id != current_user.id and current_user.role not in ("clinician", "researcher"):
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: Cannot access ECG records of another user.",
-            )
-        target_id = current_user.id if user_id == "default_user" else user_id
-    else:
-        target_id = user_id
+    """Get all ECG sessions for a user, ordered by most recent with strict authentication and grant checks."""
+    target_id = user_id if user_id else current_user.id
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
 
     records = (
         db.query(ECGAnalysis)
@@ -182,20 +176,15 @@ async def get_ecg_history(
 @router.get("/{ecg_id}", response_model=ECGOut)
 async def get_ecg_analysis(
     ecg_id: str,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get full analysis for a specific ECG session with access control."""
+    """Get full analysis for a specific ECG session with strict authentication and grant checks."""
     record = db.query(ECGAnalysis).filter(ECGAnalysis.id == ecg_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="ECG session not found.")
 
-    if current_user:
-        if record.user_id != "default_user" and record.user_id != current_user.id and current_user.role not in ("clinician", "researcher"):
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: You do not have permission to view this ECG record.",
-            )
+    verify_patient_access(current_user=current_user, patient_id=record.user_id, db=db)
 
     result = json.loads(record.analysis_json) if record.analysis_json else {}
     result["ecg_id"] = record.id

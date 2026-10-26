@@ -14,8 +14,9 @@ PYTHON_EXE = sys.executable
 
 def test_jwt_secret_enforcement_missing():
     """If JWT_SECRET_KEY is unset or empty, auth module must raise RuntimeError on import."""
-    env = {k: v for k, v in os.environ.items() if k != "JWT_SECRET_KEY"}
+    env = os.environ.copy()
     env["PYTHONPATH"] = "backend"
+    env["JWT_SECRET_KEY"] = ""  # Explicitly empty
     
     cmd = [PYTHON_EXE, "-c", "import app.auth"]
     res = subprocess.run(cmd, env=env, capture_output=True, text=True)

@@ -14,6 +14,7 @@ Verifies:
 10. POST /api/v1/emergency/triage returns complete triage payload with nearby hospitals and emergency helplines (112, 108).
 """
 
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 
@@ -92,15 +93,28 @@ def test_isolated_resting_dyspnea_triggers_see_doctor():
 
 
 def test_endpoint_rejects_invalid_symptom_length(client):
+    # Register test patient
+    email = f"triage_patient1_{uuid.uuid4().hex[:8]}@hospital.org"
+    reg = client.post("/api/v1/auth/register", json={"email": email, "password": "Password123!"})
+    token = reg.json()["access_token"]
+
     # Only 5 answers provided instead of 8
     payload = {
         "symptoms": [False, False, True, True, False],
     }
-    resp = client.post("/api/v1/emergency/triage", json=payload)
+    resp = client.post(
+        "/api/v1/emergency/triage",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"}
+    )
     assert resp.status_code == 422
 
 
 def test_endpoint_full_triage_flow(client):
+    email = f"triage_patient2_{uuid.uuid4().hex[:8]}@hospital.org"
+    reg = client.post("/api/v1/auth/register", json={"email": email, "password": "Password123!"})
+    token = reg.json()["access_token"]
+
     payload = {
         "symptoms": [False] * 8,
         "bp_sys": 120,
@@ -108,7 +122,11 @@ def test_endpoint_full_triage_flow(client):
         "lat": 28.6139,
         "lon": 77.2090,
     }
-    resp = client.post("/api/v1/emergency/triage", json=payload)
+    resp = client.post(
+        "/api/v1/emergency/triage",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"}
+    )
     assert resp.status_code == 200
     data = resp.json()
 

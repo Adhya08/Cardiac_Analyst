@@ -97,20 +97,38 @@ def get_current_user(
     return user
 
 
-def get_optional_user(
-    token: Optional[str] = Depends(oauth2_scheme_optional),
-    db: Session = Depends(get_db),
-) -> Optional[User]:
-    """FastAPI dependency: returns authenticated user if token is valid, else None for guest mode."""
-    if not token:
-        return None
-    payload = decode_access_token(token)
-    if payload is None:
-        return None
-    user_id: Optional[str] = payload.get("sub")
-    if not user_id:
-        return None
-    user = db.query(User).filter(User.id == user_id).first()
-    if user and user.is_active:
-        return user
-    return None
+def verify_patient_access(
+    current_user: User,
+    patient_id: str,
+    db: Session,
+) -> bool:
+    """
+    Verifies that current_user has legitimate access to patient_id's health records.
+    Allowed IF:
+      1. current_user is the patient themselves (current_user.id == patient_id), OR
+      2. current_user is an admin (current_user.role == 'admin'), OR
+      3. current_user is a clinician (current_user.role == 'clinician') AND the patient
+         has explicitly granted active access via PatientClinicianGrant.
+    Otherwise raises 403 Forbidden.
+    """
+    if current_user.id == patient_id or current_user.role == "admin":
+        return True
+
+    if current_user.role == "clinician":
+        from .models_db import PatientClinicianGrant
+        grant = (
+            db.query(PatientClinicianGrant)
+            .filter(
+                PatientClinicianGrant.patient_id == patient_id,
+                PatientClinicianGrant.clinician_id == current_user.id,
+                PatientClinicianGrant.is_active == True,
+            )
+            .first()
+        )
+        if grant:
+            return True
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Access denied: You do not have permission to access records for this patient.",
+    )

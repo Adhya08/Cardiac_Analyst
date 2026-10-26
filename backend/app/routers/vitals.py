@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models_db import VitalsLog, User
 from ..schemas import VitalsIn, VitalsOut, UserProfileIn, UserProfileOut
-from ..auth import get_optional_user
+from ..auth import get_current_user, verify_patient_access
 from ..ml.risk_model import RiskModel
 from ..ml.vitals_validator import VitalsValidator
 from ..ml.risk_auditor import RiskAuditor
@@ -56,14 +56,17 @@ def get_risk_auditor() -> RiskAuditor:
 
 @router.get("/user/profile")
 async def get_profile(
-    user_id: str = Query(default="default_user"),
-    current_user: Optional[User] = Depends(get_optional_user),
+    user_id: Optional[str] = Query(default=None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    target_id = current_user.id if current_user else user_id
+    """Retrieve profile and clinical demographics with strict authentication and grant checks."""
+    target_id = user_id if user_id else current_user.id
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
+
     user = db.query(User).filter(User.id == target_id).first()
     if not user:
-        return None
+        raise HTTPException(status_code=404, detail="User not found.")
     return {
         "id": user.id,
         "email": user.email,
@@ -80,11 +83,14 @@ async def get_profile(
 @router.put("/user/profile")
 async def update_profile(
     profile: UserProfileIn,
-    user_id: str = Query(default="default_user"),
-    current_user: Optional[User] = Depends(get_optional_user),
+    user_id: Optional[str] = Query(default=None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    target_id = current_user.id if current_user else user_id
+    """Update profile and demographics for current user or granted patient."""
+    target_id = user_id if user_id else current_user.id
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
+
     user = db.query(User).filter(User.id == target_id).first()
     if not user:
         user = User(id=target_id)
@@ -107,19 +113,21 @@ async def update_profile(
 @router.post("/vitals")
 async def log_vitals(
     vitals: VitalsIn,
-    user_id: str = Query(default="default_user"),
-    current_user: Optional[User] = Depends(get_optional_user),
+    user_id: Optional[str] = Query(default=None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Log vitals → run LightGBM + Framingham risk model → return SHAP explanation.
+    Strictly authenticated: logged to current user or explicitly granted patient.
     """
-    effective_user_id = current_user.id if current_user else user_id
+    target_id = user_id if user_id else current_user.id
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
 
-    # Get or create user
-    user = db.query(User).filter(User.id == effective_user_id).first()
+    # Get user
+    user = db.query(User).filter(User.id == target_id).first()
     if not user:
-        user = User(id=effective_user_id, name="User", age=45, sex="Male")
+        user = User(id=target_id, name="User", age=45, sex="Male")
         db.add(user)
         db.commit()
 
@@ -159,7 +167,7 @@ async def log_vitals(
     # Compute trend_delta from previous reading
     previous = (
         db.query(VitalsLog)
-        .filter(VitalsLog.user_id == effective_user_id)
+        .filter(VitalsLog.user_id == target_id)
         .order_by(VitalsLog.timestamp.desc())
         .first()
     )
@@ -170,7 +178,7 @@ async def log_vitals(
     # Persist to database
     record = VitalsLog(
         id=str(uuid.uuid4()),
-        user_id=effective_user_id,
+        user_id=target_id,
         bp_sys=vitals.bp_sys,
         bp_dia=vitals.bp_dia,
         hr=vitals.hr,
@@ -201,21 +209,14 @@ async def log_vitals(
 
 @router.get("/vitals/history")
 async def get_vitals_history(
-    user_id: str = Query(default="default_user"),
+    user_id: Optional[str] = Query(default=None),
     days: int = Query(default=30, ge=1, le=365),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get vitals history for the last N days with trend analysis and access control."""
-    if current_user:
-        if user_id != "default_user" and user_id != current_user.id and current_user.role not in ("clinician", "researcher"):
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: Cannot access vitals of another user.",
-            )
-        target_id = current_user.id if user_id == "default_user" else user_id
-    else:
-        target_id = user_id
+    """Get vitals history for the last N days with strict authentication and clinician grant checks."""
+    target_id = user_id if user_id else current_user.id
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
 
     since = datetime.utcnow() - timedelta(days=days)
 

@@ -77,3 +77,13 @@ class TriageEvent(Base):
     lat = Column(Float, nullable=True)
     lon = Column(Float, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class PatientClinicianGrant(Base):
+    __tablename__ = "patient_clinician_grants"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    patient_id = Column(String, index=True, nullable=False)
+    clinician_id = Column(String, index=True, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

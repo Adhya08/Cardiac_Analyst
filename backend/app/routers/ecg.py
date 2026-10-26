@@ -1,8 +1,9 @@
 """
 ECG Upload & Analysis Router
 ------------------------------
-POST /api/v1/ecg/upload   — Upload ECG image → Gemini Vision analysis.
+POST /api/v1/ecg/upload   — Upload digital 12-lead ECG record (CSV, NPY, JSON) → Local ResNet1D analysis.
 GET  /api/v1/ecg/history  — Get ECG session history.
+GET  /api/v1/ecg/{ecg_id} — Get full analysis for a session.
 """
 import os
 import uuid
@@ -16,34 +17,18 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models_db import ECGAnalysis
-from ..ml.ecg_analyzer import ECGAnalyzer
+from ..schemas import ECGOut
+from ..ml.ecg_analyzer import get_ecg_analyzer
 
 router = APIRouter(prefix="/api/v1/ecg", tags=["ecg"])
 
 UPLOAD_DIR = "uploads/ecg"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-ALLOWED_MIME_TYPES = {
-    "image/jpeg", "image/jpg", "image/png",
-    "image/webp", "application/pdf",
-}
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB
 
-# Singleton ECG analyzer
-_ecg_analyzer: Optional[ECGAnalyzer] = None
 
-
-def get_ecg_analyzer() -> ECGAnalyzer:
-    global _ecg_analyzer
-    if _ecg_analyzer is None:
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise RuntimeError("GEMINI_API_KEY environment variable is not set.")
-        _ecg_analyzer = ECGAnalyzer(api_key=api_key)
-    return _ecg_analyzer
-
-
-@router.post("/upload")
+@router.post("/upload", response_model=ECGOut)
 async def upload_ecg(
     file: UploadFile = File(...),
     user_id: str = Form(default="default_user"),
@@ -55,34 +40,41 @@ async def upload_ecg(
     db: Session = Depends(get_db),
 ):
     """
-    Upload ECG image/PDF → analyze with Gemini 2.0 Flash Vision → return structured report.
-    All analysis is REAL — no mock data.
+    Upload a digital 12-lead ECG record (CSV, NPY, JSON).
+    Image/PDF scans are explicitly unsupported in this version to guarantee deterministic diagnostic quality.
     """
-    # ── Validate file type
-    content_type = file.content_type or "image/jpeg"
-    if content_type not in ALLOWED_MIME_TYPES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Unsupported file type '{content_type}'. Accepted: JPG, PNG, WebP, PDF.",
-        )
+    filename_orig = file.filename or "ecg.csv"
+    content_type = file.content_type or "text/csv"
 
     # ── Read file bytes
     content = await file.read()
     if len(content) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 20 MB).")
-    if len(content) < 1024:
-        raise HTTPException(status_code=422, detail="File too small — appears to be empty or corrupt.")
 
-    # ── Save to disk
+    # ── Check empty file
+    if len(content) == 0:
+        analyzer = get_ecg_analyzer()
+        err_res = analyzer._build_unavailable_response(
+            reason="Uploaded file is completely empty (0 bytes).",
+            quality="unusable"
+        )
+        return err_res
+
+    # ── Save upload to disk
     ecg_id = str(uuid.uuid4())
-    ext = (file.filename or "ecg.jpg").split(".")[-1].lower()
-    filename = f"{ecg_id}.{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
+    raw_ext = os.path.splitext(filename_orig)[1].lstrip(".").lower()
+    allowed_exts = {"csv", "json", "npy", "txt"}
+    ext = raw_ext if raw_ext in allowed_exts else "csv"
+    saved_filename = f"{ecg_id}.{ext}"
+    filepath = os.path.join(UPLOAD_DIR, saved_filename)
 
-    async with aiofiles.open(filepath, "wb") as f:
-        await f.write(content)
+    try:
+        async with aiofiles.open(filepath, "wb") as f:
+            await f.write(content)
+    except Exception as e:
+        print(f"[Upload] Warning saving file to disk: {e}")
 
-    # ── Patient context for Gemini prompt
+    # ── Patient Context
     patient_context = {
         "age": age,
         "sex": sex,
@@ -91,43 +83,54 @@ async def upload_ecg(
         "hr": hr,
     }
 
-    # ── Run real Gemini Vision analysis
-    try:
-        analyzer = get_ecg_analyzer()
-        result = analyzer.analyze_ecg(content, patient_context, content_type)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ECG analysis failed: {str(e)}")
-
-    # ── Determine top condition
-    top_cond = None
-    top_prob = 0.0
-    for c in result.get("conditions", []):
-        if float(c.get("probability", 0)) > top_prob:
-            top_prob = float(c.get("probability", 0))
-            top_cond = c.get("name")
-
-    # ── Persist to database
-    record = ECGAnalysis(
-        id=ecg_id,
-        user_id=user_id,
-        file_path=filepath,
-        file_name=file.filename,
-        urgency=result.get("urgency", "see_doctor_today"),
-        heart_rate_bpm=result.get("heart_rate_bpm"),
-        rhythm=result.get("rhythm"),
-        qtc_ms=result.get("qtc_ms"),
-        image_quality=result.get("image_quality", "fair"),
-        top_condition=top_cond,
-        top_condition_prob=top_prob,
-        analysis_json=json.dumps(result),
-        timestamp=datetime.utcnow(),
+    # ── Execute Local Deterministic Inference via ECGAnalyzer
+    analyzer = get_ecg_analyzer()
+    result = analyzer.analyze_digital_ecg(
+        file_bytes=content,
+        filename=filename_orig,
+        content_type=content_type,
+        patient_context=patient_context
     )
-    db.add(record)
-    db.commit()
 
-    # Add ecg_id to result
+    # ── Determine top condition (prefer abnormal if detected)
+    top_cond = None
+    top_score = 0.0
+    for c in result.get("conditions", []):
+        score = float(c.get("model_score", 0.0))
+        if score > top_score and c.get("code") != "NORM":
+            top_score = score
+            top_cond = c.get("name")
+    if top_cond is None and result.get("conditions"):
+        top_cond = result["conditions"][0].get("name")
+        top_score = float(result["conditions"][0].get("model_score", 0.0))
+
     result["ecg_id"] = ecg_id
-    result["file_url"] = f"/uploads/ecg/{filename}"
+
+    # ── Persist to Database
+    try:
+        record = ECGAnalysis(
+            id=ecg_id,
+            user_id=user_id,
+            file_path=filepath,
+            file_name=filename_orig,
+            urgency=result.get("urgency", "routine"),
+            heart_rate_bpm=result.get("heart_rate_bpm"),
+            rhythm=result.get("rhythm"),
+            qtc_ms=result.get("qtc_ms"),
+            image_quality=result.get("quality_status", "fair"),
+            top_condition=top_cond,
+            top_condition_prob=top_score,
+            analysis_json=json.dumps(result),
+            timestamp=datetime.utcnow(),
+        )
+        db.add(record)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Warning persisting ECG record: {e}")
+        result["ecg_id"] = None
+        result["persistence_error"] = f"Failed to persist analysis to database: {str(e)}"
+
     return result
 
 
@@ -155,7 +158,6 @@ async def get_ecg_history(
             "image_quality": r.image_quality,
             "top_condition": r.top_condition,
             "top_condition_prob": r.top_condition_prob,
-            "file_url": f"/uploads/ecg/{r.id}.{(r.file_name or 'ecg.jpg').split('.')[-1]}",
             "file_name": r.file_name,
         }
         for r in records
@@ -163,7 +165,7 @@ async def get_ecg_history(
     return {"ecg_sessions": sessions, "total": len(sessions)}
 
 
-@router.get("/{ecg_id}")
+@router.get("/{ecg_id}", response_model=ECGOut)
 async def get_ecg_analysis(
     ecg_id: str,
     db: Session = Depends(get_db),
@@ -175,4 +177,10 @@ async def get_ecg_analysis(
 
     result = json.loads(record.analysis_json) if record.analysis_json else {}
     result["ecg_id"] = record.id
+    if "status" not in result:
+        result["status"] = "ok"
+    if "quality_status" not in result:
+        result["quality_status"] = record.image_quality or "good"
+    if "model_scores" not in result:
+        result["model_scores"] = {}
     return result

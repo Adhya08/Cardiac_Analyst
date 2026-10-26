@@ -9,43 +9,43 @@ interface RiskArcProps {
 export const RiskArc: React.FC<RiskArcProps> = ({ score, tier }) => {
   const radius = 90;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
+  const offset = circumference - (Math.min(100, Math.max(0, score)) / 100) * circumference;
 
   const getTierColor = (t: string) => {
     switch (t) {
-      case 'Low': return 'text-emerald-500';
-      case 'Borderline': return 'text-gold-500';
-      case 'Elevated': return 'text-red-500';
-      default: return 'text-emerald-500';
+      case 'Low': return 'text-emerald-700';
+      case 'Borderline': return 'text-amber-700';
+      case 'Elevated': return 'text-red-700';
+      default: return 'text-emerald-700';
     }
   };
 
   const getStrokeColor = (t: string) => {
     switch (t) {
-      case 'Low': return '#10b981';
-      case 'Borderline': return '#f59e0b';
-      case 'Elevated': return '#ef4444';
-      default: return '#10b981';
+      case 'Low': return '#0F8B83';
+      case 'Borderline': return '#D97706';
+      case 'Elevated': return '#DC2626';
+      default: return '#0F8B83';
     }
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center p-8 bg-slate-900/40 rounded-3xl border border-white/5 backdrop-blur-sm">
-      <svg className="w-64 h-64 -rotate-90">
+    <div className="relative flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-border shadow-card">
+      <svg className="w-56 h-56 -rotate-90">
         {/* Background Arc */}
         <circle
-          cx="128"
-          cy="128"
+          cx="112"
+          cy="112"
           r={radius}
           fill="transparent"
-          stroke="rgba(255,255,255,0.05)"
+          stroke="#EDF2F7"
           strokeWidth="12"
           strokeLinecap="round"
         />
         {/* Progress Arc */}
         <motion.circle
-          cx="128"
-          cy="128"
+          cx="112"
+          cy="112"
           r={radius}
           fill="transparent"
           stroke={getStrokeColor(tier)}
@@ -53,32 +53,32 @@ export const RiskArc: React.FC<RiskArcProps> = ({ score, tier }) => {
           strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
           strokeLinecap="round"
         />
       </svg>
       
-      <div className="absolute inset-0 flex flex-col items-center justify-center pt-4">
+      <div className="absolute inset-0 flex flex-col items-center justify-center pt-2">
         <motion.span 
-          initial={{ opacity: 0, scale: 0.5 }}
+          initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-5xl font-black tracking-tighter"
+          className="text-4xl font-black tracking-tight text-navy-850 tabular-nums"
         >
           {Math.round(score)}%
         </motion.span>
-        <span className={`text-xs font-bold uppercase tracking-[0.2em] mt-1 ${getTierColor(tier)}`}>
-          {tier} Risk
+        <span className={`text-[11px] font-bold uppercase tracking-wider mt-0.5 ${getTierColor(tier)}`}>
+          {tier} ASCVD Risk
         </span>
       </div>
 
-      <div className="mt-8 flex gap-8 w-full justify-center">
+      <div className="mt-4 flex gap-6 w-full justify-center border-t border-border pt-4">
         <div className="text-center">
-          <p className="text-[10px] text-slate-500 uppercase font-bold">Confidence</p>
-          <p className="text-sm font-semibold text-slate-300">98.2%</p>
+          <p className="text-[10px] text-slate-400 uppercase font-bold">Model Engine</p>
+          <p className="text-xs font-bold text-navy-850 font-mono">LightGBM</p>
         </div>
-        <div className="text-center border-l border-white/10 pl-8">
-          <p className="text-[10px] text-slate-500 uppercase font-bold">Calibration</p>
-          <p className="text-sm font-semibold text-slate-300">Indian Cohort</p>
+        <div className="text-center border-l border-border pl-6">
+          <p className="text-[10px] text-slate-400 uppercase font-bold">Reference Calibration</p>
+          <p className="text-xs font-bold text-navy-850">Framingham / ICMR</p>
         </div>
       </div>
     </div>

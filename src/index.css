@@ -3,81 +3,168 @@
 @tailwind utilities;
 
 :root {
-  --background: #020617;
-  --foreground: #f8fafc;
-  --primary: #10b981;
-  --primary-foreground: #ffffff;
-  --secondary: #f59e0b;
-  --secondary-foreground: #020617;
-  --card: rgba(15, 23, 42, 0.6);
-  --card-foreground: #f8fafc;
-  --border: rgba(255, 255, 255, 0.1);
+  --canvas: #F6F8FA;
+  --surface: #FFFFFF;
+  --surface-hover: #F8FAFC;
+  --border: #E3E9EF;
+  --border-light: #EDF2F7;
+  --text-primary: #182B3A;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --teal-primary: #0F8B83;
+  --teal-hover: #0B6862;
+  --blue-accent: #5B8DEF;
 }
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-50 min-h-screen selection:bg-emerald-500/30;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--canvas);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Force tabular numerals for medical values, rates, durations and scores */
+  .tabular-nums,
+  table,
+  input[type="number"],
+  .medical-metric {
+    font-variant-numeric: tabular-nums;
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl;
+  /* Clinical Surface Card with layered 3D depth */
+  .clinical-card {
+    background-color: #FFFFFF;
+    border: 1px solid #E3E9EF;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(24, 43, 58, 0.04), 0 4px 12px rgba(24, 43, 58, 0.03);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  
-  .glass-card-hover {
-    @apply hover:bg-slate-800/80 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-emerald-500/10;
+
+  .clinical-card-interactive {
+    @apply clinical-card cursor-pointer;
+  }
+
+  .clinical-card-interactive:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 4px 16px -2px rgba(24, 43, 58, 0.08), 0 1px 4px rgba(24, 43, 58, 0.04);
+    transform: translateY(-1px);
+  }
+
+  /* Tactile Clinical Buttons */
+  .btn-clinical-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs tracking-wide text-white transition-all duration-150;
+    background-color: #0F8B83;
+    border: 1px solid #0B6862;
+    box-shadow: 0 1px 2px rgba(15, 139, 131, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .btn-clinical-primary:hover:not(:disabled) {
+    background-color: #0B6862;
+    box-shadow: 0 2px 4px rgba(15, 139, 131, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transform: translateY(-0.5px);
+  }
+
+  .btn-clinical-primary:active:not(:disabled) {
+    transform: translateY(0.5px);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+
+  .btn-clinical-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs tracking-wide transition-all duration-150;
+    background-color: #FFFFFF;
+    color: #182B3A;
+    border: 1px solid #E3E9EF;
+    box-shadow: 0 1px 2px rgba(24, 43, 58, 0.05), inset 0 1px 0 #FFFFFF;
+  }
+
+  .btn-clinical-secondary:hover:not(:disabled) {
+    background-color: #F8FAFC;
+    border-color: #CBD5E1;
+    color: #0F8B83;
+    box-shadow: 0 2px 4px rgba(24, 43, 58, 0.08);
+  }
+
+  .btn-clinical-danger {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs tracking-wide text-white transition-all duration-150;
+    background-color: #DC2626;
+    border: 1px solid #B91C1C;
+    box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-clinical-danger:hover:not(:disabled) {
+    background-color: #B91C1C;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);
+  }
+
+  /* Form Input Styling */
+  .clinical-input {
+    @apply w-full px-3.5 py-2.5 rounded-xl text-xs text-navy-850 bg-white border border-border focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-slate-400 font-medium;
+    box-shadow: inset 0 1px 2px rgba(24, 43, 58, 0.03);
+  }
+
+  /* Medical Badge */
+  .badge-clinical {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border;
+  }
+
+  /* Authentic Pink Medical ECG Grid (Standard 1mm minor, 5mm major calibration) */
+  .ecg-grid-canvas {
+    background-color: #FFFDFE;
+    background-image: 
+      linear-gradient(to right, #FCE7EB 1px, transparent 1px),
+      linear-gradient(to bottom, #FCE7EB 1px, transparent 1px),
+      linear-gradient(to right, #F8B6C3 1px, transparent 1px),
+      linear-gradient(to bottom, #F8B6C3 1px, transparent 1px);
+    background-size: 5px 5px, 5px 5px, 25px 25px, 25px 25px;
+    background-position: -1px -1px;
+  }
+
+  /* Backward compatibility shims for existing components */
+  .glass-card {
+    background-color: #FFFFFF;
+    border: 1px solid #E3E9EF;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(24, 43, 58, 0.04), 0 4px 12px rgba(24, 43, 58, 0.03);
   }
 
   .btn-primary {
-    @apply px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2;
+    @apply btn-clinical-primary;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-all duration-300 border border-white/5 active:scale-95 flex items-center justify-center gap-2;
+    @apply btn-clinical-secondary;
   }
 
   .btn-danger {
-    @apply px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-red-900/40 animate-pulse active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest;
+    @apply btn-clinical-danger;
   }
 
   .input-field {
-    @apply w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all placeholder:text-slate-500;
+    @apply clinical-input;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Refined Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-slate-950;
+  background: #F1F4F8;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+  background: #CBD5E1;
+  border-radius: 9999px;
 }
 
-.text-gradient {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-emerald-600;
-}
-
-.text-gradient-gold {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-gold-400 to-gold-600;
-}
-
-@keyframes scan {
-  from { left: 0%; }
-  to { left: 100%; }
-}
-
-@keyframes dash {
-  from { stroke-dashoffset: 1000; }
-  to { stroke-dashoffset: 0; }
-}
-
-.animate-scan {
-  animation: scan 4s linear infinite;
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
 }

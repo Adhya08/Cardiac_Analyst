@@ -737,6 +737,10 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     backend/tests/test_third_party_data_flow.py::test_chat_message_requires_explicit_consent PASSED [ 25%]
     backend/tests/test_third_party_data_flow.py::test_chat_summarize_requires_explicit_consent PASSED [ 50%]
     backend/tests/test_third_party_data_flow.py::test_chat_advice_requires_explicit_consent PASSED [ 75%]
+    backend/tests/test_third_party_data_flow.py::test_chat_cannot_summarize_unauthorized_patient_ecg PASSED [100%]
+    4 passed in 7.15s
+    ```
+
 ### Fix 1b - Item 5: Login Brute-Force Lockout, IP Rate Limiting & Registration Password Strength
 - **Problems Addressed**:
   - Susceptibility to online credential stuffing and brute-force dictionary attacks against `/api/v1/auth/login`.
@@ -771,6 +775,16 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     backend/tests/test_login_protection.py::test_successful_login_resets_failures PASSED [100%]
     4 passed in 9.41s
     ```
+
+---
+
+### Fix 1b - Item 6: Environment File Tracking & Repository Hygiene Audit
+- **Verification Commands Executed**:
+  1. `git ls-files | Select-String "\.env"`: Output empty (zero `.env` files tracked in Git index).
+  2. `git check-ignore -v backend/.env`: Confirmed explicitly ignored by `.gitignore:35:.env`.
+  3. `git branch --show-current`: Confirmed active branch is `main`.
+- **Status**: Verified clean. No environment files containing secrets are tracked in Git. All 66 tests passing.
+
 
 
 

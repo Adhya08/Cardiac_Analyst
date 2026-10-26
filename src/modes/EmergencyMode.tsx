@@ -91,21 +91,42 @@ export const EmergencyMode: React.FC = () => {
       setStep('result');
     } catch (err: any) {
       setApiError(err.message);
-      // Fallback result — government numbers always available
+      // Fallback result — deterministic offline evaluation matching NICE CG95
+      const yesCount = Object.values(finalAnswers).filter(Boolean).length;
+      const stemiSuspicious = Boolean(finalAnswers[0] && finalAnswers[1]);
+      const syncope = Boolean(finalAnswers[6]);
+      const chestPainDyspnea = Boolean(finalAnswers[0] && finalAnswers[2]);
+      const isEmergent = yesCount >= 5 || stemiSuspicious || syncope || chestPainDyspnea;
+      const isDoctor = yesCount >= 1 || Boolean(finalAnswers[0]) || Boolean(finalAnswers[2]);
+      const severity = isEmergent ? 'emergency' : isDoctor ? 'see_doctor' : 'normal';
+
+      const instructions = isEmergent ? [
+        '🚨 Call 112 immediately. Do not wait.',
+        'Sit or lie down in a comfortable position. Do NOT drive yourself.',
+        'Unlock your front door so emergency responders can enter.',
+        'Remain calm and rest quietly until emergency medical personnel arrive.',
+      ] : isDoctor ? [
+        'Visit a cardiologist or urgent care clinic within 24 hours.',
+        'Rest completely and avoid physical exertion.',
+        'If symptoms worsen at any point, call 112 immediately.',
+        'Do not drive — arrange transport with someone else.',
+      ] : [
+        'Your symptoms appear low-risk at this time.',
+        'Monitor yourself and rest if you feel unwell.',
+        'Maintain your daily vitals log to detect trends.',
+        'Schedule a routine check-up with your doctor within the week.',
+        'Call 112 if any new or worsening symptoms develop.',
+      ];
+
       setTriageResult({
-        severity: 'emergency',
+        severity,
         confidence: 0.8,
-        risk_score: 70,
-        yes_count: Object.values(finalAnswers).filter(Boolean).length,
-        stemi_suspicious: finalAnswers[0] && finalAnswers[1],
-        combo_triggered: false,
+        risk_score: isEmergent ? 70 : isDoctor ? 35 : 5,
+        yes_count: yesCount,
+        stemi_suspicious: stemiSuspicious,
+        combo_triggered: isEmergent,
         vitals_red_flag: false,
-        instructions: [
-          'Call 112 immediately.',
-          'Sit or lie down. Do not drive yourself.',
-          'Unlock your front door.',
-          'Remain calm and rest quietly until emergency medical personnel arrive.',
-        ],
+        instructions,
         hospitals: [],
         ambulances: [
           { service: 'India Emergency', contact: '112', type: 'government' },

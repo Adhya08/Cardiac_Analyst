@@ -84,7 +84,7 @@ def test_register_short_password_rejected(client):
 
 def test_login_success(client):
     email = f"user_{uuid.uuid4().hex[:8]}@hospital.org"
-    password = "CorrectPassword123"
+    password = "CorrectPassword123!"
     client.post("/api/v1/auth/register", json={
         "email": email,
         "password": password,
@@ -102,7 +102,7 @@ def test_login_invalid_password(client):
     email = f"user_{uuid.uuid4().hex[:8]}@hospital.org"
     client.post("/api/v1/auth/register", json={
         "email": email,
-        "password": "ValidPassword123",
+        "password": "ValidPassword123!",
         "name": "Login Tester",
     })
 
@@ -125,7 +125,7 @@ def test_protected_me_authorized_and_update(client):
     email = f"auth_{uuid.uuid4().hex[:8]}@hospital.org"
     reg = client.post("/api/v1/auth/register", json={
         "email": email,
-        "password": "Password12345",
+        "password": "Password12345!",
         "name": "Original Name",
         "age": 35,
     })

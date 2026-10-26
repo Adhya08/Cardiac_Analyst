@@ -137,12 +137,7 @@ async def chat_message(
             ),
         )
 
-    try:
-        assistant = get_sarvam_assistant()
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
-    # Load verified ECG context if requested
+    # Load verified ECG context if requested (Access control verified before external call)
     ecg_context = None
     if req.ecg_id:
         ecg_context = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
@@ -151,6 +146,11 @@ async def chat_message(
                 status_code=404,
                 detail=f"ECG session '{req.ecg_id}' not found.",
             )
+
+    try:
+        assistant = get_sarvam_assistant()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     # Convert history to plain dicts (no identifying personal info)
     history = [{"role": m.role, "content": m.content} for m in (req.history or [])]
@@ -195,17 +195,18 @@ async def summarize_ecg(
             ),
         )
 
-    try:
-        assistant = get_sarvam_assistant()
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
+    # Access control verification before external API assistant initialization
     ecg_analysis = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
     if ecg_analysis is None:
         raise HTTPException(
             status_code=404,
             detail=f"ECG session '{req.ecg_id}' not found.",
         )
+
+    try:
+        assistant = get_sarvam_assistant()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     # Only anonymized clinical metrics are sent to Sarvam AI (no name, email, IP, user_id)
     result = assistant.summarize_report(ecg_analysis, language=req.language)

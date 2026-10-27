@@ -1,3 +1,0 @@
-GPU: Tesla T4
-CUDA: True
-Status: SUCCESS

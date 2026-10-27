@@ -77,6 +77,9 @@ class LocalECGModel:
         if model_path is None:
             # Default search paths for exported ONNX weights
             possible_paths = [
+                os.path.join(os.path.dirname(__file__), "..", "..", "models", "model.onnx"),
+                os.path.join(os.getcwd(), "backend", "models", "model.onnx"),
+                os.path.join(os.getcwd(), "models", "model.onnx"),
                 os.path.join(os.path.dirname(__file__), "..", "..", "models_saved", "ptbxl_resnet1d.onnx"),
                 os.path.join(os.getcwd(), "backend", "models_saved", "ptbxl_resnet1d.onnx"),
                 os.path.join(os.getcwd(), "models_saved", "ptbxl_resnet1d.onnx"),
@@ -227,6 +230,9 @@ class LocalECGModel:
 
         # Batch dimension: (1, 12, 1000)
         input_tensor = np.expand_dims(norm_signals, axis=0)
+        expected_shape = self.session.get_inputs()[0].shape
+        if len(expected_shape) == 3 and expected_shape[1] == 1000 and expected_shape[2] == 12:
+            input_tensor = np.transpose(input_tensor, (0, 2, 1)).astype(np.float32)
 
         # Run ONNX inference
         try:

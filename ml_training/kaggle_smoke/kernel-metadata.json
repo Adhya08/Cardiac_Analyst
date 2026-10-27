@@ -1,0 +1,16 @@
+{
+  "id": "cyberfocus2410/cardiac-analyst-phase-3-pipeline-smoke-test",
+  "title": "Cardiac Analyst Phase 3 Pipeline Smoke Test",
+  "code_file": "smoke_test_kaggle.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "dataset_sources": [
+    "garethwmch/ptb-xl-1-0-3"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

@@ -43,7 +43,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleMobileMenu,
   onOpenProfile,
 }) => {
-  const { currentMode, isSidebarCollapsed, language, setLanguage, setMode, user, backendHealth, setBackendHealth } = useStore();
+  const { currentMode, isSidebarCollapsed, language, setLanguage, user, backendHealth, setBackendHealth } = useStore();
   const modeInfo = MODE_TITLES[currentMode] || MODE_TITLES.overview;
 
   // Poll real backend health on mount
@@ -151,14 +151,14 @@ export const TopBar: React.FC<TopBarProps> = ({
           </button>
 
           {/* Direct Emergency 112 SOS Button */}
-          <button
-            onClick={() => setMode('emergency')}
-            title="Emergency Triage & Hospital Routing"
-            className="btn-clinical-danger px-3.5 py-1.5 text-xs shadow-sm"
+          <a
+            href="tel:112"
+            title="Direct Phone Call to 112 Emergency Services"
+            className="btn-clinical-danger px-3.5 py-1.5 text-xs shadow-sm flex items-center gap-1.5"
           >
             <PhoneCall className="w-3.5 h-3.5 animate-pulse" />
             <span className="font-black tracking-tight">112 SOS</span>
-          </button>
+          </a>
         </div>
       </div>
     </header>

@@ -930,6 +930,26 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     4 passed in 46.96s
     ```
 
+### Fix 1c - Item 5: Warning Elimination, Direct SOS Telephony & Emergency Clarification
+- **Problems Addressed**:
+  - Deprecation warnings in test outputs: Pydantic v2 `class Config` on `UserProfileOut` and `ConsentOut`, FastAPI `@app.on_event("startup")` deprecation, and Starlette `HTTP_422_UNPROCESSABLE_ENTITY`.
+  - The UI SOS button previously called state transitions instead of directly dialling emergency telephony.
+  - Backend SOS endpoint needed clarity on whether calling it dispatches emergency response.
+- **Remediation**:
+  1. **Zero-Deprecation Clean Backend**:
+     - Upgraded `UserProfileOut` in [`backend/app/schemas.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/schemas.py) and `ConsentOut` in [`backend/app/routers/consent.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/consent.py) to `model_config = ConfigDict(from_attributes=True)`.
+     - Migrated [`backend/app/main.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/main.py) to the modern `@asynccontextmanager` `lifespan` handler.
+     - Updated password complexity validations in [`backend/app/routers/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/auth.py) to use `status.HTTP_422_UNPROCESSABLE_CONTENT`.
+  2. **Direct SOS Telephony (`tel:112`)**:
+     - Converted the TopBar Emergency SOS action in [`src/components/TopBar.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/TopBar.tsx) into a direct `<a href="tel:112">` link. Clicking it opens the device dialer immediately without requiring an API call or network connection.
+  3. **Explicit Emergency Dispatch Clarification**:
+     - Updated `POST /api/v1/emergency/sos` in [`backend/app/routers/emergency.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/emergency.py) to plainly state in its response body:
+       `"emergency_dispatch": false`
+       `"notice": "THIS API DOES NOT ALERT OR DISPATCH EMERGENCY SERVICES. Dial 112 or your local emergency number directly from your phone."`
+- **Automated Test Evidence**:
+  - Full backend test suite (`pytest tests/`): **80 passed**, 0 internal application warnings.
+  - Production frontend build (`npm run build`): **Clean exit, 0 TypeScript errors**.
+
 
 
 

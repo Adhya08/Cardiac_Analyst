@@ -35,27 +35,27 @@ def check_password_complexity(password: str) -> None:
     """Enforce minimum 8 chars, uppercase, lowercase, number, and special symbol."""
     if len(password) < 8:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Password must be at least 8 characters long.",
         )
     if not re.search(r"[A-Z]", password):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Password must contain at least one uppercase letter (A-Z).",
         )
     if not re.search(r"[a-z]", password):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Password must contain at least one lowercase letter (a-z).",
         )
     if not re.search(r"[0-9]", password):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Password must contain at least one numeric digit (0-9).",
         )
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Password must contain at least one special character (!@#$%^&*...).",
         )
 

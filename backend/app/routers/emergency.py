@@ -142,13 +142,15 @@ def emergency_sos(
 
     return {
         "status": "emergency_active",
+        "emergency_dispatch": False,
+        "notice": "THIS API DOES NOT ALERT OR DISPATCH EMERGENCY SERVICES. Dial 112 or your local emergency number directly from your phone.",
         "emergency_hotlines": [
             {"service": "India National Emergency", "number": "112", "type": "universal"},
             {"service": "Ambulance Hotline", "number": "108", "type": "medical"},
             {"service": "Red Cross Emergency", "number": "1800-180-7676", "type": "helpline"},
         ],
         "instructions": [
-            "🚨 Call 112 immediately. Do not delay.",
+            "🚨 Call 112 immediately from your phone. Do not delay.",
             "Sit or lie down in a comfortable position. Do NOT drive yourself.",
             "Unlock your front door so emergency responders can enter.",
             "Remain calm and rest quietly until paramedics arrive.",

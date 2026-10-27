@@ -6,6 +6,7 @@ GET  /api/v1/vitals/history — 30-day vitals history with trend analysis.
 GET  /api/v1/user/profile  — Get user profile.
 PUT  /api/v1/user/profile  — Update user profile.
 """
+import os
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -32,7 +33,15 @@ _risk_auditor: Optional[RiskAuditor] = None
 def get_risk_model() -> RiskModel:
     global _risk_model
     if _risk_model is None:
-        _risk_model = RiskModel(model_path="models_saved/risk_model.pkl")
+        possible_paths = [
+            "backend/models_saved/risk_model.pkl",
+            "models_saved/risk_model.pkl",
+            os.path.join(os.path.dirname(__file__), "..", "..", "models_saved", "risk_model.pkl"),
+            os.path.join(os.getcwd(), "backend", "models_saved", "risk_model.pkl"),
+            os.path.join(os.getcwd(), "models_saved", "risk_model.pkl"),
+        ]
+        chosen = next((p for p in possible_paths if os.path.exists(p)), "models_saved/risk_model.pkl")
+        _risk_model = RiskModel(model_path=chosen)
     return _risk_model
 
 

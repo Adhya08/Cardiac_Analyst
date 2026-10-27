@@ -254,8 +254,20 @@ export const EmergencyMode: React.FC = () => {
             )}
 
             {apiError && (
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                ⚠ Offline mode active: {apiError}. Standard emergency contact lines listed below.
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-red-600 flex-shrink-0 animate-pulse" />
+                  <div>
+                    <p className="font-black text-sm">Offline Emergency Protocol Active</p>
+                    <p className="text-red-700 font-medium">Server rate-limited or unreachable. Offline rules applied. If experiencing distress, do not wait.</p>
+                  </div>
+                </div>
+                <a
+                  href="tel:112"
+                  className="flex-shrink-0 bg-red-600 text-white font-black px-4 py-2 rounded-lg hover:bg-red-700 transition-all flex items-center gap-2 shadow"
+                >
+                  <PhoneCall className="w-4 h-4" /> Call 112 Now
+                </a>
               </div>
             )}
 

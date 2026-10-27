@@ -87,3 +87,24 @@ class PatientClinicianGrant(Base):
     clinician_id = Column(String, index=True, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RateLimitEvent(Base):
+    """Persistent sliding-window rate limit event tracking."""
+    __tablename__ = "rate_limit_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    key = Column(String(128), index=True, nullable=False)  # e.g., "scope:client_ip"
+    scope = Column(String(32), index=True, nullable=False)
+    timestamp = Column(Float, index=True, nullable=False)
+
+
+class LoginLockout(Base):
+    """Persistent brute-force login lockout state."""
+    __tablename__ = "login_lockouts"
+
+    key = Column(String(128), primary_key=True)  # client IP or normalized email
+    locked_until = Column(Float, nullable=False)
+    failure_count = Column(Integer, default=0)
+    last_failure_at = Column(Float, nullable=False)
+

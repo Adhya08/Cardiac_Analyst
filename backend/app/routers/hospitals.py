@@ -8,9 +8,11 @@ import math
 import os
 import requests
 
-from fastapi import APIRouter, Query, HTTPException, Request
+from fastapi import APIRouter, Query, HTTPException, Request, Depends
+from sqlalchemy.orm import Session
 from typing import Optional
 
+from ..database import get_db
 from ..rate_limiter import check_rate_limit
 
 router = APIRouter(prefix="/api/v1", tags=["hospitals"])
@@ -32,12 +34,13 @@ def get_nearby_hospitals(
     lat: float = Query(..., description="User latitude"),
     lon: float = Query(..., description="User longitude"),
     radius_km: float = Query(default=10, ge=1, le=50),
+    db: Session = Depends(get_db),
 ):
     """
     Finds the closest emergency care facilities with IP rate limiting.
     Prioritizes ultra-close general hospitals (within 5km) and cardiac centers (up to 20km).
     """
-    check_rate_limit(request, limit=30, window_seconds=60, scope="hospitals_nearby")
+    check_rate_limit(request, limit=120, window_seconds=60, scope="hospitals_nearby", db=db)
     if not GOOGLE_MAPS_API_KEY:
         mock_names = [
             ("Fortis Escorts Heart Institute", "Okhla Rd, New Delhi, Delhi", 1.8),
@@ -153,12 +156,13 @@ def get_nearby_ambulances(
     request: Request,
     lat: float = Query(..., description="User latitude"),
     lon: float = Query(..., description="User longitude"),
+    db: Session = Depends(get_db),
 ):
     """
     Returns government emergency numbers + nearby private ambulance services with IP rate limiting.
     Always includes India 112 and 108 as first options.
     """
-    check_rate_limit(request, limit=30, window_seconds=60, scope="ambulance_nearby")
+    check_rate_limit(request, limit=120, window_seconds=60, scope="ambulance_nearby", db=db)
     ambulances = [
         {
             "service": "India Emergency (112)",

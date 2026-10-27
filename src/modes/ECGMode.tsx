@@ -9,11 +9,19 @@ import { useStore } from '../store/useStore';
 import {
   Upload, FileText, CheckCircle2, Zap, AlertTriangle,
   RefreshCw, ChevronDown, ChevronUp, Clock, ExternalLink, Heart, ShieldAlert,
-  AlertCircle, BarChart3, Activity, XCircle, FileWarning,
+  AlertCircle, BarChart3, Activity, XCircle, FileWarning, RotateCcw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type ECGResponse, type ECGCondition } from '../lib/api';
 import { translations } from '../lib/translations';
+
+export const formatScorePercentage = (score: number | null | undefined): string => {
+  if (score == null || isNaN(score)) return '—';
+  const val = score * 100;
+  if (val >= 99.95) return '>99.9%';
+  if (val > 0 && val < 0.1) return '<0.1%';
+  return `${val.toFixed(1)}%`;
+};
 
 type AnalysisStatus = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
 
@@ -118,6 +126,9 @@ const ConditionRow: React.FC<{ cond: ECGCondition; language: 'en' | 'hi' }> = ({
     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
     : s.badge;
 
+  const formattedPct = formatScorePercentage(score);
+  const formattedScore = score >= 0.9995 ? '>0.999' : (score > 0 && score < 0.001) ? '<0.001' : score.toFixed(3);
+
   return (
     <div className={`rounded-xl border p-3.5 transition-all ${s.bg} ${s.border}`}>
       <div className="flex items-center justify-between gap-3 cursor-pointer" onClick={() => setExpanded(e => !e)}>
@@ -139,7 +150,7 @@ const ConditionRow: React.FC<{ cond: ECGCondition; language: 'en' | 'hi' }> = ({
           <div className="text-right">
             <span className="text-[9px] uppercase tracking-wider text-slate-500 block font-bold">Model Score</span>
             <span className={`text-xs font-mono font-black ${cond.detected ? 'text-red-400' : 'text-slate-300'}`}>
-              {score.toFixed(3)} ({pct}%)
+              {formattedScore} ({formattedPct})
             </span>
           </div>
           <button className="text-slate-500 hover:text-slate-300 p-1" aria-label="Toggle details">
@@ -497,16 +508,37 @@ export const ECGMode: React.FC = () => {
               ))}
             </div>
           </motion.div>
+        </div>
+      )}
 
-          {/* Quick Trial Section */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Zap className="w-4 h-4 text-emerald-400" />
-                Test Real PTB-XL Held-Out Benchmark Records (Fold 10)
-              </h4>
-              <span className="text-[10px] text-slate-500 font-mono">10-second 12-lead digital files</span>
-            </div>
+      {/* ── Error Banner (Centered Try Again button) ── */}
+      {status === 'error' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-8 border-red-500/30 text-center space-y-4">
+          <AlertTriangle className="w-10 h-10 text-red-400 mx-auto" />
+          <h3 className="text-base font-bold text-red-300">{t.analysis_failed}</h3>
+          <p className="text-slate-300 text-xs max-w-xl mx-auto leading-relaxed">{errorMsg}</p>
+          <div className="pt-2 flex justify-center items-center">
+            <button
+              onClick={reset}
+              className="btn-secondary text-xs px-6 py-2.5 mx-auto flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all shadow-md"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>{t.try_again}</span>
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Quick Trial Section (Real PTB-XL Held-Out Benchmark Records) ── */}
+      {(status === 'idle' || status === 'error') && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Zap className="w-4 h-4 text-emerald-400" />
+              Test Real PTB-XL Held-Out Benchmark Records (Fold 10)
+            </h4>
+            <span className="text-[10px] text-slate-500 font-mono">10-second 12-lead digital files</span>
+          </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {[
@@ -575,7 +607,6 @@ export const ECGMode: React.FC = () => {
               </div>
             </div>
           </motion.div>
-        </div>
       )}
 
       {/* ── Recent History (Idle or Error) ── */}
@@ -626,7 +657,7 @@ export const ECGMode: React.FC = () => {
                   <div className="flex items-center gap-1.5">
                     <span className="text-[9px] text-slate-500 font-mono uppercase">Top Score:</span>
                     <span className="text-xs font-mono font-bold text-emerald-400">
-                      {item.top_condition_prob != null ? `${(item.top_condition_prob * 100).toFixed(1)}%` : '—'}
+                      {formatScorePercentage(item.top_condition_prob)}
                     </span>
                   </div>
                   <button className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold uppercase">
@@ -667,19 +698,7 @@ export const ECGMode: React.FC = () => {
         </motion.div>
       )}
 
-      {/* ── Error Banner ── */}
-      {status === 'error' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-8 border-red-500/30 text-center space-y-4">
-          <AlertTriangle className="w-10 h-10 text-red-400 mx-auto" />
-          <h3 className="text-base font-bold text-red-300">{t.analysis_failed}</h3>
-          <p className="text-slate-300 text-xs max-w-xl mx-auto leading-relaxed">{errorMsg}</p>
-          <div className="pt-2">
-            <button onClick={reset} className="btn-secondary text-xs px-5 py-2">
-              {t.try_again}
-            </button>
-          </div>
-        </motion.div>
-      )}
+
 
       {/* ── Results View ── */}
       {status === 'done' && result && (

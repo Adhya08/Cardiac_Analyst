@@ -40,9 +40,11 @@ def init_db():
                 if "hashed_password" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN hashed_password VARCHAR"))
                 if "role" not in columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'clinician'"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'patient'"))
                 if "is_active" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+                if "invite_code" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN invite_code VARCHAR"))
     except Exception as e:
         print(f"[DB] Migration check notice: {e}")
 

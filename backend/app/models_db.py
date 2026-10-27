@@ -14,6 +14,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=True)
     hashed_password = Column(String, nullable=True)
     role = Column(String, default="patient")  # "patient" | "clinician" | "admin"
+    invite_code = Column(String(32), unique=True, index=True, nullable=True)
     is_active = Column(Boolean, default=True)
     name = Column(String, default="User")
     age = Column(Integer, default=45)

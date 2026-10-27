@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import init_db
-from .routers import auth, vitals, ecg, emergency, hospitals, chat
+from .routers import auth, vitals, ecg, emergency, hospitals, chat, consent
 
 # ── Create FastAPI app
 app = FastAPI(
@@ -57,6 +57,7 @@ app.include_router(ecg.router)
 app.include_router(emergency.router)
 app.include_router(hospitals.router)
 app.include_router(chat.router)
+app.include_router(consent.router)
 
 # ── Internal ECG storage directory (not mounted publicly; served only via authenticated endpoints)
 os.makedirs("uploads/ecg", exist_ok=True)

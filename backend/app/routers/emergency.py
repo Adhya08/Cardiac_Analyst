@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models_db import TriageEvent, User
 from ..schemas import TriageIn, TriageOut
-from ..auth import get_optional_current_user, verify_patient_access
+from ..auth import get_current_user, get_optional_current_user, verify_patient_access
 from ..rate_limiter import check_rate_limit
 from ..ml.triage import assess_emergency, TRIAGE_QUESTIONS
 
@@ -242,3 +242,33 @@ def submit_triage(
         "ambulances": ambulances,
         "triage_id": triage_id,
     }
+
+
+@router.get("/history")
+def get_triage_history(
+    request: Request,
+    user_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get triage history for user or granted patient with access audit logging."""
+    target_id = user_id if user_id else current_user.id
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db, request=request)
+
+    events = (
+        db.query(TriageEvent)
+        .filter(TriageEvent.user_id == target_id)
+        .order_by(TriageEvent.timestamp.desc())
+        .all()
+    )
+    return [
+        {
+            "id": e.id,
+            "user_id": e.user_id,
+            "severity": e.severity,
+            "confidence": e.confidence,
+            "risk_score": e.risk_score,
+            "timestamp": e.timestamp.isoformat(),
+        }
+        for e in events
+    ]

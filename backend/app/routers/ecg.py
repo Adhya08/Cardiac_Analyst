@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 import aiofiles
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -140,13 +140,14 @@ async def upload_ecg(
 
 @router.get("/history")
 async def get_ecg_history(
+    request: Request,
     user_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get all ECG sessions for a user, ordered by most recent with strict authentication and grant checks."""
     target_id = user_id if user_id else current_user.id
-    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db, request=request)
 
     records = (
         db.query(ECGAnalysis)
@@ -176,6 +177,7 @@ async def get_ecg_history(
 @router.get("/{ecg_id}", response_model=ECGOut)
 async def get_ecg_analysis(
     ecg_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -184,7 +186,7 @@ async def get_ecg_analysis(
     if not record:
         raise HTTPException(status_code=404, detail="ECG session not found.")
 
-    verify_patient_access(current_user=current_user, patient_id=record.user_id, db=db)
+    verify_patient_access(current_user=current_user, patient_id=record.user_id, db=db, request=request)
 
     result = json.loads(record.analysis_json) if record.analysis_json else {}
     result["ecg_id"] = record.id

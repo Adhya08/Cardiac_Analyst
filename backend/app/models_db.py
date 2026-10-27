@@ -122,3 +122,20 @@ class UserConsent(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class AccessAuditLog(Base):
+    """
+    HIPAA-compliant health record access audit log.
+    Records every access to patient data by someone other than the patient.
+    Stores zero health data (no ECG signals, risk scores, or clinical symptoms).
+    """
+    __tablename__ = "access_audit_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    accessor_user_id = Column(String(64), index=True, nullable=False)
+    accessor_email = Column(String(128), nullable=True)
+    patient_user_id = Column(String(64), index=True, nullable=False)
+    endpoint = Column(String(128), nullable=False)
+    ip_address = Column(String(64), nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+

@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env", override=False)
 load_dotenv(override=False)
 
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 import bcrypt
@@ -126,6 +127,7 @@ def verify_patient_access(
     current_user: User,
     patient_id: str,
     db: Session,
+    request: Optional[Request] = None,
 ) -> bool:
     """
     Verifies that current_user has legitimate access to patient_id's health records.
@@ -135,11 +137,17 @@ def verify_patient_access(
       3. current_user is a clinician (current_user.role == 'clinician') AND the patient
          has explicitly granted active access via PatientClinicianGrant.
     Otherwise raises 403 Forbidden.
+
+    Every authorized access by someone other than the patient is logged into
+    AccessAuditLog with zero health data stored.
     """
-    if current_user.id == patient_id or current_user.role == "admin":
+    if current_user.id == patient_id:
         return True
 
-    if current_user.role == "clinician":
+    is_authorized = False
+    if current_user.role == "admin":
+        is_authorized = True
+    elif current_user.role == "clinician":
         from .models_db import PatientClinicianGrant
         grant = (
             db.query(PatientClinicianGrant)
@@ -151,9 +159,31 @@ def verify_patient_access(
             .first()
         )
         if grant:
-            return True
+            is_authorized = True
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Access denied: You do not have permission to access records for this patient.",
+    if not is_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You do not have permission to access records for this patient.",
+        )
+
+    # Authorized access by someone other than the patient -> log audit record
+    from .models_db import AccessAuditLog
+    from .rate_limiter import get_client_ip
+
+    endpoint_str = request.url.path if request else "direct_call"
+    ip_str = get_client_ip(request) if request else "127.0.0.1"
+
+    audit_entry = AccessAuditLog(
+        id=str(uuid.uuid4()),
+        accessor_user_id=current_user.id,
+        accessor_email=getattr(current_user, "email", None),
+        patient_user_id=patient_id,
+        endpoint=endpoint_str,
+        ip_address=ip_str,
+        timestamp=datetime.utcnow(),
     )
+    db.add(audit_entry)
+    db.commit()
+
+    return True

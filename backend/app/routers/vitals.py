@@ -11,11 +11,11 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models_db import VitalsLog, User
+from ..models_db import VitalsLog, User, AccessAuditLog
 from ..schemas import VitalsIn, VitalsOut, UserProfileIn, UserProfileOut
 from ..auth import get_current_user, verify_patient_access
 from ..ml.risk_model import RiskModel
@@ -218,6 +218,7 @@ async def log_vitals(
 
 @router.get("/vitals/history")
 async def get_vitals_history(
+    request: Request,
     user_id: Optional[str] = Query(default=None),
     days: int = Query(default=30, ge=1, le=365),
     current_user: User = Depends(get_current_user),
@@ -225,7 +226,7 @@ async def get_vitals_history(
 ):
     """Get vitals history for the last N days with strict authentication and clinician grant checks."""
     target_id = user_id if user_id else current_user.id
-    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db, request=request)
 
     since = datetime.utcnow() - timedelta(days=days)
 
@@ -269,3 +270,33 @@ async def get_vitals_history(
         "trend": {"bp_sys_trend": round(bp_trend, 1)},
         "risk_history": risk_history,
     }
+
+
+@router.get("/user/access-log")
+async def get_patient_access_log(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns audit log of all access events to the current patient's records
+    by clinicians or other authorized users.
+    Contains zero health data.
+    """
+    logs = (
+        db.query(AccessAuditLog)
+        .filter(AccessAuditLog.patient_user_id == current_user.id)
+        .order_by(AccessAuditLog.timestamp.desc())
+        .all()
+    )
+    return [
+        {
+            "id": l.id,
+            "accessor_user_id": l.accessor_user_id,
+            "accessor_email": l.accessor_email,
+            "patient_user_id": l.patient_user_id,
+            "endpoint": l.endpoint,
+            "timestamp": l.timestamp.isoformat(),
+            "ip_address": l.ip_address,
+        }
+        for l in logs
+    ]

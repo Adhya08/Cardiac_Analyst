@@ -126,7 +126,7 @@ class UserConsent(Base):
 
 class AccessAuditLog(Base):
     """
-    HIPAA-compliant health record access audit log.
+    Patient health record access audit log.
     Records every access to patient data by someone other than the patient.
     Stores zero health data (no ECG signals, risk scores, or clinical symptoms).
     """

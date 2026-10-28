@@ -18,8 +18,9 @@ DATABASE_URL = raw_db_url
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {"connect_timeout": 15},
     pool_pre_ping=True,
+    pool_recycle=300,
     echo=False,
 )
 

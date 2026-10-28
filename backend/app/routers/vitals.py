@@ -97,7 +97,7 @@ async def update_profile(
     db: Session = Depends(get_db),
 ):
     """Update profile and demographics for current user or granted patient."""
-    target_id = user_id if user_id else current_user.id
+    target_id = user_id if (user_id and user_id.strip() and user_id != "default_user") else current_user.id
     verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
 
     user = db.query(User).filter(User.id == target_id).first()
@@ -130,7 +130,7 @@ async def log_vitals(
     Log vitals → run LightGBM + Framingham risk model → return SHAP explanation.
     Strictly authenticated: logged to current user or explicitly granted patient.
     """
-    target_id = user_id if user_id else current_user.id
+    target_id = user_id if (user_id and user_id.strip() and user_id != "default_user") else current_user.id
     verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
 
     # Get user
@@ -225,7 +225,7 @@ async def get_vitals_history(
     db: Session = Depends(get_db),
 ):
     """Get vitals history for the last N days with strict authentication and clinician grant checks."""
-    target_id = user_id if user_id else current_user.id
+    target_id = user_id if (user_id and user_id.strip() and user_id != "default_user") else current_user.id
     verify_patient_access(current_user=current_user, patient_id=target_id, db=db, request=request)
 
     since = datetime.utcnow() - timedelta(days=days)

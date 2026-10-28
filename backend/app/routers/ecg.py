@@ -45,7 +45,7 @@ async def upload_ecg(
     Upload a digital 12-lead ECG record (CSV, NPY, JSON).
     Strictly authenticated: record saved for current user or granted patient.
     """
-    target_id = user_id if user_id else current_user.id
+    target_id = user_id if (user_id and user_id.strip() and user_id != "default_user") else current_user.id
     verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
     filename_orig = file.filename or "ecg.csv"
     content_type = file.content_type or "text/csv"
@@ -147,7 +147,7 @@ async def get_ecg_history(
     db: Session = Depends(get_db),
 ):
     """Get all ECG sessions for a user, ordered by most recent with strict authentication and grant checks."""
-    target_id = user_id if user_id else current_user.id
+    target_id = user_id if (user_id and user_id.strip() and user_id != "default_user") else current_user.id
     verify_patient_access(current_user=current_user, patient_id=target_id, db=db, request=request)
 
     records = (

@@ -156,7 +156,7 @@ export interface TriagePayload {
 }
 
 export interface TriageResponse {
-  severity: 'normal' | 'see_doctor' | 'emergency';
+  severity: 'emergency' | 'see_doctor_today' | 'no_emergency_warning_signs' | string;
   confidence: number;
   risk_score: number;
   yes_count: number;
@@ -167,6 +167,8 @@ export interface TriageResponse {
   hospitals: Hospital[];
   ambulances: AmbulanceService[];
   triage_id: string;
+  urgency_tier?: string;
+  action_headline?: string;
 }
 
 export interface ECGContext {

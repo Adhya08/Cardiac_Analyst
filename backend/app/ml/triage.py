@@ -1,125 +1,163 @@
 """
 Emergency Triage Engine
 ------------------------
-Rule-based triage using NICE CG95 guidelines + ACC/AHA STEMI criteria.
-Classifies patient urgency: normal | see_doctor | emergency.
+Clinical emergency triage engine loading shared rules from `shared/triage_rules.json`.
+Classifies patient urgency into 3 clinical tiers:
+- emergency (Call Emergency Services Now)
+- see_doctor_today (See a Doctor Today)
+- no_emergency_warning_signs (No Emergency Warning Signs Identified)
 
-Clinical References:
-- NICE CG95 (2010): Chest pain of recent onset assessment and diagnosis.
-- ACC/AHA 2013 STEMI Guidelines: O'Gara et al., JACC 2013;61:e78-e140.
-- SIGN 93 (2016): Acute coronary syndromes.
+Clinical References & Standards:
+- UK NICE CG95: Chest pain of recent onset assessment and diagnosis.
+- ACC/AHA STEMI Guidelines (O'Gara et al., JACC 2013).
+- SIGN 93: Acute coronary syndromes.
 """
-from typing import List, Dict, Any
+import json
+import os
+from pathlib import Path
+from typing import List, Dict, Any, Union, Optional
 
+# Load shared clinical rules JSON
+_RULES_PATH = Path(os.getenv("TRIAGE_RULES_PATH", Path(__file__).resolve().parents[3] / "shared" / "triage_rules.json"))
+if not _RULES_PATH.is_file():
+    # Fallback to local shared location if relative structure differs
+    alt_path = Path(__file__).resolve().parents[2] / "shared" / "triage_rules.json"
+    if alt_path.is_file():
+        _RULES_PATH = alt_path
 
-# ── The 8 triage questions shown to user (in exact order)
-TRIAGE_QUESTIONS = [
-    "Are you experiencing crushing or squeezing chest pain?",           # Q0
-    "Does the pain radiate to your left arm, jaw, or shoulder?",       # Q1
-    "Are you short of breath even while resting?",                     # Q2
-    "Are you feeling nauseous or lightheaded / dizzy?",                # Q3
-    "Is your heart racing or beating irregularly?",                    # Q4
-    "Are you sweating profusely or having cold sweats?",               # Q5
-    "Have you fainted or nearly fainted recently?",                    # Q6
-    "Is your vision blurry or are you confused?",                      # Q7
-]
+with open(_RULES_PATH, "r", encoding="utf-8") as f:
+    RULES: Dict[str, Any] = json.load(f)
 
-# ── High-risk symptom combinations (NICE CG95 + ACC/AHA)
-# Each set: if ALL indices in the set are YES → emergency
-EMERGENCY_COMBOS = [
-    {0, 1, 5},   # Chest pain + radiation + diaphoresis (STEMI cardinal triad)
-    {0, 1, 2},   # Chest pain + radiation + dyspnea (ACS)
-    {0, 2, 5},   # Chest pain + dyspnea + diaphoresis (STEMI/HF)
-    {0, 4, 5},   # Chest pain + palpitations + diaphoresis (VT / ACS)
-    {6},         # Syncope alone (VT, complete heart block, AS)
-    {0, 7},      # Chest pain + confusion (cardiogenic shock)
-]
-
-# ── If ≥ 5 YES answers → emergency regardless
-EMERGENCY_THRESHOLD = 5
-
-# ── Instructions by severity (Safe escalation without unsupported medication prescriptions)
-INSTRUCTIONS = {
-    "emergency": [
-        "🚨 Call 112 (or your local emergency services) IMMEDIATELY. Do not wait.",
-        "Sit or lie down in a comfortable position with support. Do NOT try to drive yourself.",
-        "Unlock your front door so emergency responders can enter without delay.",
-        "Stay calm, breathe slowly, and avoid any physical exertion or sudden movements.",
-        "Keep this screen visible to show arriving emergency medical responders.",
-        "Notify a family member or neighbor of your emergency immediately.",
-    ],
-    "see_doctor": [
-        "Visit a cardiologist or emergency department within 24 hours.",
-        "Rest completely — avoid physical exertion.",
-        "If symptoms worsen at any point, call 112 immediately.",
-        "Do not drive — arrange transport with someone else.",
-        "Keep a log of your symptoms: onset time, severity (1-10), duration.",
-    ],
-    "normal": [
-        "Your symptoms appear low-risk at this time.",
-        "Monitor yourself and rest if you feel unwell.",
-        "Maintain your daily vitals log to detect trends.",
-        "Schedule a routine check-up with your doctor within the week.",
-        "Call 112 if any new or worsening symptoms develop.",
-    ],
-}
+# Extract shared structures
+TRIAGE_QUESTION_DEFS: List[Dict[str, Any]] = RULES["questions"]
+TRIAGE_QUESTIONS: List[str] = [q["text"] for q in TRIAGE_QUESTION_DEFS]
+QUESTION_IDS: List[str] = [q["id"] for q in TRIAGE_QUESTION_DEFS]
+INSTRUCTIONS: Dict[str, List[str]] = RULES["instructions"]
+LOWEST_TIER_STATEMENT: str = RULES["lowest_tier_statement"]
+CLINICAL_DISCLAIMER: str = RULES.get("clinical_disclaimer", "")
 
 
 def assess_emergency(
-    symptoms: List[bool],
-    bp_sys: int = None,
-    hr: int = None,
+    symptoms: Union[List[bool], Dict[str, bool]],
+    bp_sys: Optional[int] = None,
+    hr: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
-    Triage assessment based on NICE CG95 + ACC/AHA guidelines.
+    Assess acute cardiac emergency severity using shared triage rules.
 
     Args:
-        symptoms:  List of 8 boolean answers (True = YES).
-        bp_sys:    Current systolic BP (optional).
-        hr:        Current heart rate (optional).
+        symptoms: List of boolean answers (length 12, or legacy 8 padded with False),
+                  or dictionary mapping question ID to boolean.
+        bp_sys:   Current systolic blood pressure in mmHg (optional).
+        hr:       Current heart rate in bpm (optional).
 
     Returns:
-        dict with severity, confidence, risk_score, instructions, etc.
+        dict with severity, confidence, risk_score, yes_count, stemi_suspicious,
+        combo_triggered, vitals_red_flag, and instructions.
     """
-    yes_indices = {i for i, v in enumerate(symptoms) if v}
-    yes_count = len(yes_indices)
-
-    # ── Vital signs red flags
-    bp_shock = bp_sys is not None and bp_sys < 90
-    bp_hypertensive_crisis = bp_sys is not None and bp_sys > 180
-    hr_critical = hr is not None and (hr < 40 or hr > 150)
-    vitals_red_flag = bp_shock or bp_hypertensive_crisis or hr_critical
-
-    # ── STEMI-specific rule: Q0 + Q1 required for classic STEMI suspicion
-    stemi_suspicious = 0 in yes_indices and 1 in yes_indices
-
-    # ── Check emergency combos
-    combo_triggered = any(combo.issubset(yes_indices) for combo in EMERGENCY_COMBOS)
-
-    # ── Determine severity
-    if combo_triggered or yes_count >= EMERGENCY_THRESHOLD or vitals_red_flag:
-        severity = "emergency"
-        if combo_triggered and stemi_suspicious:
-            confidence_base = 0.95
-        elif combo_triggered:
-            confidence_base = 0.88
-        elif vitals_red_flag:
-            confidence_base = 0.90
-        else:
-            confidence_base = 0.80
-        confidence = min(0.99, confidence_base + yes_count * 0.01)
-        risk_score = min(99.9, 75 + yes_count * 3.0 + (10 if vitals_red_flag else 0))
-
-    elif yes_count >= 3 or (0 in yes_indices) or (2 in yes_indices) or (4 in yes_indices and 6 in yes_indices):
-        # 0: Chest pain, 2: Shortness of breath at rest, 4+6: Racing heart + syncope
-        severity = "see_doctor"
-        confidence = 0.68 + yes_count * 0.04
-        risk_score = 35 + yes_count * 5.0
-
+    # ── Normalize answers into {question_id: bool}
+    ans_map: Dict[str, bool] = {}
+    if isinstance(symptoms, list):
+        for idx, q in enumerate(TRIAGE_QUESTION_DEFS):
+            if idx < len(symptoms):
+                ans_map[q["id"]] = bool(symptoms[idx])
+            else:
+                ans_map[q["id"]] = False
+    elif isinstance(symptoms, dict):
+        for q in TRIAGE_QUESTION_DEFS:
+            # Check by ID or stringified index
+            val = symptoms.get(q["id"])
+            if val is None:
+                # Try numeric index
+                idx = QUESTION_IDS.index(q["id"])
+                val = symptoms.get(str(idx), symptoms.get(idx, False))
+            ans_map[q["id"]] = bool(val)
     else:
-        severity = "normal"
-        confidence = 0.75 + (1 - yes_count / 8) * 0.20
-        risk_score = max(2.0, 5.0 + yes_count * 4.5)
+        for q in TRIAGE_QUESTION_DEFS:
+            ans_map[q["id"]] = False
+
+    # ── 1. Vital signs evaluation
+    thresholds = RULES["rules"]["vital_signs_thresholds"]
+    bp_shock = bp_sys is not None and bp_sys < thresholds["bp_sys_shock_below"]
+    bp_crisis = bp_sys is not None and bp_sys > thresholds["bp_sys_crisis_above"]
+    hr_critical = hr is not None and (hr < thresholds["hr_critical_below"] or hr > thresholds["hr_critical_above"])
+    vitals_red_flag = bp_shock or bp_crisis or hr_critical
+
+    # ── 2. Red flag symptom calculation
+    red_flag_keys = RULES["rules"]["red_flag_keys"]
+    present_red_flags = [k for k in red_flag_keys if ans_map.get(k, False)]
+    red_flag_count = len(present_red_flags)
+    yes_count = sum(1 for v in ans_map.values() if v)
+
+    # Cardinal STEMI triad suspicion
+    stemi_suspicious = bool(
+        ans_map.get("crushing_chest_pain")
+        and ans_map.get("radiating_pain")
+        and (ans_map.get("cold_sweats") or ans_map.get("dyspnea_at_rest"))
+    )
+
+    # ── 3. Emergency criteria (ACC/AHA & NICE CG95 cardinal patterns)
+    syncope = bool(ans_map.get(RULES["rules"]["emergency_syncope_key"], False))
+    sweats_combo = all(ans_map.get(k, False) for k in RULES["rules"]["emergency_sweats_combo"])
+    shock_combo = all(ans_map.get(k, False) for k in RULES["rules"]["emergency_shock_combo"])
+    persistent_cad_combo = bool(
+        red_flag_count >= 1
+        and ans_map.get(RULES["rules"]["emergency_persistent_cad_combo"]["requires_history"], False)
+        and ans_map.get(RULES["rules"]["emergency_persistent_cad_combo"]["requires_duration"], False)
+    )
+    two_or_more_red_flags = red_flag_count >= RULES["rules"]["emergency_min_red_flags"]
+
+    is_emergency = (
+        vitals_red_flag
+        or syncope
+        or two_or_more_red_flags
+        or sweats_combo
+        or shock_combo
+        or persistent_cad_combo
+    )
+
+    combo_triggered = syncope or two_or_more_red_flags or sweats_combo or shock_combo or persistent_cad_combo
+
+    # ── 4. "See Doctor Today" criteria (if not emergency)
+    see_doctor_rules = RULES["rules"]["see_doctor_today_rules"]
+    single_red_flag = red_flag_count >= see_doctor_rules["min_red_flags"]
+
+    has_associated_symptom = any(ans_map.get(k, False) for k in see_doctor_rules["associated_symptoms"])
+    risk_factor_count = sum(
+        1 for k in see_doctor_rules["risk_factors_to_escalate_associated"] if ans_map.get(k, False)
+    )
+    associated_with_risk_factors = (
+        has_associated_symptom
+        and (
+            risk_factor_count >= see_doctor_rules["min_risk_factors_for_associated"]
+            or ans_map.get("known_heart_disease", False)
+        )
+    )
+    associated_with_prolonged_duration = has_associated_symptom and bool(ans_map.get("duration_over_1_hour", False))
+
+    is_see_doctor = (
+        single_red_flag
+        or associated_with_risk_factors
+        or associated_with_prolonged_duration
+        or (has_associated_symptom and ans_map.get("age_over_40", False) and ans_map.get("diabetes", False))
+    )
+
+    # ── 5. Urgency Tier & Metrics
+    if is_emergency:
+        severity = "emergency"
+        confidence = min(0.99, 0.85 + red_flag_count * 0.03 + (0.05 if vitals_red_flag else 0.0))
+        risk_score = min(99.0, 75.0 + red_flag_count * 4.0 + (10.0 if vitals_red_flag else 0.0))
+    elif is_see_doctor:
+        severity = "see_doctor_today"
+        confidence = min(0.88, 0.72 + red_flag_count * 0.05 + risk_factor_count * 0.02)
+        risk_score = min(68.0, 38.0 + red_flag_count * 12.0 + risk_factor_count * 5.0)
+    else:
+        severity = "no_emergency_warning_signs"
+        confidence = 0.82
+        risk_score = max(3.0, 5.0 + yes_count * 2.0)
+
+    instructions = INSTRUCTIONS[severity]
+    tier_info = RULES["tiers"][severity]
 
     return {
         "severity": severity,
@@ -129,5 +167,7 @@ def assess_emergency(
         "stemi_suspicious": stemi_suspicious,
         "combo_triggered": combo_triggered,
         "vitals_red_flag": vitals_red_flag,
-        "instructions": INSTRUCTIONS[severity],
+        "instructions": instructions,
+        "urgency_tier": tier_info["id"],
+        "action_headline": tier_info["label"],
     }

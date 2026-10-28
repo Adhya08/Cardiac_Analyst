@@ -1,0 +1,194 @@
+{
+  "_comment": "These rules have NOT been clinically validated. Requires review by a qualified clinician before public release.",
+  "clinical_disclaimer": "These rules have NOT been clinically validated. Requires review by a qualified clinician before public release.",
+  "version": "2.0.0",
+  "tiers": {
+    "emergency": {
+      "id": "emergency",
+      "label": "Call Emergency Services Now",
+      "action_code": "call_112_immediately",
+      "display_urgency": "Emergency (Call 112 Now)",
+      "color": "red"
+    },
+    "see_doctor_today": {
+      "id": "see_doctor_today",
+      "label": "See a Doctor Today",
+      "action_code": "urgent_medical_evaluation_today",
+      "display_urgency": "See a Doctor Today",
+      "color": "amber"
+    },
+    "no_emergency_warning_signs": {
+      "id": "no_emergency_warning_signs",
+      "label": "No Emergency Warning Signs Identified",
+      "action_code": "monitor_and_seek_care_if_needed",
+      "display_urgency": "No Emergency Warning Signs Identified",
+      "color": "emerald"
+    }
+  },
+  "instructions": {
+    "emergency": [
+      "🚨 Call 112 (or your local emergency services) IMMEDIATELY. Do not wait.",
+      "Sit or lie down in a comfortable position with support. Do NOT try to drive yourself.",
+      "Unlock your front door so emergency responders can enter without delay.",
+      "Stay calm, breathe slowly, and avoid any physical exertion or sudden movements.",
+      "Keep this screen visible to show arriving emergency medical responders.",
+      "Notify a family member or neighbor of your emergency immediately."
+    ],
+    "see_doctor_today": [
+      "Visit a doctor, urgent care center, or emergency department TODAY.",
+      "Rest completely — avoid all physical exertion or strenuous activity.",
+      "If symptoms worsen, chest discomfort intensifies, or you feel faint, call 112 immediately.",
+      "Do not drive yourself — arrange transport with someone else.",
+      "Keep a log of your symptoms: onset time, triggers, and severity."
+    ],
+    "no_emergency_warning_signs": [
+      "No emergency warning signs were identified from your answers. If symptoms continue, get worse, or you are worried, seek medical care.",
+      "Monitor your condition closely. If you develop chest pain, shortness of breath, cold sweats, or fainting, call 112 immediately.",
+      "Do not ignore persisting, recurring, or worsening symptoms.",
+      "Consult a qualified healthcare provider if you have underlying conditions or ongoing concerns."
+    ]
+  },
+  "lowest_tier_statement": "No emergency warning signs were identified from your answers. If symptoms continue, get worse, or you are worried, seek medical care.",
+  "questions": [
+    {
+      "id": "crushing_chest_pain",
+      "text": "Are you experiencing crushing, squeezing, heavy, or pressing chest pain?",
+      "text_hi": "क्या आप छाती में अत्यधिक दबाव, जकड़न या कुचलने जैसा दर्द महसूस कर रहे हैं?",
+      "category": "red_flag",
+      "is_red_flag": true,
+      "clinical_focus": "Angina / Acute Myocardial Infarction"
+    },
+    {
+      "id": "radiating_pain",
+      "text": "Does the pain radiate to your left arm, jaw, neck, back, or shoulder?",
+      "text_hi": "क्या दर्द आपके बाएं हाथ, जबड़े, गर्दन, पीठ या कंधे में फैल रहा है?",
+      "category": "red_flag",
+      "is_red_flag": true,
+      "clinical_focus": "Coronary Ischemia / ACS Radiation"
+    },
+    {
+      "id": "dyspnea_at_rest",
+      "text": "Are you experiencing shortness of breath or breathlessness even while resting?",
+      "text_hi": "क्या आपको आराम करते समय भी सांस लेने में तकलीफ हो रही है?",
+      "category": "red_flag",
+      "is_red_flag": true,
+      "clinical_focus": "Acute Pulmonary Edema / Heart Failure / STEMI"
+    },
+    {
+      "id": "cold_sweats",
+      "text": "Are you sweating profusely or having cold sweats (diaphoresis)?",
+      "text_hi": "क्या आपको बहुत अधिक पसीना आ रहा है या ठंडा पसीना निकल रहा है?",
+      "category": "red_flag",
+      "is_red_flag": true,
+      "clinical_focus": "Sympathetic Surge / Cardiogenic Distress"
+    },
+    {
+      "id": "fainting",
+      "text": "Have you fainted, lost consciousness, or nearly fainted recently?",
+      "text_hi": "क्या आप हाल ही में बेहोश हुए हैं, चेतना खोई है, या चक्कर खाकर गिरने लगे हैं?",
+      "category": "red_flag",
+      "is_red_flag": true,
+      "clinical_focus": "Malignant Arrhythmia / Conduction Block / AS"
+    },
+    {
+      "id": "palpitations",
+      "text": "Is your heart racing, pounding, fluttering, or beating irregularly?",
+      "text_hi": "क्या आपका दिल बहुत तेजी से धड़क रहा है, फड़क रहा है या अनियमित रूप से धड़क रहा है?",
+      "category": "red_flag",
+      "is_red_flag": true,
+      "clinical_focus": "Tachyarrhythmia / Atrial Fibrillation / Ventricular Ectopy"
+    },
+    {
+      "id": "nausea_dizziness",
+      "text": "Are you feeling nauseous, lightheaded, or dizzy?",
+      "text_hi": "क्या आपको मतली, सिर चकराना या चक्कर जैसा महसूस हो रहा है?",
+      "category": "associated_symptom",
+      "is_red_flag": false,
+      "clinical_focus": "Autonomic / Vagal / Hypoperfusion"
+    },
+    {
+      "id": "confusion",
+      "text": "Are you feeling confused, disoriented, or having sudden blurred vision?",
+      "text_hi": "क्या आप भ्रमित, दिशाहीन महसूस कर रहे हैं या अचानक धुंधला दिखाई दे रहा है?",
+      "category": "associated_symptom",
+      "is_red_flag": false,
+      "clinical_focus": "Cerebral Hypoperfusion / Cardiogenic Shock"
+    },
+    {
+      "id": "age_over_40",
+      "text": "Are you 40 years of age or older?",
+      "text_hi": "क्या आपकी उम्र 40 वर्ष या उससे अधिक है?",
+      "category": "risk_factor",
+      "is_red_flag": false,
+      "clinical_focus": "Cardiovascular Age Risk"
+    },
+    {
+      "id": "diabetes",
+      "text": "Have you been diagnosed with diabetes?",
+      "text_hi": "क्या आपको मधुमेह (डायबिटीज) का निदान हुआ है?",
+      "category": "risk_factor",
+      "is_red_flag": false,
+      "clinical_focus": "Micro/Macrovascular CAD / Atypical Presentation"
+    },
+    {
+      "id": "known_heart_disease",
+      "text": "Do you have known heart disease (prior heart attack, stent, angina, or bypass)?",
+      "text_hi": "क्या आपको पहले से हृदय रोग का इतिहास है (जैसे दिल का दौरा, स्टेंट, एनजाइना या बाईपास)?",
+      "category": "risk_factor",
+      "is_red_flag": false,
+      "clinical_focus": "Established Coronary Artery Disease"
+    },
+    {
+      "id": "duration_over_1_hour",
+      "text": "Have these symptoms lasted for more than 1 hour or persisted continuously?",
+      "text_hi": "क्या ये लक्षण 1 घंटे से अधिक समय से हैं या लगातार बने हुए हैं?",
+      "category": "risk_factor",
+      "is_red_flag": false,
+      "clinical_focus": "Prolonged / Persistent Ischemia"
+    }
+  ],
+  "rules": {
+    "red_flag_keys": [
+      "crushing_chest_pain",
+      "radiating_pain",
+      "dyspnea_at_rest",
+      "cold_sweats",
+      "fainting",
+      "palpitations"
+    ],
+    "emergency_syncope_key": "fainting",
+    "emergency_sweats_combo": [
+      "cold_sweats",
+      "nausea_dizziness"
+    ],
+    "emergency_min_red_flags": 2,
+    "emergency_shock_combo": [
+      "crushing_chest_pain",
+      "confusion"
+    ],
+    "emergency_persistent_cad_combo": {
+      "requires_red_flag": true,
+      "requires_history": "known_heart_disease",
+      "requires_duration": "duration_over_1_hour"
+    },
+    "vital_signs_thresholds": {
+      "bp_sys_shock_below": 90,
+      "bp_sys_crisis_above": 180,
+      "hr_critical_below": 40,
+      "hr_critical_above": 150
+    },
+    "see_doctor_today_rules": {
+      "min_red_flags": 1,
+      "associated_symptoms": [
+        "nausea_dizziness",
+        "confusion"
+      ],
+      "risk_factors_to_escalate_associated": [
+        "age_over_40",
+        "diabetes",
+        "known_heart_disease"
+      ],
+      "min_risk_factors_for_associated": 2
+    }
+  }
+}

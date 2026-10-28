@@ -105,6 +105,25 @@ def test_client_ip_direct_render_rejects_forged_vercel_header():
     assert resolved_ip == "198.51.100.22", f"Expected real client IP 198.51.100.22, got forged: {resolved_ip}"
 
 
+def test_client_ip_render_infra_hops_stripped():
+    """
+    Scenario: Real Render deploy with Cloudflare edge (162.159.114.31) and internal mesh (10.26.216.63).
+    Attacker supplies 'X-Forwarded-For: 1.1.1.1, 2.2.2.2' and forged 'X-Vercel-Forwarded-For: 9.9.9.9'.
+    Render appends real client IP 198.51.100.22, Cloudflare edge, and container mesh.
+    Expected: Both infra hops and spoofed headers are stripped; returns real client IP 198.51.100.22.
+    """
+    req = _make_dummy_request(
+        headers={
+            "x-forwarded-for": "1.1.1.1, 2.2.2.2, 198.51.100.22, 162.159.114.31, 10.26.216.63",
+            "x-vercel-forwarded-for": "9.9.9.9",
+        },
+        client_host="10.26.216.63",
+    )
+    resolved_ip = get_client_ip(req)
+    assert resolved_ip == "198.51.100.22", f"Expected real IP 198.51.100.22, got: {resolved_ip}"
+
+
+
 
 def test_rate_limit_and_lockout_persists_in_database():
     """

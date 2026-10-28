@@ -106,17 +106,3 @@ async def health():
         "vitals_model_status": "experimental, not validated",
         "model_accuracy": "92.65% Macro AUROC (PTB-XL Fold 10 held-out test)" if is_ecg_ready else "experimental, not validated",
     }
-
-
-@app.get("/api/v1/debug/client-ip")
-async def debug_client_ip(request: Request):
-    """Temporary staging debug endpoint to verify extracted client IP."""
-    from .rate_limiter import get_client_ip
-    client_ip = get_client_ip(request)
-    return {
-        "resolved_client_ip": client_ip,
-        "x_forwarded_for": request.headers.get("x-forwarded-for"),
-        "x_vercel_forwarded_for": request.headers.get("x-vercel-forwarded-for"),
-        "trusted_proxy_env": os.getenv("TRUSTED_PROXY_IPS", ""),
-        "remote_host": request.client.host if request.client else None,
-    }

@@ -79,43 +79,93 @@ def _is_trusted_proxy(ip_str: str) -> bool:
     return False
 
 
+RENDER_EDGE_NETWORKS = [
+    ipaddress.ip_network("173.245.48.0/20"),
+    ipaddress.ip_network("103.21.244.0/22"),
+    ipaddress.ip_network("103.22.200.0/22"),
+    ipaddress.ip_network("103.31.4.0/22"),
+    ipaddress.ip_network("141.101.64.0/18"),
+    ipaddress.ip_network("108.162.192.0/18"),
+    ipaddress.ip_network("190.93.240.0/20"),
+    ipaddress.ip_network("188.114.96.0/20"),
+    ipaddress.ip_network("197.234.240.0/22"),
+    ipaddress.ip_network("198.41.128.0/17"),
+    ipaddress.ip_network("162.158.0.0/15"),
+    ipaddress.ip_network("104.16.0.0/13"),
+    ipaddress.ip_network("104.24.0.0/14"),
+    ipaddress.ip_network("172.64.0.0/13"),
+    ipaddress.ip_network("131.0.72.0/22"),
+]
+
+
+RENDER_INTERNAL_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+]
+
+
+def _is_render_infra_ip(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Check if an IP belongs to Render's internal container mesh or edge reverse proxy."""
+    for net in RENDER_INTERNAL_NETWORKS:
+        if ip_obj in net:
+            return True
+    for net in RENDER_EDGE_NETWORKS:
+        if ip_obj in net:
+            return True
+    return False
+
+
 def get_client_ip(request: Request) -> str:
     """
     Extract verified client IP from trusted reverse proxy headers.
-    Never trusts client-supplied leftmost X-Forwarded-For header.
-    Only trusts X-Vercel-Forwarded-For if the immediate upstream hop
-    (rightmost X-Forwarded-For) is a verified trusted proxy in TRUSTED_PROXY_IPS.
-    On direct connections to Render, uses the rightmost hop appended by Render.
+    1. On Render, X-Forwarded-For contains:
+       [untrusted client spoof...], [Connecting Client IP], [Render Cloudflare Edge], [Render Internal Mesh]
+    2. We strip Render internal (RFC 1918) and edge proxy infrastructure hops from the right.
+    3. The rightmost non-infrastructure IP is the Connecting Peer.
+    4. If Connecting Peer matches TRUSTED_PROXY_IPS (e.g., Vercel), we trust X-Vercel-Forwarded-For.
+    5. If Connecting Peer does NOT match TRUSTED_PROXY_IPS, it IS the real client IP.
+       Any forged X-Vercel-Forwarded-For or spoofed X-Forwarded-For is strictly discarded.
     """
     headers = request.headers
     forwarded = headers.get("x-forwarded-for")
 
     if forwarded:
         parts = [p.strip() for p in forwarded.split(",") if p.strip()]
-        if parts:
-            immediate_upstream = parts[-1]
+
+        # Walk from right to left, stripping internal infrastructure and edge proxy hops
+        non_infra_hops = []
+        for p in reversed(parts):
+            clean = _clean_ip(p)
+            try:
+                ip_obj = ipaddress.ip_address(clean)
+                if not _is_render_infra_ip(ip_obj):
+                    non_infra_hops.append(clean)
+            except (ValueError, AttributeError):
+                continue
+
+        if non_infra_hops:
+            connecting_peer = non_infra_hops[0]
 
             # 1. Check if request came through a verified trusted proxy (e.g. Vercel)
-            if _is_trusted_proxy(immediate_upstream):
+            if _is_trusted_proxy(connecting_peer):
                 vercel_forwarded = headers.get("x-vercel-forwarded-for")
                 if vercel_forwarded:
                     first_ip = vercel_forwarded.split(",")[0].strip()
                     if _is_valid_ip(first_ip):
                         return _clean_ip(first_ip)
-                if len(parts) >= 2 and _is_valid_ip(parts[-2]):
-                    return _clean_ip(parts[-2])
+                if len(non_infra_hops) >= 2 and _is_valid_ip(non_infra_hops[1]):
+                    return _clean_ip(non_infra_hops[1])
 
-            # 2. Direct connection to Render (immediate upstream is NOT a trusted proxy):
-            # Render appended the real client IP as the rightmost entry.
-            # Any forged x-vercel-forwarded-for is intentionally ignored.
-            if _is_valid_ip(immediate_upstream):
-                return _clean_ip(immediate_upstream)
+            # 2. Direct connection from client to Render:
+            return connecting_peer
 
     # Fallback to direct client socket host
     if request.client and request.client.host:
-        candidate = request.client.host
+        candidate = _clean_ip(request.client.host)
         if _is_valid_ip(candidate):
-            return _clean_ip(candidate)
+            return candidate
 
     return "127.0.0.1"
 

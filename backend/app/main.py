@@ -103,5 +103,6 @@ async def health():
         "model_loaded": is_ecg_ready or risk_model.is_loaded,
         "ecg_model_loaded": is_ecg_ready,
         "vitals_model_loaded": risk_model.is_loaded,
-        "model_accuracy": "92.65% AUROC" if is_ecg_ready else (f"{risk_model.test_accuracy * 100:.2f}%" if risk_model.is_loaded else "Model not trained yet"),
+        "vitals_model_status": "experimental, not validated",
+        "model_accuracy": "92.65% Macro AUROC (PTB-XL Fold 10 held-out test)" if is_ecg_ready else "experimental, not validated",
     }

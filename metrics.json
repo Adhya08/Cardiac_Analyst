@@ -1,0 +1,25 @@
+{
+  "best_epoch": 9,
+  "val_macro_auc": 0.9053817737207422,
+  "val_macro_f1": 0.7014001952987938,
+  "val_loss": 0.609501428839656,
+  "per_class_auc": {
+    "NORM": 0.9330247361318088,
+    "MI": 0.91256399612564,
+    "STTC": 0.929039311533131,
+    "CD": 0.9235431235431236,
+    "HYP": 0.8287377012700079
+  },
+  "classes": [
+    "NORM",
+    "MI",
+    "STTC",
+    "CD",
+    "HYP"
+  ],
+  "num_train_records": 17084,
+  "num_val_records": 2146,
+  "num_test_records_held_out": 2158,
+  "total_training_time_seconds": 2720.06,
+  "rule4_verified": true
+}

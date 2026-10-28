@@ -9,7 +9,12 @@ from dotenv import load_dotenv
 
 load_dotenv(override=False)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cardiac_data.db")
+raw_db_url = os.getenv("DATABASE_URL", "sqlite:///./cardiac_data.db")
+# Normalize postgres:// to postgresql:// for SQLAlchemy compatibility (Render/Supabase/Neon)
+if raw_db_url.startswith("postgres://"):
+    raw_db_url = raw_db_url.replace("postgres://", "postgresql://", 1)
+
+DATABASE_URL = raw_db_url
 
 engine = create_engine(
     DATABASE_URL,
@@ -45,6 +50,11 @@ def init_db():
                     conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
                 if "invite_code" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN invite_code VARCHAR"))
+        if "ecg_analyses" in inspector.get_table_names():
+            ecg_cols = [c["name"] for c in inspector.get_columns("ecg_analyses")]
+            with engine.begin() as conn:
+                if "file_data" not in ecg_cols:
+                    conn.execute(text("ALTER TABLE ecg_analyses ADD COLUMN file_data BLOB"))
     except Exception as e:
         print(f"[DB] Migration check notice: {e}")
 

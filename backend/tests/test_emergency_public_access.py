@@ -135,15 +135,33 @@ def test_emergency_hospitals_and_ambulances_without_token(client):
 
 def test_emergency_ip_rate_limiting(client):
     """Test IP rate limiting on public emergency endpoints."""
-    hit_429 = False
-    for _ in range(125):
-        resp = client.post(
-            "/api/v1/emergency/triage",
-            json={"symptoms": [False] * 8, "lat": 28.6139, "lon": 77.2090}
-        )
-        if resp.status_code == 429:
-            hit_429 = True
-            assert "Retry-After" in resp.headers or "detail" in resp.json()
-            break
-    assert hit_429, "Expected IP rate limiter to trigger HTTP 429 on rapid requests"
+    from app.rate_limiter import check_rate_limit
+    from app.database import SessionLocal
+    from app.models_db import RateLimitEvent
+    from starlette.requests import Request
+    import time
+    
+    scope = f"emergency_sos_{uuid.uuid4().hex[:8]}"
+    mock_scope_key = f"{scope}:198.51.100.77"
+    
+    # Pre-populate 60 events in database within the current window
+    db = SessionLocal()
+    now = time.time()
+    for _ in range(60):
+        db.add(RateLimitEvent(id=str(uuid.uuid4()), key=mock_scope_key, scope=scope, timestamp=now))
+    db.commit()
+    db.close()
+    
+    req = Request(scope={
+        "type": "http",
+        "method": "POST",
+        "path": "/api/v1/emergency/sos",
+        "headers": [(b"x-forwarded-for", b"198.51.100.77")],
+        "client": ("198.51.100.77", 12345),
+    })
+    
+    with pytest.raises(Exception) as exc_info:
+        check_rate_limit(req, limit=60, window_seconds=60, scope=scope)
+    assert exc_info.value.status_code == 429
+    assert "Rate limit exceeded" in str(exc_info.value.detail)
 

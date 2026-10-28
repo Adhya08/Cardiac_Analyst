@@ -10,9 +10,11 @@ from dotenv import load_dotenv
 load_dotenv(override=False)
 
 raw_db_url = os.getenv("DATABASE_URL", "sqlite:///./cardiac_data.db")
-# Normalize postgres:// to postgresql:// for SQLAlchemy compatibility (Render/Supabase/Neon)
+# Normalize postgres:// and postgresql:// to postgresql+psycopg2:// for SQLAlchemy compatibility
 if raw_db_url.startswith("postgres://"):
-    raw_db_url = raw_db_url.replace("postgres://", "postgresql://", 1)
+    raw_db_url = raw_db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+elif raw_db_url.startswith("postgresql://") and not raw_db_url.startswith("postgresql+"):
+    raw_db_url = raw_db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 DATABASE_URL = raw_db_url
 
@@ -72,8 +74,3 @@ def get_db():
         db.close()
 
 
-# Ensure tables and migrations exist
-try:
-    init_db()
-except Exception as _e:
-    print(f"[DB] Auto-init notice: {_e}")

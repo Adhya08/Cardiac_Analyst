@@ -1120,6 +1120,17 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   `https://cardiac-backend-nhl5.onrender.com`
 - Total Infrastructure Cost: **$0.00 / month** (Render Free Web Service + Neon Serverless Free Tier + Vercel/Netlify Free Tier).
 
+### 4. Staging Environment & Access Control Hardening
+- **Separate Staging Infrastructure**:
+  - Backend: `https://cardiac-backend-staging.onrender.com` (Render Web Service tracking `staging` branch)
+  - Database: Neon Serverless PostgreSQL `cardiac_staging` (separate empty database, stamped with `0001_initial`)
+  - Frontend: `https://cardiac-analyst-git-staging-adhyakul02021234-3277s-projects.vercel.app` (Vercel preview tracking `staging` branch)
+- **ECG Analysis 403 Resolution**:
+  - Discovered legacy `userId = 'default_user'` default argument in `src/lib/api.ts` which mismatched the authenticated user session UUID and triggered a 403 Forbidden under patient-isolation security policies.
+  - Refactored `src/lib/api.ts` to omit `user_id` by default and bind uploads and vitals strictly to the authenticated `current_user`.
+  - Hardened backend authorization in `backend/app/auth.py`, `backend/app/routers/ecg.py`, and `backend/app/routers/vitals.py` to seamlessly normalize `"default_user"` and empty values to `current_user.id`.
+  - All access control and end-to-end staging tests passed (`10 passed in 115s` in `test_auth_access_control.py`, 5/5 groups verified on staging).
+
 
 
 

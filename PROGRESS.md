@@ -1021,6 +1021,47 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
 - **Branch Cleanliness**: Deleted stale branch `trae/solo-agent-fhz38n`.
 - **Database Modernization**: Upgraded schema and Alembic migration `0001_initial` with PostgreSQL-compatible `BYTEA` storage for ECG waveforms.
 
+---
+
+## Phase 9: Automated Secret Scanning & CI/CD Protection
+
+### 1. Gitleaks Installation & Comprehensive Repository Audit
+- **Gitleaks Version**: `v8.30.1` installed and verified.
+- **Git History Scan (`gitleaks git --log-opts="--all"`)**:
+  - Scanned **90 commits** (~4.20 MB total revision diffs).
+  - Leaks detected: **0** (Clean).
+- **Working Tree Scan (`gitleaks dir`)**:
+  - Scanned **55.99 MB** across the entire project directory.
+  - Leaks detected: **0** (Clean).
+
+### 2. Targeted High-Risk Pattern Verification
+- **`KGAT_` Pattern**: Only one occurrence exists in `KAGGLE_WORKFLOW.md:21` as an illustrative documentation string `(KGAT_...)`. 0 real credentials in history or working tree.
+- **`npg_` Pattern**: 0 occurrences in git history and 0 occurrences in working tree.
+- **`neon.tech` / `postgres(ql)://` with Password**:
+  - Exactly 1 match found: `backend/tests/test_database_and_migrations.py:38`.
+  - Confirmed harmless dummy test fixture: `fake_url = "postgres://[user]:[pass]@[host]/neondb?sslmode=require"` in `test_database_url_normalization_handles_postgres_prefix()`.
+- **`alembic.ini` & Environment Isolation**:
+  - Verified `alembic.ini` contains **zero hardcoded database URLs or passwords**.
+  - `backend/alembic/env.py` loads `DATABASE_URL` dynamically from `app.database`, which reads from `os.getenv("DATABASE_URL")`.
+
+### 3. Automated Guardrails (Pre-Commit Hook & GitHub Actions)
+- **Pre-Commit Hook (`.githooks/pre-commit` & `.git/hooks/pre-commit`)**:
+  - Automatically runs `gitleaks protect --staged --redact --verbose` on every `git commit`.
+  - Blocks commits if secrets or connection credentials are found; includes a fallback Python regex scanner if the `gitleaks` binary is absent.
+  - Configured git to use versioned hooks via `git config core.hooksPath .githooks`.
+- **Custom Rule Configuration (`.gitleaks.toml`)**:
+  - Enforces project-specific detection for Kaggle API tokens (`KGAT_`), Neon DB tokens (`npg_`), and cleartext database connection strings.
+- **GitHub Actions Workflow (`.github/workflows/secret-scan.yml`)**:
+  - Runs `gitleaks/gitleaks-action@v2` on every `push` and `pull_request` targeting `main` or `staging`.
+
+### 4. `.env` Git-Ignored Status & OneDrive Risk Analysis
+- **Git Tracking Status**: All `.env`, `.env.local`, and `backend/.env` files are confirmed untracked and strictly matched by `.gitignore:35` and `.gitignore:36`.
+- **OneDrive Storage Context**:
+  - The repository resides at `C:\Users\Vivan\OneDrive\Documents\PROJECTS\Cardiac_Analyst`.
+  - While Git excludes `.env` from version control, OneDrive synchronizes all local files to the Microsoft Cloud automatically.
+  - Historical snapshots of local `.env` files can exist in OneDrive cloud versioning and cross-device syncing, meaning sensitive API tokens must be managed in platform secret stores (Render/Vercel/Neon) rather than kept unencrypted in OneDrive-synced directories.
+
+
 
 
 

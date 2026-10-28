@@ -5,6 +5,7 @@ import {
 import { useStore } from '../store/useStore';
 import { api, type ECGHistoryItem, type HistoryRecord } from '../lib/api';
 import { formatScorePercentage } from './ECGMode';
+import evaluationMetrics from '../data/evaluation_metrics.json';
 
 export const OverviewMode: React.FC = () => {
   const { setMode, user, setActiveECGStudyId, backendHealth } = useStore();
@@ -301,13 +302,7 @@ export const OverviewMode: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              {[
-                { code: 'NORM', name: 'Normal ECG', threshold: '0.51', auc: '0.9335' },
-                { code: 'MI', name: 'Myocardial Infarction', threshold: '0.41', auc: '0.9118' },
-                { code: 'STTC', name: 'ST/T-Wave Changes', threshold: '0.70', auc: '0.9322' },
-                { code: 'CD', name: 'Conduction Disturbance', threshold: '0.66', auc: '0.9111' },
-                { code: 'HYP', name: 'Hypertrophy', threshold: '0.75', auc: '0.8327' },
-              ].map((c) => (
+              {evaluationMetrics.classes.map((c) => (
                 <div key={c.code} className="p-2.5 bg-slate-50 rounded-xl border border-border flex items-center justify-between text-xs">
                   <div>
                     <span className="font-bold text-navy-850">{c.code}</span>
@@ -315,14 +310,14 @@ export const OverviewMode: React.FC = () => {
                   </div>
                   <div className="text-right font-mono text-[10px]">
                     <span className="text-slate-400">θ = {c.threshold}</span>
-                    <span className="text-teal-700 font-bold ml-2">AUC {c.auc}</span>
+                    <span className="text-teal-700 font-bold ml-2">AUC {c.auroc.toFixed(4)}</span>
                   </div>
                 </div>
               ))}
             </div>
 
             <div className="p-3 bg-surface-secondary rounded-xl border border-border text-[11px] text-slate-600 leading-relaxed">
-              <strong>Evaluation Standards:</strong> Evaluated strictly once on 2,158 held-out records of PhysioNet PTB-XL Fold 10. Macro AUROC 0.9265, Macro F1 0.7520.
+              <strong>Evaluation Standards:</strong> Evaluated strictly once on {evaluationMetrics.dataset}. Macro AUROC {evaluationMetrics.macro_auroc.toFixed(4)}, Macro F1 {evaluationMetrics.macro_f1.toFixed(4)}.
             </div>
           </div>
 

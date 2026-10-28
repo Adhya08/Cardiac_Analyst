@@ -1,0 +1,68 @@
+{
+  "source": "backend/models/EVALUATION_REPORT.md",
+  "dataset": "PhysioNet PTB-XL Fold 10 (2,158 held-out records)",
+  "macro_auroc": 0.9265,
+  "macro_f1": 0.752,
+  "classes": [
+    {
+      "code": "NORM",
+      "name": "Normal ECG",
+      "threshold": "0.51",
+      "auroc": 0.9447,
+      "auprc": 0.9249,
+      "sensitivity": "94.70%",
+      "specificity": "79.75%",
+      "precision": "79.03%",
+      "f1": 0.8616,
+      "brier": 0.1054
+    },
+    {
+      "code": "MI",
+      "name": "Myocardial Infarction",
+      "threshold": "0.41",
+      "auroc": 0.9244,
+      "auprc": 0.8288,
+      "sensitivity": "80.00%",
+      "specificity": "87.81%",
+      "precision": "69.18%",
+      "f1": 0.742,
+      "brier": 0.099
+    },
+    {
+      "code": "STTC",
+      "name": "ST/T-Wave Changes",
+      "threshold": "0.70",
+      "auroc": 0.9351,
+      "auprc": 0.8314,
+      "sensitivity": "80.04%",
+      "specificity": "91.63%",
+      "precision": "75.27%",
+      "f1": 0.7758,
+      "brier": 0.0996
+    },
+    {
+      "code": "CD",
+      "name": "Conduction Disturbance",
+      "threshold": "0.66",
+      "auroc": 0.9259,
+      "auprc": 0.8509,
+      "sensitivity": "75.81%",
+      "specificity": "93.86%",
+      "precision": "78.66%",
+      "f1": 0.7721,
+      "brier": 0.0901
+    },
+    {
+      "code": "HYP",
+      "name": "Hypertrophy",
+      "threshold": "0.75",
+      "auroc": 0.9021,
+      "auprc": 0.6621,
+      "sensitivity": "55.73%",
+      "specificity": "96.20%",
+      "precision": "66.97%",
+      "f1": 0.6083,
+      "brier": 0.0847
+    }
+  ]
+}

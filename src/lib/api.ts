@@ -88,11 +88,13 @@ export interface ECGCondition {
   probability?: number;
 }
 
-export interface ECGGradCAMHighlight {
+export interface ECGRuleHighlight {
   lead: string;
   finding: string;
-  severity: 'normal' | 'abnormal' | 'critical';
+  severity: 'normal' | 'abnormal' | 'critical' | string;
 }
+
+export type ECGGradCAMHighlight = ECGRuleHighlight;
 
 export interface ECGResponse {
   status: 'ok' | 'uncertain' | 'analysis_unavailable';
@@ -113,7 +115,8 @@ export interface ECGResponse {
   st_elevation_leads: string[];
   st_depression_leads: string[];
   conditions: ECGCondition[];
-  gradcam_highlights: ECGGradCAMHighlight[];
+  rule_based_highlights: ECGRuleHighlight[];
+  gradcam_highlights?: ECGRuleHighlight[];
   overall_assessment: string;
   urgency: 'routine' | 'see_doctor_today' | 'emergency' | 'unavailable';
   recommendations: string[];

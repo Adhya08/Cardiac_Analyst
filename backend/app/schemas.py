@@ -135,10 +135,12 @@ class ECGConditionOut(BaseModel):
         return data
 
 
-class ECGGradCAMHighlight(BaseModel):
+class ECGRuleHighlight(BaseModel):
     lead: str
     finding: str
     severity: str
+
+ECGGradCAMHighlight = ECGRuleHighlight
 
 
 class ECGOut(BaseModel):
@@ -161,7 +163,8 @@ class ECGOut(BaseModel):
     st_elevation_leads: List[str] = []
     st_depression_leads: List[str] = []
     conditions: List[ECGConditionOut] = []
-    gradcam_highlights: List[ECGGradCAMHighlight] = []
+    rule_based_highlights: List[ECGRuleHighlight] = []
+    gradcam_highlights: List[ECGRuleHighlight] = []  # alias for backward-compatibility
     overall_assessment: str = "ECG analysis completed."
     urgency: str = "routine"  # "routine" | "see_doctor_today" | "emergency" | "unavailable"
     recommendations: List[str] = []

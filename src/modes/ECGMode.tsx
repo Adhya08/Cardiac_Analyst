@@ -10,7 +10,8 @@ import { useStore } from '../store/useStore';
 import {
   Upload, CheckCircle2, Zap, AlertTriangle,
   ChevronDown, ChevronUp, Heart,
-  AlertCircle, BarChart3, Activity, XCircle, RotateCcw
+  AlertCircle, BarChart3, Activity, XCircle, RotateCcw,
+  Lock, LogIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type ECGResponse, type ECGCondition } from '../lib/api';
@@ -217,7 +218,7 @@ const ConditionRow: React.FC<{ cond: ECGCondition; language: 'en' | 'hi' }> = ({
 // Main ECGMode
 // ─────────────────────────────────────────────
 export const ECGMode: React.FC = () => {
-  const { user, language, setMode, activeECGStudyId, setActiveECGStudyId } = useStore();
+  const { user, language, setMode, activeECGStudyId, setActiveECGStudyId, openAuthModal } = useStore();
   const t = translations[language];
   const [status, setStatus] = useState<AnalysisStatus>('idle');
   const [result, setResult] = useState<ECGResponse | null>(null);
@@ -440,22 +441,60 @@ export const ECGMode: React.FC = () => {
       )}
 
       {/* ── Error Banner ── */}
-      {status === 'error' && (
-        <div className="clinical-card p-8 border-red-300 bg-red-50/30 text-center space-y-4">
-          <AlertTriangle className="w-10 h-10 text-red-600 mx-auto" />
-          <h3 className="text-base font-bold text-red-900">{t.analysis_failed}</h3>
-          <p className="text-slate-600 text-xs max-w-xl mx-auto leading-relaxed">{errorMsg}</p>
-          <div className="pt-2 flex justify-center items-center">
-            <button
-              onClick={reset}
-              className="btn-clinical-secondary text-xs px-6 py-2.5 mx-auto"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>{t.try_again}</span>
-            </button>
+      {status === 'error' && (() => {
+        const isAuthError = errorMsg.includes('401') || errorMsg.toLowerCase().includes('not authenticated');
+        return (
+          <div className={`clinical-card p-8 text-center space-y-4 ${
+            isAuthError ? 'border-amber-300 bg-amber-50/40' : 'border-red-300 bg-red-50/30'
+          }`}>
+            {isAuthError ? (
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 text-amber-800 flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6" />
+              </div>
+            ) : (
+              <AlertTriangle className="w-10 h-10 text-red-600 mx-auto" />
+            )}
+
+            <h3 className={`text-base font-bold ${isAuthError ? 'text-amber-950' : 'text-red-900'}`}>
+              {isAuthError ? 'Patient Sign In Required' : t.analysis_failed}
+            </h3>
+
+            <p className="text-slate-600 text-xs max-w-xl mx-auto leading-relaxed">
+              {isAuthError
+                ? 'Real-time 12-lead ECG analysis and diagnostic records are protected under clinical health privacy standards. Please sign in or register your patient account to run model inference.'
+                : errorMsg}
+            </p>
+
+            <div className="pt-2 flex justify-center items-center gap-3">
+              {isAuthError ? (
+                <>
+                  <button
+                    onClick={() => openAuthModal('account')}
+                    className="btn-clinical-primary text-xs px-5 py-2.5 flex items-center gap-2"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Sign In / Register</span>
+                  </button>
+                  <button
+                    onClick={reset}
+                    className="btn-clinical-secondary text-xs px-4 py-2.5"
+                  >
+                    <span>Dismiss</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={reset}
+                  className="btn-clinical-secondary text-xs px-6 py-2.5 mx-auto flex items-center gap-2"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>{t.try_again}</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Quick Trial Section (Real PTB-XL Held-Out Benchmark Records) ── */}
       {(status === 'idle' || status === 'error') && (

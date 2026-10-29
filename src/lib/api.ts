@@ -11,6 +11,8 @@ const BASE = '/api/v1';
 
 export interface UserProfile {
   id?: string;
+  email?: string;
+  role?: string;
   name?: string;
   age: number;
   sex: 'Male' | 'Female' | 'Other';
@@ -223,6 +225,10 @@ export function getStoredUser(): any | null {
   } catch {
     return null;
   }
+}
+
+export function isAuthenticated(): boolean {
+  return !!getStoredToken();
 }
 
 // ─────────────────────────────────────────────────────────

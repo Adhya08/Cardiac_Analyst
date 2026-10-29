@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import {
   Menu, Globe, PhoneCall,
-  User, ChevronRight
+  User, ChevronRight, LogOut, LogIn
 } from 'lucide-react';
 import { useStore, type NavigationMode } from '../store/useStore';
-import { api } from '../lib/api';
+import { api, isAuthenticated } from '../lib/api';
 
 interface TopBarProps {
   onToggleMobileMenu: () => void;
@@ -43,7 +43,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleMobileMenu,
   onOpenProfile,
 }) => {
-  const { currentMode, isSidebarCollapsed, language, setLanguage, user, backendHealth, setBackendHealth } = useStore();
+  const { currentMode, isSidebarCollapsed, language, setLanguage, user, authUser, logout, openAuthModal, backendHealth, setBackendHealth } = useStore();
   const modeInfo = MODE_TITLES[currentMode] || MODE_TITLES.overview;
 
   // Poll real backend health on mount
@@ -136,19 +136,65 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span>{language === 'en' ? 'हिन्दी' : 'EN'}</span>
           </button>
 
-          {/* Patient Profile Trigger */}
-          <button
-            onClick={onOpenProfile}
-            title="Patient Profile & Clinical Context"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-button-secondary"
-          >
-            <div className="w-5 h-5 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700">
-              <User className="w-3 h-3" />
-            </div>
-            <span className="hidden md:inline text-navy-850">
-              {user?.age ? `${user.sex || 'Patient'}, ${user.age}y` : 'Patient Profile'}
-            </span>
-          </button>
+          {/* Authentication & Profile Controls */}
+          {isAuthenticated() ? (
+            <>
+              {/* Patient Profile Trigger */}
+              <button
+                onClick={onOpenProfile}
+                title="Patient Profile & Clinical Context"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-button-secondary"
+              >
+                <div className="w-5 h-5 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700">
+                  <User className="w-3 h-3" />
+                </div>
+                <div className="hidden md:flex flex-col text-left leading-tight">
+                  <span className="text-navy-850 font-bold max-w-[120px] truncate">
+                    {authUser?.name || user?.name || authUser?.email?.split('@')[0] || 'Patient'}
+                  </span>
+                  <span className="text-[9px] text-teal-700 font-semibold tracking-wider uppercase">
+                    {authUser?.role || 'Patient'}
+                  </span>
+                </div>
+              </button>
+
+              {/* Direct Sign Out Button */}
+              <button
+                onClick={logout}
+                title="Sign out of patient account"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all shadow-button-secondary"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Patient Demographics (Guest) */}
+              <button
+                onClick={onOpenProfile}
+                title="Configure Patient Demographics"
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-button-secondary"
+              >
+                <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600">
+                  <User className="w-3 h-3" />
+                </div>
+                <span className="text-navy-850">
+                  {user?.age ? `${user.sex || 'Patient'}, ${user.age}y` : 'Demographics'}
+                </span>
+              </button>
+
+              {/* Direct Sign In Button */}
+              <button
+                onClick={() => openAuthModal('account')}
+                title="Sign in or register your patient account"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-teal-600 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-button"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+            </>
+          )}
 
           {/* Direct Emergency 112 SOS Button */}
           <a

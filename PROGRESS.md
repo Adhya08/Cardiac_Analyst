@@ -1131,6 +1131,19 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   - Hardened backend authorization in `backend/app/auth.py`, `backend/app/routers/ecg.py`, and `backend/app/routers/vitals.py` to seamlessly normalize `"default_user"` and empty values to `current_user.id`.
   - All access control and end-to-end staging tests passed (`10 passed in 115s` in `test_auth_access_control.py`, 5/5 groups verified on staging).
 
+### 5. Patient Authentication & Sign Out Experience
+- **Dedicated Sign Out Option**:
+  - Implemented an explicit, direct **"Sign Out"** button in [`src/components/TopBar.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/TopBar.tsx) with user identity chip showing active account name, email, and role (`PATIENT` or `CLINICIAN`).
+  - Added dedicated **"Sign Out"** action to the bottom navigation rail in [`src/components/Sidebar.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/Sidebar.tsx).
+  - Enhanced [`src/components/ProfileModal.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/ProfileModal.tsx) with a full account view, accurate role indicators, and an immediate "Sign Out of Account" action.
+- **Direct Sign In / Register Access**:
+  - Prominent **"Sign In / Register"** CTA in the TopBar and Sidebar when unauthenticated, immediately opening the account authentication modal.
+- **Friendly 401 Unauthenticated State in ECG Analysis**:
+  - Refactored [`src/modes/ECGMode.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/modes/ECGMode.tsx) error handling: when an unauthenticated user runs analysis or selects a benchmark sample, the UI displays a clear "Patient Sign In Required" clinical banner with a one-click "Sign In / Register" button rather than a raw, confusing 401 error.
+- **Production Build Validation**:
+  - `tsc -b && vite build` passed cleanly in 28.0s. All changes committed and pushed to `staging` branch (`b1fd10f`).
+
+
 
 
 

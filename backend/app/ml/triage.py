@@ -38,15 +38,15 @@ EMERGENCY_COMBOS = [
 # ── If ≥ 5 YES answers → emergency regardless
 EMERGENCY_THRESHOLD = 5
 
-# ── Instructions by severity
+# ── Instructions by severity (Safe escalation without unsupported medication prescriptions)
 INSTRUCTIONS = {
     "emergency": [
-        "🚨 Call 112 IMMEDIATELY. Do not wait.",
-        "Sit or lie down. Do NOT try to drive yourself.",
-        "Unlock your front door for the ambulance crew.",
-        "If available and not allergic: chew ONE aspirin (75–325 mg) right now.",
-        "Keep this screen visible to show emergency responders.",
-        "Send your location to a trusted family member.",
+        "🚨 Call 112 (or your local emergency services) IMMEDIATELY. Do not wait.",
+        "Sit or lie down in a comfortable position with support. Do NOT try to drive yourself.",
+        "Unlock your front door so emergency responders can enter without delay.",
+        "Stay calm, breathe slowly, and avoid any physical exertion or sudden movements.",
+        "Keep this screen visible to show arriving emergency medical responders.",
+        "Notify a family member or neighbor of your emergency immediately.",
     ],
     "see_doctor": [
         "Visit a cardiologist or emergency department within 24 hours.",

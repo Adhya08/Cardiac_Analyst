@@ -119,38 +119,12 @@ def train():
 
     # 1. Load & Fetch
     df = fetch_data()
-    if df is None:
-        print("  Generating Synthetic Clinical Dataset (UCI Distribution Sync)...")
-        np.random.seed(RANDOM_STATE)
-        n_samples = 1000
-        data = {
-            "age": np.random.normal(54, 9, n_samples),
-            "sex": np.random.choice([0, 1], size=n_samples, p=[0.32, 0.68]),
-            "cp": np.random.choice([1, 2, 3, 4], size=n_samples, p=[0.1, 0.2, 0.3, 0.4]),
-            "trestbps": np.random.normal(131, 17, n_samples),
-            "chol": np.random.normal(246, 51, n_samples),
-            "fbs": np.random.choice([0, 1], size=n_samples, p=[0.85, 0.15]),
-            "restecg": np.random.choice([0, 1, 2], size=n_samples, p=[0.49, 0.01, 0.50]),
-            "thalach": np.random.normal(149, 23, n_samples),
-            "exang": np.random.choice([0, 1], size=n_samples, p=[0.67, 0.33]),
-            "oldpeak": np.clip(np.random.exponential(1.1, n_samples), 0, 6),
-            "slope": np.random.choice([1, 2, 3], size=n_samples, p=[0.4, 0.46, 0.14]),
-            "ca": np.random.choice([0, 1, 2, 3], size=n_samples, p=[0.58, 0.21, 0.13, 0.08]),
-            "thal": np.random.choice([3, 6, 7], size=n_samples, p=[0.54, 0.06, 0.40]),
-        }
-        df = pd.DataFrame(data)
-        # Probabilistic target logic based on risk factors
-        risk_score = (
-            (df["age"] - 50) / 20 + 
-            (df["sex"] * 0.5) + 
-            (df["oldpeak"] * 0.8) + 
-            (df["ca"] * 1.2) + 
-            ((df["trestbps"] - 120) / 30)
+    if df is None or len(df) == 0:
+        raise RuntimeError(
+            "FATAL: Failed to load real clinical heart disease datasets from authorized sources. "
+            "Silent fallback to synthetic data is strictly prohibited by Permanent Rule 3. "
+            "Please check network connection or verify local mirror data/heart.csv."
         )
-        df["target"] = (risk_score > 1.5).astype(int)
-        # Add some noise to labels
-        noise_idx = np.random.choice(n_samples, size=int(n_samples * 0.1), replace=False)
-        df.loc[noise_idx, "target"] = 1 - df.loc[noise_idx, "target"]
     
     # 2. Preprocessing
     df = df.fillna(df.median())

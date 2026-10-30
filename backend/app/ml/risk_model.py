@@ -243,6 +243,7 @@ class RiskModel:
         except Exception:
             framingham_risk = 15.0  # Safe default
 
+        used_lgbm = False
         if not self.is_loaded:
             # Graceful degradation: use Framingham only
             risk_score = framingham_risk
@@ -255,6 +256,7 @@ class RiskModel:
             # LightGBM prediction
             try:
                 lgbm_prob = float(self.model.predict_proba(X)[0][1])
+                used_lgbm = True
             except Exception as e:
                 print(f"[RiskModel] LightGBM inference error: {e}")
                 lgbm_prob = framingham_risk / 100.0
@@ -296,6 +298,20 @@ class RiskModel:
         # ECG escalation flag
         ecg_prompt = (risk_tier == "Elevated") or (lgbm_prob > 0.65)
 
+        if used_lgbm:
+            model_status = "experimental"
+            experimental_warning = (
+                "Heuristic Feature Mapping: The tabular model was trained on clinical catheterization and "
+                "treadmill stress features (cp, thalach, oldpeak, ca, thal) which are heuristically approximated "
+                "from resting vitals. Consequently, this tabular risk output is strictly experimental and for research demonstration."
+            )
+        else:
+            model_status = "fallback_framingham"
+            experimental_warning = (
+                "Framingham Clinical Fallback: The tabular machine learning model is unavailable or inference failed. "
+                "The displayed risk estimate is derived from the established Framingham 10-year cardiovascular risk equations."
+            )
+
         return {
             "risk_score": round(risk_score, 2),
             "lgbm_probability": round(lgbm_prob * 100, 2),
@@ -309,6 +325,8 @@ class RiskModel:
             "shap_top5": shap_top5,
             "ecg_prompt": ecg_prompt,
             "trend_delta": 0.0,  # Computed by router using DB
+            "model_status": model_status,
+            "experimental_warning": experimental_warning,
         }
 
     def _format_shap(self, shap_dict: dict) -> list:

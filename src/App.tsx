@@ -45,7 +45,7 @@ function App() {
         />
       </div>
 
-      <main className="pt-24 pl-24 pr-8 pb-12 overflow-x-hidden">
+      <main className="pt-6 pl-24 pr-8 pb-12 overflow-x-hidden">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentMode}

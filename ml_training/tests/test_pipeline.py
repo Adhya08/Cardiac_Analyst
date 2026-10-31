@@ -56,12 +56,13 @@ class TestPTBXLDataPipeline(unittest.TestCase):
             return True
         try:
             cls.data_dir = locate_dataset()
-            cls.df = load_metadata_and_map_labels(cls.data_dir)
-            cls.train_df, cls.val_df, cls.test_df = split_dataset(cls.df)
-            cls._data_loaded = True
-            return True
-        except Exception:
+        except FileNotFoundError:
             return False
+
+        cls.df = load_metadata_and_map_labels(cls.data_dir)
+        cls.train_df, cls.val_df, cls.test_df = split_dataset(cls.df)
+        cls._data_loaded = True
+        return True
 
     def test_01_no_patient_appears_in_more_than_one_split(self):
         """Rule 4 / Strict Split Check: Ensure 0 patient overlap across train, val, and test splits."""

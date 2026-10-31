@@ -74,13 +74,18 @@ export interface VitalsHistory {
 }
 
 export interface ECGCondition {
+  code: string;
   name: string;
-  probability: number;
-  severity: 'normal' | 'possible' | 'detected';
-  leads_affected: string[];
-  key_finding: string;
+  model_score: number;
+  threshold: number;
+  detected: boolean;
+  severity: 'normal' | 'possible' | 'detected' | 'unavailable';
+  leads_affected?: string[];
+  key_finding?: string;
   explanation_en: string;
   explanation_hi?: string;
+  // Legacy alias for older history records
+  probability?: number;
 }
 
 export interface ECGGradCAMHighlight {
@@ -90,6 +95,14 @@ export interface ECGGradCAMHighlight {
 }
 
 export interface ECGResponse {
+  status: 'ok' | 'uncertain' | 'analysis_unavailable';
+  model_version: string;
+  supported_labels: string[];
+  model_scores: Record<string, number>;
+  quality_status: 'good' | 'poor_quality' | 'unusable';
+  uncertainty_flag: boolean;
+  abstain_reason?: string;
+
   ecg_id: string;
   heart_rate_bpm?: number;
   rhythm?: string;
@@ -102,9 +115,9 @@ export interface ECGResponse {
   conditions: ECGCondition[];
   gradcam_highlights: ECGGradCAMHighlight[];
   overall_assessment: string;
-  urgency: 'routine' | 'see_doctor_today' | 'emergency';
+  urgency: 'routine' | 'see_doctor_today' | 'emergency' | 'unavailable';
   recommendations: string[];
-  image_quality: 'good' | 'fair' | 'poor';
+  image_quality?: 'good' | 'fair' | 'poor' | string;
   image_quality_note?: string;
   disclaimer: string;
   file_url?: string;

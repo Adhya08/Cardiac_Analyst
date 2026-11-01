@@ -28,7 +28,10 @@ def run_tests():
     print(f"[PASS] Model loaded successfully: {model.model_path}")
 
     # 1. Test real sample CSV files from PTB-XL Fold 10
-    models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models_saved")
+    sample_dirs = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "samples"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "models_saved"),
+    ]
     sample_files = [
         ("sample_ecg_NORM.csv", "Normal ECG", "NORM"),
         ("sample_ecg_MI.csv", "Myocardial Infarction", "MI"),
@@ -38,9 +41,15 @@ def run_tests():
     ]
 
     for fname, display_name, expected_superclass in sample_files:
-        fpath = os.path.join(models_dir, fname)
-        if not os.path.exists(fpath):
-            print(f"[SKIP] Sample file not found: {fpath}")
+        fpath = None
+        for sdir in sample_dirs:
+            candidate = os.path.join(sdir, fname)
+            if os.path.exists(candidate):
+                fpath = candidate
+                break
+
+        if not fpath or not os.path.exists(fpath):
+            print(f"[SKIP] Sample file not found: {fname}")
             continue
 
         with open(fpath, "rb") as f:

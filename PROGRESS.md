@@ -336,6 +336,48 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
 
 ---
 
-## Final Status
-All Phase 6 frontend updates to match the real trained model, its 5 supported classes, its real evaluated metrics, its defensive failure states, and its regulatory disclaimer are **100% completed, built, and browser-verified**.
+## Post-Audit Findings & Refinements (UI & Model Diagnostics)
+
+### 1. Investigation of Hypertrophy (HYP) 100.0% & Urgency Tiering
+- **(a) Record Origin & Data Split Verification**:
+  - The record that generated this result is [`public/demo_ecgs/sample_ecg_HYP.csv`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/public/demo_ecgs/sample_ecg_HYP.csv).
+  - Traceability: Extracted by [`training/evaluate_fold10_kaggle.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/training/evaluate_fold10_kaggle.py) line 424 from `test_df = df[df["strat_fold"] == 10]`.
+  - Dataset metadata: **PTB-XL ECG ID `14745`**, Patient ID `5527.0`, file `records100/14000/14745_lr`.
+  - **Fold verification**: Verified that `strat_fold == 10`. It is **100% held-out test data**, strictly isolated from model training (Folds 1–8) and validation (Fold 9).
+- **(b) Raw Unrounded Model Score**:
+  - Raw ONNX float32 output: `np.float32(0.99956244)` (or **99.956245%**).
+  - Database persistence: Stored in SQLite `ecg_analyses.top_condition_prob` as `0.9996` (rounded via `round(score, 4)` in `ecg_analyzer.py`).
+- **(c) Score Formatting Rationale (`>99.9%` vs `100.0%`)**:
+  - Cause of `100.0%`: The UI formatted the score via `(item.top_condition_prob * 100).toFixed(1)`, which rounded `99.96%` to `100.0%`.
+  - Clinical rationale: In medical diagnostic software, statistical estimators should never display absolute certainty (100.0% or 0.0%) to prevent false impressions of infallible precision.
+  - Implementation: Added `formatScorePercentage` in `src/modes/ECGMode.tsx`: values $\ge 99.95\%$ format as `>99.9%`, values $\le 0.05\%$ format as `<0.1%`, preserving bounded probabilistic reporting across condition rows and recent history cards.
+- **(d) Deterministic Urgency Rule & Clinical Justification**:
+  - Traceability: Computed in `backend/app/ml/ecg_analyzer.py` (lines 250–298) via locked deterministic rules with zero GenAI:
+    ```python
+    th = float(self.thresholds.get("HYP", 0.75)) # HYP locked threshold
+    detected = bool(score >= th)                  # 0.99956 >= 0.75 -> True
+    if cond != "NORM" and detected:
+        has_abnormal_condition = True
+    
+    # Deterministic Triage Hierarchy:
+    if is_unusable: urgency = "analysis_unavailable"
+    elif has_emergency: urgency = "emergency_112"
+    elif has_abnormal_condition: urgency = "see_doctor_today"
+    else: urgency = "routine"
+    ```
+  - For record `14745`, both `HYP` (`0.9996 >= 0.75`) and `STTC` (`0.9953 >= 0.70`) crossed diagnostic thresholds.
+  - Clinical justification: Even if triggered by HYP alone, ventricular hypertrophy with high voltage abnormalities warrants prompt same-day medical evaluation (`see_doctor_today`) rather than emergency ambulance dispatch (`emergency_112`), unless ischemic markers (`MI`) are co-detected.
+
+### 2. PTB-XL Sample Buttons Visibility on Error
+- **Root Cause**: The sample test buttons were placed inside `{status === 'idle' && (...)}`. When an upload error occurred (e.g. invalid photo/PDF or unparseable format), the UI set `status = 'error'`, hiding the buttons while the error text directed users to them.
+- **Resolution**: Extracted the Quick Trial Section in `src/modes/ECGMode.tsx` to render unconditionally on both `status === 'idle'` and `status === 'error'` directly beneath the Error Banner. Users can immediately click real PTB-XL Fold 10 benchmark samples (`NORM`, `MI`, `STTC`, `CD`, `HYP`) or diagnostic edge cases to recover.
+
+### 3. UI Alignment & Sidebar Navigation
+- **Try Again Button**: Centered within the error card using `flex justify-center`, styled with a reload icon (`RotateCcw`), prominent background, and hover transitions.
+- **Sidebar Icon Navigation**: Updated `App.tsx` sidebar navigation (`ModeTab`) to include visible text labels (`Routine`, `ECG`, `Emergency`) beneath each icon, added accessible hover tooltips with `role="tooltip"`, `title` attributes, and `aria-label` tags, and adjusted layout padding (`pl-28`) to prevent overlap.
+
+### 4. Verification & Test Suite
+- Frontend build: `npm.cmd run build` passed with 0 errors (TypeScript 5.8 & Vite).
+- Backend tests: `pytest -p no:pytest_ethereum -o pythonpath=backend backend/tests/` passed 10/10 tests in 3.03s.
+- Local model benchmark verification: `python backend/test_local_ecg.py` verified 100% correct classification on all 5 Fold 10 sample signals.
 

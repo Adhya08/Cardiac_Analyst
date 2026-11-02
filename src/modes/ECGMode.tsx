@@ -7,13 +7,14 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import { useStore } from '../store/useStore';
 import {
-  Upload, FileText, CheckCircle2, Zap, AlertTriangle,
+  Upload, CheckCircle2, Zap, AlertTriangle,
   RefreshCw, ChevronDown, ChevronUp, Clock, ExternalLink, Heart, ShieldAlert,
   AlertCircle, BarChart3, Activity, XCircle, FileWarning, RotateCcw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type ECGResponse, type ECGCondition } from '../lib/api';
 import { translations } from '../lib/translations';
+import { DualAnalysisReport } from '../components/DualAnalysisReport';
 
 export const formatScorePercentage = (score: number | null | undefined): string => {
   if (score == null || isNaN(score)) return '—';
@@ -825,38 +826,8 @@ export const ECGMode: React.FC = () => {
                 )}
               </div>
 
-              {/* Clinical Assessment Report */}
-              <div className="glass-card p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                  <h3 className="text-sm font-bold flex items-center gap-2 text-white">
-                    <FileText className="w-4 h-4 text-emerald-400" />
-                    {t.ai_clinical_report}
-                  </h3>
-                  <span className="text-[10px] text-slate-500 font-mono">PTB-XL Benchmarked</span>
-                </div>
-
-                <p className="text-slate-300 leading-relaxed text-xs">
-                  {result.overall_assessment}
-                </p>
-
-                {result.recommendations.length > 0 && (
-                  <div className="pt-3 border-t border-white/5 space-y-2">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.recommendations}</p>
-                    <ul className="space-y-1.5">
-                      {result.recommendations.map((r, i) => (
-                        <li key={i} className="flex gap-2 items-start text-xs text-slate-300">
-                          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-1.5 flex-shrink-0" />
-                          <span>{r}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5 text-[10px] text-slate-500 leading-relaxed italic">
-                  {result.disclaimer}
-                </div>
-              </div>
+              {/* Dual-Perspective Diagnostic Report: Clinical & Family Guide */}
+              <DualAnalysisReport result={result} language={language} />
             </div>
 
             {/* Right: The 5 Supported Superclasses */}

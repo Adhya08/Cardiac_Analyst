@@ -7,8 +7,11 @@ import { EmergencyMode } from './modes/EmergencyMode';
 import { Activity, Heart, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { translations } from './lib/translations';
+
 function App() {
-  const { currentMode, setMode } = useStore();
+  const { currentMode, setMode, language } = useStore();
+  const t = translations[language] || translations.en;
 
   const renderMode = () => {
     switch (currentMode) {
@@ -24,28 +27,31 @@ function App() {
       <Navbar />
       
       {/* Sidebar / Mode Switcher */}
-      <div className="fixed left-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-40">
+      <aside className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40" aria-label="Clinical Mode Selection">
         <ModeTab 
           active={currentMode === 'routine'} 
           onClick={() => setMode('routine')}
           icon={<Activity className="w-5 h-5" />}
-          label="Routine"
+          label={t.routine || "Routine"}
+          tooltip="Daily Vitals & ASCVD Risk (LightGBM)"
         />
         <ModeTab 
           active={currentMode === 'ecg'} 
           onClick={() => setMode('ecg')}
           icon={<Heart className="w-5 h-5" />}
-          label="ECG Diagnostic"
+          label={t.ecg || "ECG"}
+          tooltip="12-Lead Digital ECG Analysis (ResNet1D)"
         />
         <ModeTab 
           active={currentMode === 'emergency'} 
           onClick={() => setMode('emergency')}
           icon={<AlertTriangle className="w-5 h-5" />}
-          label="Emergency"
+          label={t.emergency || "Emergency"}
+          tooltip="NICE CG95 Triage & Hospital Routing"
         />
-      </div>
+      </aside>
 
-      <main className="pt-6 pl-24 pr-8 pb-12 overflow-x-hidden">
+      <main className="pt-6 pl-28 pr-8 pb-12 overflow-x-hidden">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentMode}
@@ -73,26 +79,38 @@ interface ModeTabProps {
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
+  tooltip: string;
 }
 
-const ModeTab: React.FC<ModeTabProps> = ({ active, onClick, icon, label }) => {
+const ModeTab: React.FC<ModeTabProps> = ({ active, onClick, icon, label, tooltip }) => {
   return (
     <button 
       onClick={onClick}
-      className={`group relative flex items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 ${
+      title={`${label} — ${tooltip}`}
+      aria-label={`${label} — ${tooltip}`}
+      className={`group relative flex flex-col items-center justify-center w-16 h-16 p-1.5 rounded-2xl transition-all duration-300 ${
         active 
-          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
-          : 'bg-slate-900 text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+          ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 ring-2 ring-emerald-400/50' 
+          : 'bg-slate-900/90 text-slate-400 hover:text-slate-100 hover:bg-slate-800 border border-white/5'
       }`}
     >
-      {icon}
-      <span className="absolute left-[calc(100%+12px)] px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all whitespace-nowrap shadow-xl border border-white/5">
+      <div className="transition-transform duration-200 group-hover:scale-110">
+        {icon}
+      </div>
+      <span className="text-[10px] font-bold tracking-tight text-center leading-none mt-1 truncate max-w-[56px]">
         {label}
       </span>
+
+      {/* Floating tooltip on hover */}
+      <div className="absolute left-[calc(100%+14px)] px-3 py-1.5 bg-slate-900/95 backdrop-blur-md text-white text-xs font-semibold rounded-lg opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all whitespace-nowrap shadow-2xl border border-white/10 z-50 flex items-center gap-1.5">
+        <span className="text-emerald-400 font-bold">{label}</span>
+        <span className="text-slate-400 text-[11px]">· {tooltip}</span>
+      </div>
+
       {active && (
         <motion.div 
           layoutId="active-indicator"
-          className="absolute -left-1 w-1 h-8 bg-emerald-400 rounded-r-full"
+          className="absolute -left-1.5 w-1.5 h-8 bg-emerald-400 rounded-r-full shadow-md shadow-emerald-400/50"
         />
       )}
     </button>

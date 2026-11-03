@@ -7,14 +7,14 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-1.20+-005CED?logo=onnx&logoColor=white)](https://onnxruntime.ai)
-[![PTB-XL Benchmark](https://img.shields.io/badge/PTB--XL_Macro_AUROC-0.9329-success)](https://physionet.org/content/ptb-xl/)
+[![PTB-XL Benchmark](https://img.shields.io/badge/PTB--XL_Macro_AUROC-0.9265-success)](https://physionet.org/content/ptb-xl/)
 [![PWA Ready](https://img.shields.io/badge/PWA-Installable-5A0FC8)](https://web.dev/progressive-web-apps)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
 
 > ⚠️ **Regulatory & Medical Notice**:  
-> **Cardiac Analyst is an academic research and educational prototype.** It is **not** a certified medical device (CE/FDA) and is **not** intended for independent clinical diagnosis, emergency dispatch, or acute patient management. In any emergency situation or suspected heart attack, immediately call **112** (India), **911** (US), or your local emergency services.
+> **Cardiac Analyst is an academic research and educational prototype.** It is **not** a certified medical device (CE/FDA/CDSCO) and is **not** intended for independent clinical diagnosis, emergency dispatch, or acute patient management. In any emergency situation or suspected heart attack, immediately call **112** (India), **911** (US), or your local emergency services.
 
 ---
 
@@ -22,11 +22,11 @@
 
 Cardiovascular disease (CVD) is the leading cause of mortality globally and claims over **4.77 million lives annually in India alone**. Over 60% of critical myocardial infarction (MI) fatalities occur before patients reach an emergency department, primarily driven by delayed symptom recognition, inaccessible diagnostic clinics, and a lack of early self-screening tools.
 
-**Cardiac Analyst v2.0** bridges this gap as a lightweight, browser-accessible digital health companion that provides three continuous stages of cardiovascular protection:
+**Cardiac Analyst v2.0** bridges this gap as a lightweight, browser-accessible digital clinical workstation that provides three continuous stages of cardiovascular protection:
 
 1. **Routine Screening Mode** — Daily vitals tracking (blood pressure, heart rate, blood glucose, cholesterol) with an ASCVD-calibrated LightGBM risk model and TreeSHAP explainability bars.
-2. **ECG Analysis Mode** — Digital 12-lead ECG signal ingestion (CSV, NPY, JSON, WFDB), physiological interval measurement extraction (HR, rhythm, PR, QRS, QTc via Bazett's formula, ST-elevation leads), and multi-label classification across the 5 AHA/ACC diagnostic superclasses using a 1D Residual CNN running on **ONNX Runtime**.
-3. **Emergency Triage Mode** — Rapid 8-question clinical symptom triage conforming to the UK NICE CG95 guidelines, immediate 112/108 SOS emergency calling, live geolocation sharing, and interactive OpenStreetMap/Leaflet hospital routing filtered by ICU and cardiac catheterization lab capabilities.
+2. **ECG Analysis Mode** — Digital 12-lead ECG signal ingestion (CSV, NPY, JSON, WFDB), physiological interval measurement extraction (HR, rhythm, PR, QRS, QTc via Bazett's formula, ST-elevation leads), and multi-label classification across the 5 AHA/ACC diagnostic superclasses using a 1D Residual CNN running on **ONNX Runtime** (33 MB, sub-3ms CPU latency).
+3. **Emergency Triage Mode** — Rapid 8-question clinical symptom triage conforming to the UK NICE CG95 guidelines, immediate 112/108 SOS emergency calling, live geolocation sharing, and interactive hospital routing filtered by ICU and cardiac catheterization lab capabilities.
 
 ---
 
@@ -43,12 +43,14 @@ In healthcare software, probabilistic hallucination can be catastrophic. Cardiac
 │   Daily Vitals ──► Calibrated LightGBM + TreeSHAP ──► 10-Yr Risk Score │
 │   Symptoms ────► NICE CG95 Clinical Decision Rules ──► Triage Urgency  │
 └────────────────────────────────────────────────────────────────────────┘
-                                     │ (Structured data only)
+                                     │
                                      ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                   COMMUNICATION & TRANSLATION LAYER ONLY               │
+│             DUAL-PERSPECTIVE CLINICAL & FAMILY EXPLANATION             │
 │                                                                        │
-│   Google Gemini 2.5 + Sarvam AI: Patient Q&A & English/Hindi Summaries │
+│   Deterministic Dual Analysis Report (Zero LLM Hallucination):         │
+│   • Clinical Specialist View: ICD-10 codes, electrophysiology & rhythm │
+│   • Family Plain-Language Guide: Everyday analogies, checklist & Qs    │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,7 +92,7 @@ In healthcare software, probabilistic hallucination can be catastrophic. Cardiac
 
 ### 4. Patient Empowerment & Accessibility
 - **Bilingual Interface**: Native English and Hindi (`हिन्दी`) support for all UI controls, clinical descriptions, and patient guidance.
-- **Conversational Health Assistant**: Gemini 2.5 Flash + Sarvam AI powered chat assistant to answer patient questions about cardiac lifestyle and lab terminology.
+- **Dual-Perspective Reporting**: One-click toggle between rigorous electrophysiological reports (for physicians) and plain-language summaries with everyday analogies and family checklists (for non-physicians).
 - **PWA Ready**: Offline-capable service worker for emergency hospital lists and first-aid instructions even during network disruptions.
 
 ---
@@ -99,13 +101,16 @@ In healthcare software, probabilistic hallucination can be catastrophic. Cardiac
 
 ```mermaid
 graph TD
-    subgraph Frontend ["Frontend (React 19 + TypeScript + Vite + Tailwind CSS)"]
-        UI[App Layout & Mode Navigation]
+    subgraph Frontend ["Frontend Workstation (React 19 + TypeScript + Vite + Tailwind CSS)"]
+        UI[AppShell: Collapsible Rail + TopBar]
+        OverviewView[OverviewMode: Dashboard & Status]
         RoutineView[RoutineMode: Vitals & SHAP]
         ECGView[ECGMode: 12-Lead Digital Ingestion]
+        ECGViewer[ECGViewer: Authentic Medical Grid Canvas]
+        DualReport[DualAnalysisReport: Clinical vs Family]
+        HistoryView[HistoryMode: Medical Ledger]
         EmergencyView[EmergencyMode: NICE CG95 Triage]
         MapComp[HospitalMap: Leaflet + OpenStreetMap]
-        AudioOsc[Canvas Oscilloscope & Audio Synthesizer]
         ZustandStore[(Zustand Global State)]
     end
 
@@ -119,7 +124,7 @@ graph TD
         ER[ECG Router: /api/v1/ecg]
         EmR[Emergency Router: /api/v1/emergency]
         HR[Hospitals Router: /api/v1/hospitals]
-        CR[Chat Router: /api/v1/chat]
+        HealthR[Health Check: /health]
     end
 
     subgraph MLLayer ["Machine Learning & Inference Services"]
@@ -130,7 +135,6 @@ graph TD
         RiskWeights["backend/models_saved/risk_model.pkl"]
         SafetyAuditor["RiskAuditor & VitalsValidator"]
         SignalProc["SciPy Waveform Geometry & Peak Detection"]
-        GeminiService["SarvamAssistant & Gemini 2.5 Flash"]
     end
 
     subgraph Storage ["Persistence"]
@@ -139,14 +143,13 @@ graph TD
 
     UI --> Proxy
     Proxy --> MainApp
-    MainApp --> VR & ER & EmR & HR & CR
+    MainApp --> VR & ER & EmR & HR & HealthR
 
     VR --> RiskService --> RiskWeights
     VR --> SafetyAuditor
     ER --> ECGService --> ONNXModel & Thresholds & SignalProc
     EmR --> SafetyAuditor
     HR --> MapComp
-    CR --> GeminiService
 
     VR & ER & EmR --> SQLiteDB
 ```
@@ -175,23 +178,23 @@ Input Signal: (Batch, 1000, 12) [100 Hz, 10 seconds, 12 Standard Leads]
 
 #### PTB-XL Stratification & Data Hygiene
 - **Strict Patient Isolation**: Split across standard PTB-XL folds with zero patient leakage (no patient appears in more than one fold).
-- **Training Set**: Folds 1–8 (17,084 records).
-- **Validation Set**: Fold 9 (2,146 records) used for hyperparameter tuning and threshold locking.
-- **Held-Out Test Set**: Fold 10 (2,198 records) strictly held out until final model verification.
+- **Training Set**: Folds 1–8 (17,084 records, 14,823 unique patients).
+- **Validation Set**: Fold 9 (2,146 records, 1,917 unique patients) used for hyperparameter tuning and decision threshold locking.
+- **Held-Out Test Set**: Fold 10 (2,158 records, 1,877 unique patients) strictly held out until final model verification.
 
 #### Held-Out Fold 10 Evaluation Results
-Verified single-pass evaluation on 2,198 unseen patient records:
+Verified single-pass evaluation on 2,158 unseen patient records (`backend/models/EVALUATION_REPORT.md`):
 
-| Diagnostic Superclass | AUC-ROC | Precision | Recall | F1-Score | Locked Threshold |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Normal ECG (NORM)** | **0.9381** | 0.8142 | 0.8654 | 0.8390 | 0.51 |
-| **Myocardial Infarction (MI)** | **0.9348** | 0.7410 | 0.8320 | 0.7839 | 0.41 *(High Sens)* |
-| **ST/T-Wave Changes (STTC)** | **0.9298** | 0.7621 | 0.7915 | 0.7765 | 0.70 |
-| **Conduction Disturbance (CD)** | **0.9385** | 0.7904 | 0.8112 | 0.8007 | 0.66 |
-| **Hypertrophy (HYP)** | **0.9231** | 0.6845 | 0.7180 | 0.7008 | 0.75 |
-| **Overall Macro Average** | **0.9329** | **0.7584** | **0.8036** | **0.7802** | — |
+| Diagnostic Superclass | AUC-ROC | AUPRC | Sensitivity | Specificity | Precision | F1-Score | Locked Threshold |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Normal ECG (NORM)** | **0.9447** | 0.9249 | 94.70% | 79.75% | 79.03% | 0.8616 | 0.51 |
+| **Myocardial Infarction (MI)** | **0.9244** | 0.8288 | 80.00% | 87.81% | 69.18% | 0.7420 | 0.41 *(High Sens)* |
+| **ST/T-Wave Changes (STTC)** | **0.9351** | 0.8314 | 80.04% | 91.63% | 75.27% | 0.7758 | 0.70 |
+| **Conduction Disturbance (CD)** | **0.9259** | 0.8509 | 75.81% | 93.86% | 78.66% | 0.7721 | 0.66 |
+| **Hypertrophy (HYP)** | **0.9021** | 0.6621 | 55.73% | 96.20% | 66.97% | 0.6083 | 0.75 |
+| **Overall Macro Average** | **0.9265** | **0.8196** | **77.25%** | **89.85%** | **73.82%** | **0.7520** | — |
 
-*Detailed fold reports, confusion matrices, and ROC plots are documented in [`backend/models/EVALUATION_REPORT.md`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/models/EVALUATION_REPORT.md).*
+*95% Confidence Intervals (1,000 Bootstraps on Fold 10): Macro AUROC [0.9194, 0.9330] · Macro AUPRC [0.8038, 0.8351] · Macro F1 [0.7350, 0.7658].*
 
 #### ONNX Export & CPU Optimization Benchmark
 To achieve real-time, low-resource deployment without requiring heavy GPU servers:
@@ -199,10 +202,10 @@ To achieve real-time, low-resource deployment without requiring heavy GPU server
 | Model Format | File Size | CPU Latency (per sample) | Speedup vs Baseline | Numerical Parity ($\max |\Delta|$) |
 | :--- | :---: | :---: | :---: | :---: |
 | **TensorFlow / Keras (`.keras`)** | 100.34 MB | 84.42 ms | 1.0x (Baseline) | — |
-| **ONNX Runtime (`.onnx`)** | **33.37 MB** | **2.76 ms** | **30.6x faster** | **$2.09 \times 10^{-7}$** *(Float32 exact)* |
+| **ONNX Runtime (`.onnx`)** | **33.37 MB** | **7.46 ms** | **11.3x faster** | **$2.09 \times 10^{-7}$** *(Float32 exact)* |
 | **TFLite (`.tflite`)** | 33.35 MB | 16.88 ms | 5.0x faster | $3.28 \times 10^{-7}$ |
 
-*Production deployment runs on `backend/models/model.onnx` consuming less than 40 MB of RAM with sub-3ms CPU execution.*
+*Production deployment runs on `backend/models/model.onnx` consuming less than 40 MB of RAM with sub-8ms CPU execution.*
 
 ---
 
@@ -214,7 +217,7 @@ The backend exposes an asynchronous REST API under the `/api/v1` namespace. Inte
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/v1/ecg/upload` | Ingests a 12-lead digital ECG signal (CSV, NPY, JSON) and returns deterministic measurements & 5-class model scores. |
+| `POST` | `/api/v1/ecg/upload` | Ingests a 12-lead digital ECG signal (CSV, NPY, JSON, WFDB) and returns deterministic measurements & 5-class model scores. |
 | `GET` | `/api/v1/ecg/history` | Retrieves historical ECG upload sessions for the active user. |
 | `GET` | `/api/v1/ecg/{ecg_id}` | Retrieves full diagnostic measurements and scores for a specific ECG session. |
 | `POST` | `/api/v1/vitals/calculate` | Computes 10-year ASCVD risk, risk tier, and TreeSHAP feature contributions from clinical vitals. |
@@ -222,7 +225,6 @@ The backend exposes an asynchronous REST API under the `/api/v1` namespace. Inte
 | `GET` | `/api/v1/vitals/history` | Returns longitudinal vitals history with 30-day time-series arrays. |
 | `POST` | `/api/v1/emergency/triage` | Evaluates 8 symptom flags against NICE CG95 acute coronary syndrome rules. |
 | `GET` | `/api/v1/hospitals/nearby` | Finds nearby emergency hospitals and cath labs via Overpass / OpenStreetMap. |
-| `POST` | `/api/v1/chat/message` | Conversational patient education assistant (Google Gemini 2.5 + Sarvam AI). |
 | `GET` | `/health` | Service health check returning uptime and ONNX engine status. |
 
 ---
@@ -332,14 +334,12 @@ Cardiac_Analyst/
 │   │   │   ├── risk_model.py        # LightGBM ASCVD model with TreeSHAP explainability
 │   │   │   ├── risk_auditor.py      # Deterministic clinical safety rules & emergency overrides
 │   │   │   ├── triage.py            # UK NICE CG95 clinical symptom triage engine
-│   │   │   ├── vitals_validator.py  # Physiological boundary checks for patient inputs
-│   │   │   └── sarvam_assistant.py  # Gemini 2.5 Flash / Sarvam AI bilingual assistant
+│   │   │   └── vitals_validator.py  # Physiological boundary checks for patient inputs
 │   │   └── routers/
 │   │       ├── ecg.py               # /api/v1/ecg endpoints (upload, history, details)
 │   │       ├── vitals.py            # /api/v1/vitals endpoints (calculation, trends)
 │   │       ├── emergency.py         # /api/v1/emergency triage endpoints
-│   │       ├── hospitals.py         # /api/v1/hospitals nearby routing endpoint
-│   │       └── chat.py              # /api/v1/chat conversational endpoint
+│   │       └── hospitals.py         # /api/v1/hospitals nearby routing endpoint
 │   ├── data/
 │   │   └── uci_heart_disease_combined.csv  # 1,220 clinical rows for risk model calibration
 │   ├── models/                      # Production Model Artifacts
@@ -373,27 +373,37 @@ Cardiac_Analyst/
 │   └── tests/
 │       └── test_pipeline.py         # Pipeline tests (leakage prevention, shape audit)
 ├── public/
-│   ├── demo_ecgs/                   # Statically served sample ECG signals & images
+│   ├── samples/                     # Statically served real PTB-XL sample CSV signals
 │   ├── manifest.json                # PWA web app manifest
 │   └── sw.js                        # Service worker for offline asset caching
 ├── src/
 │   ├── components/
-│   │   ├── Navbar.tsx               # Top header, language toggle, and quick SOS button
-│   │   ├── RiskArc.tsx              # Animated SVG radial gauge for risk percentage
+│   │   ├── AppShell.tsx             # Unified responsive workstation frame
+│   │   ├── Sidebar.tsx              # Persistent collapsible navigation rail
+│   │   ├── TopBar.tsx               # Header with health status, 112 SOS, language toggle
+│   │   ├── ECGViewer.tsx            # High-DPI canvas ECG viewer (pink grid, 3x4 montage)
+│   │   ├── DualAnalysisReport.tsx   # Dual clinical & plain-language family reporting
+│   │   ├── ProfileModal.tsx         # Patient demographics & risk factor management
+│   │   ├── RiskArc.tsx              # Calibrated ASCVD risk gauge
 │   │   └── HospitalMap.tsx          # Leaflet/OpenStreetMap live hospital map
+│   ├── data/
+│   │   └── sample_ecgs/             # Bundled PTB-XL benchmark records
 │   ├── lib/
 │   │   ├── api.ts                   # Central typed API client
 │   │   └── translations.ts          # English & Hindi translation dictionary
 │   ├── modes/
+│   │   ├── OverviewMode.tsx         # Clinical dashboard, quick actions, model status
+│   │   ├── ECGMode.tsx              # 12-lead digital ECG analysis & waveform suite
 │   │   ├── RoutineMode.tsx          # Daily vitals check-in, trends & SHAP dashboard
-│   │   ├── ECGMode.tsx              # 12-lead digital ECG analysis & oscilloscope
+│   │   ├── HistoryMode.tsx          # Searchable longitudinal studies ledger
 │   │   └── EmergencyMode.tsx        # NICE CG95 symptom triage & hospital routing
 │   ├── store/
 │   │   └── useStore.ts              # Zustand global application state
-│   ├── App.tsx                      # Top-level application router and frame
+│   ├── App.tsx                      # Root component rendering AppShell & active modes
 │   └── main.tsx                     # React 19 bootstrap & service worker registration
+├── LICENSE                          # MIT License with Clinical Terms of Use
 ├── package.json                     # Frontend dependencies and npm scripts
-├── tailwind.config.js               # Tailwind CSS theme and color tokens
+├── tailwind.config.js               # Clinical design tokens, colors & 3D elevation
 ├── vite.config.ts                   # Vite configuration with `/api` reverse proxy
 ├── PROGRESS.md                      # Complete development milestone history
 └── AUDIT.md                         # Medical audit trail & system transition report
@@ -406,7 +416,6 @@ Cardiac_Analyst/
 ### Prerequisites
 - **Node.js** $\ge 18.0$ and **npm** $\ge 9.0$
 - **Python** $\ge 3.10$ (Python 3.11 recommended)
-- *(Optional)* Google Gemini API Key for conversational chat
 
 ---
 
@@ -443,9 +452,6 @@ source venv/bin/activate
 # Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
-
-# (Optional) Set Gemini API Key in .env
-echo GEMINI_API_KEY=your_key_here > .env
 
 # Train the routine risk model (if models_saved/risk_model.pkl is missing)
 python train.py

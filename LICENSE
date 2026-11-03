@@ -1,0 +1,52 @@
+MIT License
+
+Copyright (c) 2026 Adhya Kulshreshtha, Vivan Mittal
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+CLINICAL & MEDICAL DEVICE DISCLAIMER (MANDATORY TERMS OF USE)
+================================================================================
+
+1. NOT A CERTIFIED MEDICAL DEVICE:
+   Cardiac Analyst is an academic research and educational technology prototype.
+   It has NOT been evaluated, cleared, approved, or certified by the United
+   States Food and Drug Administration (FDA), the European Medicines Agency (EMA),
+   the Central Drugs Standard Control Organisation (CDSCO), or any other
+   national or international medical regulatory authority.
+
+2. NO CLINICAL DIAGNOSIS OR INDEPENDENT MEDICAL DECISION-MAKING:
+   This Software and its machine learning outputs (including but not limited to
+   electrocardiographic condition scores, rhythm evaluations, interval calculations,
+   vitals risk stratifications, and triage recommendations) do NOT constitute
+   medical advice, clinical diagnosis, patient management plans, or treatment
+   prescriptions. 
+
+3. INDEPENDENT QUALIFIED CLINICAL OVERSIGHT:
+   Any health decisions, diagnoses, emergency interventions, or pharmaceutical
+   prescriptions must be evaluated and made independently by licensed and
+   qualified healthcare professionals. Do NOT rely on model scores, automated
+   triage classifications, or software outputs to rule out acute cardiovascular
+   emergencies (including acute myocardial infarction or critical arrhythmias).
+
+4. EMERGENCY SITUATIONS:
+   In any emergency situation, acute chest pain, shortness of breath, or medical
+   crisis, immediately contact local emergency medical services (such as 112 in
+   India or 911 in the United States) or present to the nearest hospital
+   emergency department.

@@ -1,11 +1,11 @@
 {
-  "name": "Cardiac AI V2.0",
-  "short_name": "CardiacAI",
-  "description": "AI-Assisted Cardiac Screening & Emergency Triage",
+  "name": "Cardiac Analyst v2.0",
+  "short_name": "CardiacAnalyst",
+  "description": "Clinical-Grade 12-Lead ECG Analysis & ASCVD Risk Screening",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#10b981",
+  "background_color": "#F6F8FA",
+  "theme_color": "#0F8B83",
   "icons": [
     {
       "src": "/favicon.svg",

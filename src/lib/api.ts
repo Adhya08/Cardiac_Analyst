@@ -270,4 +270,29 @@ export const api = {
   async getNearbyAmbulances(lat: number, lon: number): Promise<{ ambulances: AmbulanceService[] }> {
     return request(`${BASE}/ambulance/nearby?lat=${lat}&lon=${lon}`);
   },
+
+  // ── Health / Model Readiness
+  async getHealth(): Promise<{ status: string; model_loaded: boolean; model_accuracy?: string }> {
+    try {
+      const res = await fetch('/health');
+      if (!res.ok) throw new Error('Health check failed');
+      return res.json();
+    } catch {
+      return { status: 'offline', model_loaded: false };
+    }
+  },
 };
+
+export interface ECGHistoryItem {
+  ecg_id: string;
+  timestamp: string;
+  urgency: 'routine' | 'see_doctor_today' | 'emergency';
+  heart_rate_bpm: number | null;
+  rhythm: string | null;
+  qtc_ms: number | null;
+  image_quality: string;
+  top_condition: string;
+  top_condition_prob: number;
+  file_name: string;
+}
+

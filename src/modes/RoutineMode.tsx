@@ -1,15 +1,16 @@
 /**
  * RoutineMode — Vitals logging + real LightGBM risk scoring + real SHAP explainability
- * All data comes from the FastAPI backend (no mocks).
+ * All data comes from the FastAPI backend. Light clinical workstation design.
  */
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { RiskArc } from '../components/RiskArc';
 import {
   Activity, Plus, TrendingUp, History, Info,
-  AlertCircle, CheckCircle2, User, Loader2, TrendingDown,
+  AlertCircle, CheckCircle2, Loader2, TrendingDown,
+  Heart, BarChart2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { api, type HistoryRecord } from '../lib/api';
 import { translations } from '../lib/translations';
 import {
@@ -21,95 +22,7 @@ import { Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 // ─────────────────────────────────────────────
-// Profile Setup Modal (inline)
-// ─────────────────────────────────────────────
-const ProfileSetup: React.FC<{ onSave: () => void }> = ({ onSave }) => {
-  const { setUser, language } = useStore();
-  const t = translations[language];
-  const [form, setForm] = useState({ age: '', sex: 'Male', is_smoker: false, is_diabetic: false, has_family_history: false, height_cm: '' });
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    if (!form.age) return;
-    setSaving(true);
-    const profile = {
-      age: Number(form.age),
-      sex: form.sex as 'Male' | 'Female' | 'Other',
-      is_smoker: form.is_smoker,
-      is_diabetic: form.is_diabetic,
-      has_family_history: form.has_family_history,
-      height_cm: form.height_cm ? Number(form.height_cm) : undefined,
-    };
-    try {
-      await api.updateProfile(profile);
-      setUser(profile);
-      onSave();
-    } catch (e) {
-      // Still save locally even if backend fails
-      setUser(profile);
-      onSave();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-8 border-emerald-500/20">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-          <User className="text-emerald-500 w-5 h-5" />
-        </div>
-        <div>
-          <h3 className="text-lg font-bold">{t.setup_profile}</h3>
-          <p className="text-slate-400 text-xs">{t.required_risk}</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.age_years}</label>
-          <input value={form.age} onChange={e => setForm(f => ({ ...f, age: e.target.value }))} type="number" className="input-field" placeholder="45" min={18} max={120} />
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.bio_sex}</label>
-          <select value={form.sex} onChange={e => setForm(f => ({ ...f, sex: e.target.value }))} className="input-field">
-            <option value="Male">{language === 'hi' ? 'पुरुष' : 'Male'}</option>
-            <option value="Female">{language === 'hi' ? 'महिला' : 'Female'}</option>
-            <option value="Other">{language === 'hi' ? 'अन्य' : 'Other'}</option>
-          </select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.height_cm}</label>
-          <input value={form.height_cm} onChange={e => setForm(f => ({ ...f, height_cm: e.target.value }))} type="number" className="input-field" placeholder="170" />
-        </div>
-        <div className="space-y-3 md:col-span-2 pt-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.risk_factors}</label>
-          {[
-            { key: 'is_smoker', label: t.smoker },
-            { key: 'is_diabetic', label: t.diabetic },
-            { key: 'has_family_history', label: t.family_history },
-          ].map(({ key, label }) => (
-            <label key={key} className="flex items-center gap-3 cursor-pointer group">
-              <div
-                onClick={() => setForm(f => ({ ...f, [key]: !f[key as keyof typeof f] }))}
-                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${form[key as keyof typeof form] ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 group-hover:border-slate-400'}`}
-              >
-                {form[key as keyof typeof form] && <CheckCircle2 className="w-3 h-3 text-white" />}
-              </div>
-              <span className="text-sm text-slate-300">{label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <button onClick={handleSave} disabled={!form.age || saving} className="btn-primary w-full mt-6">
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : ''}
-        {saving ? t.saving : t.save_profile}
-      </button>
-    </motion.div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// Vitals Trend Chart (real data)
+// Vitals Trend Chart (Light Theme)
 // ─────────────────────────────────────────────
 const VitalsChart: React.FC<{ history: HistoryRecord[] }> = ({ history }) => {
   if (history.length < 2) return null;
@@ -120,36 +33,36 @@ const VitalsChart: React.FC<{ history: HistoryRecord[] }> = ({ history }) => {
     labels,
     datasets: [
       {
-        label: 'Risk Score (%)',
+        label: 'ASCVD Risk (%)',
         data: reversed.map(r => r.risk_score),
-        borderColor: '#ef4444',
-        backgroundColor: 'rgba(239,68,68,0.08)',
+        borderColor: '#DC2626',
+        backgroundColor: 'rgba(220,38,38,0.06)',
         fill: true,
-        tension: 0.4,
+        tension: 0.3,
         pointRadius: 3,
-        pointBackgroundColor: '#ef4444',
+        pointBackgroundColor: '#DC2626',
         yAxisID: 'y',
       },
       {
         label: 'Systolic BP (mmHg)',
         data: reversed.map(r => r.bp_sys),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16,185,129,0.05)',
+        borderColor: '#0F8B83',
+        backgroundColor: 'transparent',
         fill: false,
-        tension: 0.4,
+        tension: 0.3,
         pointRadius: 3,
-        pointBackgroundColor: '#10b981',
+        pointBackgroundColor: '#0F8B83',
         yAxisID: 'y1',
       },
       {
         label: 'Heart Rate (bpm)',
         data: reversed.map(r => r.hr),
-        borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245,158,11,0.05)',
+        borderColor: '#D97706',
+        backgroundColor: 'transparent',
         fill: false,
-        tension: 0.4,
+        tension: 0.3,
         pointRadius: 3,
-        pointBackgroundColor: '#f59e0b',
+        pointBackgroundColor: '#D97706',
         yAxisID: 'y1',
       },
     ],
@@ -159,34 +72,43 @@ const VitalsChart: React.FC<{ history: HistoryRecord[] }> = ({ history }) => {
     responsive: true,
     interaction: { mode: 'index' as const, intersect: false },
     scales: {
-      x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+      x: {
+        grid: { color: '#E2E8F0' },
+        ticks: { color: '#64748B', font: { size: 10 } },
+      },
       y: {
-        type: 'linear' as const, position: 'left' as const,
-        grid: { color: 'rgba(255,255,255,0.04)' },
-        ticks: { color: '#94a3b8', font: { size: 10 } },
-        title: { display: true, text: 'Risk %', color: '#ef4444', font: { size: 10 } },
+        type: 'linear' as const,
+        position: 'left' as const,
+        grid: { color: '#E2E8F0' },
+        ticks: { color: '#64748B', font: { size: 10 } },
+        title: { display: true, text: 'Risk %', color: '#DC2626', font: { size: 10, weight: 'bold' as const } },
       },
       y1: {
-        type: 'linear' as const, position: 'right' as const,
+        type: 'linear' as const,
+        position: 'right' as const,
         grid: { drawOnChartArea: false },
-        ticks: { color: '#94a3b8', font: { size: 10 } },
-        title: { display: true, text: 'BP / HR', color: '#10b981', font: { size: 10 } },
+        ticks: { color: '#64748B', font: { size: 10 } },
+        title: { display: true, text: 'BP / HR', color: '#0F8B83', font: { size: 10, weight: 'bold' as const } },
       },
     },
     plugins: {
-      legend: { labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, padding: 16 } },
+      legend: {
+        labels: { color: '#182B3A', font: { size: 11, weight: 'bold' as const }, boxWidth: 12, padding: 14 },
+      },
     },
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-6">
-      <h4 className="text-sm font-bold flex items-center gap-2 mb-4">
-        <History className="w-4 h-4 text-emerald-500" />
-        30-Day Vitals Trend
-        <span className="ml-auto text-[10px] text-slate-500 font-normal">Real data from database</span>
-      </h4>
+    <div className="clinical-card p-6 bg-white space-y-4">
+      <div className="flex items-center justify-between border-b border-border pb-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-navy-850 flex items-center gap-2">
+          <History className="w-4 h-4 text-teal-600" />
+          Longitudinal 30-Day Vitals & Risk Trend
+        </h4>
+        <span className="text-[10px] text-slate-400 font-mono">SQLite Historical Records</span>
+      </div>
       <Line data={chartData} options={options} />
-    </motion.div>
+    </div>
   );
 };
 
@@ -194,19 +116,18 @@ const VitalsChart: React.FC<{ history: HistoryRecord[] }> = ({ history }) => {
 // Main RoutineMode
 // ─────────────────────────────────────────────
 export const RoutineMode: React.FC = () => {
-  const { user, isProfileComplete, setMode, latestRisk, setLatestRisk, vitalsHistory, setVitalsHistory, language } = useStore();
+  const { user, setMode, latestRisk, setLatestRisk, vitalsHistory, setVitalsHistory, language } = useStore();
   const t = translations[language];
   const [showForm, setShowForm] = useState(!latestRisk);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showProfile, setShowProfile] = useState(!isProfileComplete);
 
   // Load history on mount
   useEffect(() => {
     api.getVitalsHistory(30).then(data => {
       if (data.records) setVitalsHistory(data.records);
     }).catch(() => {});
-  }, []);
+  }, [setVitalsHistory]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -224,15 +145,13 @@ export const RoutineMode: React.FC = () => {
       cholesterol: Number(fd.get('cholesterol')) || undefined,
     };
 
-    // Basic validation
-    if (payload.bp_sys < 60 || payload.bp_sys > 250) { setError('Systolic BP must be 60–250 mmHg'); setLoading(false); return; }
-    if (payload.hr < 20 || payload.hr > 250) { setError('Heart rate must be 20–250 bpm'); setLoading(false); return; }
-    if (payload.spo2 < 40 || payload.spo2 > 100) { setError('SpO2 must be 40–100%'); setLoading(false); return; }
+    if (payload.bp_sys < 60 || payload.bp_sys > 250) { setError('Systolic BP must be between 60–250 mmHg'); setLoading(false); return; }
+    if (payload.hr < 20 || payload.hr > 250) { setError('Heart rate must be between 20–250 bpm'); setLoading(false); return; }
+    if (payload.spo2 < 40 || payload.spo2 > 100) { setError('SpO2 must be between 40–100%'); setLoading(false); return; }
 
     try {
       const result = await api.logVitals(payload);
       setLatestRisk(result);
-      // Refresh history
       const history = await api.getVitalsHistory(30);
       if (history.records) setVitalsHistory(history.records);
       setShowForm(false);
@@ -243,202 +162,253 @@ export const RoutineMode: React.FC = () => {
     }
   };
 
-  if (showProfile) {
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <header>
-          <h2 className="text-3xl font-bold">{t.routine_screening}</h2>
-          <p className="text-slate-400">{t.required_risk}</p>
-        </header>
-        <ProfileSetup onSave={() => setShowProfile(false)} />
-      </div>
-    );
-  }
-
   const risk = latestRisk;
 
   return (
-    <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-      {/* Left Column */}
-      <div className="lg:col-span-8 space-y-8">
-        <header className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold">{t.routine_screening}</h2>
-            <p className="text-slate-400 text-sm">
-              {user ? `${user.age}y ${user.sex} — ${t.log_vitals_desc}` : t.log_vitals_desc}
-            </p>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* ── Mode Header ── */}
+      <div className="clinical-card p-6 bg-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-border">
+        <div>
+          <div className="flex items-center gap-2 text-teal-700 text-xs font-bold uppercase tracking-wider">
+            <Activity className="w-4 h-4" />
+            <span>Cardiovascular Risk Screening</span>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => setShowProfile(true)} className="btn-secondary py-2 px-3 text-xs">
-              <User className="w-3.5 h-3.5" /> {t.profile}
-            </button>
-            <button onClick={() => setShowForm(!showForm)} className="btn-secondary">
-              {showForm ? t.dashboard : <><Plus className="w-4 h-4" /> {t.log_vitals}</>}
-            </button>
-          </div>
-        </header>
+          <h2 className="text-xl font-bold text-navy-850 mt-1">
+            {t.routine_screening}
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {user ? `${user.age}y ${user.sex} · ${t.log_vitals_desc}` : t.log_vitals_desc}
+          </p>
+        </div>
 
-        {/* Error banner */}
-        <AnimatePresence>
-          {error && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
-              <AlertCircle className="text-red-400 w-5 h-5 flex-shrink-0 mt-0.5" />
-              <p className="text-red-300 text-sm">{error}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ECG escalation banner */}
-        <AnimatePresence>
-          {risk?.ecg_prompt && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="text-amber-400 w-5 h-5 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-amber-300 font-bold text-sm">ECG Recommended</p>
-                  <p className="text-amber-200/60 text-xs mt-1">Your risk score is elevated. Get a 12-lead ECG at a nearby clinic and upload it for deeper analysis.</p>
-                </div>
-              </div>
-              <button onClick={() => setMode('ecg')} className="btn-primary text-xs py-2 px-4 whitespace-nowrap">
-                Upload ECG →
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {showForm ? (
-          /* ── Vitals Form ── */
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-8">
-            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <Activity className="text-emerald-500 w-5 h-5" /> {t.daily_checkin}
-            </h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[
-                { name: 'bp_sys', label: t.bp_sys, placeholder: '120', required: true },
-                { name: 'bp_dia', label: t.bp_dia, placeholder: '80', required: true },
-                { name: 'hr', label: t.hr, placeholder: '72', required: true },
-                { name: 'weight', label: t.weight, placeholder: '70', required: true, step: '0.1' },
-                { name: 'spo2', label: t.spo2, placeholder: '98', required: true, step: '0.1' },
-                { name: 'glucose', label: t.glucose, placeholder: t.optional },
-                { name: 'cholesterol', label: t.cholesterol, placeholder: t.optional },
-              ].map(f => (
-                <div key={f.name} className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{f.label}</label>
-                  <input name={f.name} type="number" step={f.step || '1'} required={f.required} className="input-field" placeholder={f.placeholder} />
-                </div>
-              ))}
-              <div className="md:col-span-2 pt-2">
-                <button type="submit" disabled={loading} className="btn-primary w-full shadow-emerald-500/20">
-                  {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> {t.analyzing_lgbm}</>
-                  ) : t.analyze_btn}
-                </button>
-                <p className="text-center text-[10px] text-slate-500 mt-3">
-                  Processed server-side by LightGBM + Framingham equations · SHAP explainability
-                </p>
-              </div>
-            </form>
-          </motion.div>
-        ) : (
-          /* ── Dashboard ── */
-          <div className="space-y-6">
-            {risk && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: 'Systolic BP', value: `${risk.vitals.bp_sys}/${risk.vitals.bp_dia}`, unit: 'mmHg', icon: Activity },
-                  { label: 'Heart Rate', value: risk.vitals.hr, unit: 'bpm', icon: Activity },
-                  { label: 'SpO2', value: `${risk.vitals.spo2}%`, unit: '', icon: TrendingUp },
-                  {
-                    label: 'vs Last Reading',
-                    value: risk.trend_delta !== 0 ? `${risk.trend_delta > 0 ? '+' : ''}${risk.trend_delta.toFixed(1)}%` : '—',
-                    unit: 'risk delta',
-                    icon: risk.trend_delta > 0 ? TrendingUp : TrendingDown,
-                    color: risk.trend_delta > 0 ? 'text-red-400' : 'text-emerald-400',
-                  },
-                ].map(({ label, value, unit, color }) => (
-                  <motion.div key={label} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                    className="glass-card p-4 space-y-2">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{label}</p>
-                    <p className={`text-2xl font-black ${color || 'text-white'}`}>{value}</p>
-                    <p className="text-[10px] text-slate-500">{unit}</p>
-                  </motion.div>
-                ))}
-              </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn-clinical-primary text-xs"
+          >
+            {showForm ? (
+              <span>View Results</span>
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t.log_vitals}</span>
+              </>
             )}
-            {/* Charts */}
-            {vitalsHistory.length >= 2 && <VitalsChart history={vitalsHistory} />}
-            {vitalsHistory.length < 2 && (
-              <div className="glass-card p-8 text-center text-slate-500">
-                <History className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                <p className="text-sm">Log 2+ readings to see trend charts</p>
-              </div>
-            )}
-          </div>
-        )}
+          </button>
+        </div>
       </div>
 
-      {/* Right Column: Risk + SHAP */}
-      <div className="lg:col-span-4 space-y-6">
-        <section>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">{t.risk_assessment}</h3>
-          {risk ? (
-            <>
-              <RiskArc score={risk.risk_score} tier={risk.risk_tier} />
-              <div className="glass-card p-4 mt-4 grid grid-cols-2 gap-3 text-center">
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">{t.lightgbm_score}</p>
-                  <p className="text-lg font-black text-white">{risk.lgbm_probability.toFixed(1)}%</p>
+      {/* Error banner */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+          <p>{error}</p>
+        </div>
+      )}
+
+      {/* ECG Escalation Prompt */}
+      {risk?.ecg_prompt && (
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-950 font-bold text-xs uppercase tracking-wide">12-Lead ECG Evaluation Recommended</p>
+              <p className="text-amber-800 text-xs mt-0.5">
+                Elevated cardiovascular risk factors detected. Upload a 12-lead digital ECG in the ECG Workspace for deep electrophysiological analysis.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setMode('ecg')}
+            className="btn-clinical-primary text-xs whitespace-nowrap"
+          >
+            Go to ECG Analysis &rarr;
+          </button>
+        </div>
+      )}
+
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: Form or Vitals Dashboard (8 cols) */}
+        <div className="lg:col-span-8 space-y-6">
+          {showForm ? (
+            /* Vitals Entry Form */
+            <div className="clinical-card p-6 bg-white space-y-6">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-teal-600" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-navy-850">
+                    Patient Vitals Entry & ASCVD Assessment
+                  </h3>
                 </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">{t.framingham_score}</p>
-                  <p className="text-lg font-black text-white">{risk.framingham_risk.toFixed(1)}%</p>
-                </div>
+                <span className="text-[10px] text-slate-400 font-mono">Server-side LightGBM Model</span>
               </div>
-            </>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {[
+                    { name: 'bp_sys', label: t.bp_sys, placeholder: '120', unit: 'mmHg', required: true },
+                    { name: 'bp_dia', label: t.bp_dia, placeholder: '80', unit: 'mmHg', required: true },
+                    { name: 'hr', label: t.hr, placeholder: '72', unit: 'BPM', required: true },
+                    { name: 'weight', label: t.weight, placeholder: '70.0', unit: 'kg', step: '0.1', required: true },
+                    { name: 'spo2', label: t.spo2, placeholder: '98', unit: '%', step: '0.1', required: true },
+                    { name: 'glucose', label: t.glucose, placeholder: '95', unit: 'mg/dL' },
+                    { name: 'cholesterol', label: t.cholesterol, placeholder: '180', unit: 'mg/dL' },
+                  ].map(f => (
+                    <div key={f.name} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">{f.label}</label>
+                        <span className="text-[10px] font-mono text-slate-400 font-bold">{f.unit}</span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          name={f.name}
+                          type="number"
+                          step={f.step || '1'}
+                          required={f.required}
+                          className="clinical-input pr-12 font-mono text-sm"
+                          placeholder={f.placeholder}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold font-mono pointer-events-none">
+                          {f.unit}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-4 border-t border-border flex items-center justify-between gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="btn-clinical-secondary text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-clinical-primary text-xs px-6"
+                  >
+                    {loading ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t.analyzing_lgbm}</>
+                    ) : (
+                      <><CheckCircle2 className="w-3.5 h-3.5" /> Calculate Cardiovascular Risk</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           ) : (
-            <div className="glass-card p-12 text-center text-slate-500">
-              <Info className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p className="text-sm">Log vitals to see your risk score</p>
+            /* Current Vitals Readings Grid */
+            <div className="space-y-6">
+              {risk && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Systolic / Diastolic', value: `${risk.vitals.bp_sys}/${risk.vitals.bp_dia}`, unit: 'mmHg', icon: Activity },
+                    { label: 'Heart Rate', value: risk.vitals.hr, unit: 'BPM', icon: Heart },
+                    { label: 'Blood Oxygen (SpO2)', value: `${risk.vitals.spo2}%`, unit: 'Pulse Oximetry', icon: TrendingUp },
+                    {
+                      label: 'Trend Delta',
+                      value: risk.trend_delta !== 0 ? `${risk.trend_delta > 0 ? '+' : ''}${risk.trend_delta.toFixed(1)}%` : 'Stable',
+                      unit: 'vs Prior Reading',
+                      icon: risk.trend_delta > 0 ? TrendingUp : TrendingDown,
+                      color: risk.trend_delta > 0 ? 'text-red-600' : 'text-emerald-700',
+                    },
+                  ].map(({ label, value, unit, color }) => (
+                    <div key={label} className="clinical-card p-4 space-y-1.5 bg-white">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+                      <p className={`text-2xl font-black tabular-nums ${color || 'text-navy-850'}`}>{value}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{unit}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Longitudinal Charts */}
+              {vitalsHistory.length >= 2 ? (
+                <VitalsChart history={vitalsHistory} />
+              ) : (
+                <div className="clinical-card p-8 text-center text-slate-400 bg-white space-y-2">
+                  <History className="w-8 h-8 mx-auto text-slate-300" />
+                  <p className="text-xs font-bold text-navy-850">Trend Chart Requires 2+ Readings</p>
+                  <p className="text-[11px] text-slate-500">Log vitals regularly to track multi-day blood pressure and heart rate trends.</p>
+                </div>
+              )}
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Real SHAP Explainability */}
-        {risk?.shap_top5 && (
-          <section className="glass-card p-6 space-y-5">
-            <h4 className="text-sm font-bold flex items-center gap-2">
-              <Info className="w-4 h-4 text-emerald-500" />
-              {t.ai_explainability}
-              <span className="ml-auto text-[9px] text-slate-600 font-normal">{t.real_data}</span>
-            </h4>
-            <div className="space-y-4">
-              {risk.shap_top5.map((f) => (
-                <div key={f.feature} className="space-y-1.5">
-                  <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider">
-                    <span className="text-slate-400">{f.feature}</span>
-                    <span className={f.direction === 'positive' ? 'text-red-400' : 'text-emerald-400'}>
-                      {f.direction === 'positive' ? '+' : '-'}{f.percent}%
-                    </span>
+        {/* Right Column: LightGBM Risk Arc + SHAP Explainability (4 cols) */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold text-navy-850 uppercase tracking-wider">
+              {t.risk_assessment}
+            </h3>
+
+            {risk ? (
+              <div className="space-y-4">
+                <RiskArc score={risk.risk_score} tier={risk.risk_tier} />
+
+                {/* Score Comparison Grid */}
+                <div className="clinical-card p-4 grid grid-cols-2 gap-3 text-center bg-surface-secondary">
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase font-bold">{t.lightgbm_score}</p>
+                    <p className="text-lg font-black text-navy-850 tabular-nums">{risk.lgbm_probability.toFixed(1)}%</p>
                   </div>
-                  <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${f.percent}%` }}
-                      transition={{ duration: 0.7, delay: 0.1 }}
-                      className={`h-full rounded-full ${f.direction === 'positive' ? 'bg-red-500' : 'bg-emerald-500'}`}
-                    />
+                  <div className="border-l border-border pl-3">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold">{t.framingham_score}</p>
+                    <p className="text-lg font-black text-navy-850 tabular-nums">{risk.framingham_risk.toFixed(1)}%</p>
                   </div>
                 </div>
-              ))}
-            </div>
-            <p className="text-[10px] text-slate-500 leading-relaxed italic border-t border-white/5 pt-4">
-              SHAP values from trained LightGBM model. Red = raises risk, green = reduces risk.
-              Confidence interval: {risk.confidence_interval.lower}%–{risk.confidence_interval.upper}%
-            </p>
-          </section>
-        )}
+
+                {/* Real SHAP Feature Importance */}
+                {risk.shap_top5 && (
+                  <div className="clinical-card p-5 space-y-4 bg-white">
+                    <div className="flex items-center justify-between border-b border-border pb-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-navy-850 flex items-center gap-1.5">
+                        <BarChart2 className="w-3.5 h-3.5 text-teal-600" />
+                        SHAP Risk Attribution
+                      </h4>
+                      <span className="text-[10px] text-slate-400 font-mono">Top Factors</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {risk.shap_top5.map((f) => (
+                        <div key={f.feature} className="space-y-1">
+                          <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider">
+                            <span className="text-slate-600">{f.feature}</span>
+                            <span className={f.direction === 'positive' ? 'text-red-600 font-mono' : 'text-teal-700 font-mono'}>
+                              {f.direction === 'positive' ? '+' : '-'}{f.percent}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-border">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${f.percent}%` }}
+                              transition={{ duration: 0.6 }}
+                              className={`h-full rounded-full ${f.direction === 'positive' ? 'bg-red-500' : 'bg-teal-600'}`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 leading-relaxed italic border-t border-border pt-3">
+                      Confidence Interval: {risk.confidence_interval.lower}%–{risk.confidence_interval.upper}%. Server-side SHAP values.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="clinical-card p-10 text-center text-slate-400 space-y-2 bg-white">
+                <Info className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="text-xs font-bold text-navy-850">No Risk Score Calculated</p>
+                <p className="text-[11px] text-slate-500">Log patient vitals to generate the LightGBM predictive score and SHAP attribution.</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

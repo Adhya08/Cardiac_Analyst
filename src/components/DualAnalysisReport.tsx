@@ -25,7 +25,7 @@ const PLAIN_EXPLAINERS: Record<string, PlainConditionExplainer> = {
   HYP: {
     plainNameEn: 'Heart Muscle Thickening (Hypertrophy)',
     plainNameHi: 'दिल की मांसपेशियों का मोटा होना (हाइपरट्रॉफी)',
-    analogyEn: 'Think of an arm muscle that gets bigger from lifting heavy weights every day. The heart wall has grown thicker because it has been working extra hard to pump blood.',
+    analogyEn: 'Think of an arm muscle that gets bigger from lifting heavy weights every day. The heart wall has grown thicker because it has been working extra hard to pump blood against high resistance.',
     analogyHi: 'इसे उस हाथ की मांसपेशी की तरह समझें जो भारी वजन उठाने से मोटी हो जाती है। दिल की दीवार मोटी हो गई है क्योंकि उसे रक्त पंप करने के लिए अतिरिक्त मेहनत करनी पड़ रही है।',
     whatItMeansEn: 'The heart muscle walls are thicker than usual, most commonly caused by long-standing high blood pressure or valve stiffness.',
     whatItMeansHi: 'दिल की मांसपेशी की दीवारें सामान्य से अधिक मोटी हैं, जो अक्सर लंबे समय तक उच्च रक्तचाप (हाई बीपी) के कारण होता है।',
@@ -86,52 +86,52 @@ export const DualAnalysisReport: React.FC<DualAnalysisReportProps> = ({ result, 
   };
 
   return (
-    <div className="glass-card overflow-hidden border border-emerald-500/20 shadow-xl print:bg-white print:text-black print:border-none print:shadow-none">
+    <div className="clinical-card overflow-hidden border border-border shadow-panel bg-white print:border-none print:shadow-none">
       {/* Header with Perspective Switcher & Print Button */}
-      <div className="p-5 bg-slate-900/80 border-b border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print:hidden">
+      <div className="p-4 sm:p-5 bg-surface-secondary border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print:hidden">
         <div>
           <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+            <FileText className="w-4 h-4 text-teal-600" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-navy-850">
               Dual-Perspective Diagnostic Report
             </h3>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Switch between easy family explanations and clinical medical terminology
+          <p className="text-xs text-slate-500 mt-0.5">
+            Switch between accessible patient/family guidance and formal electrophysiology terminology
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-stretch sm:self-auto">
           {/* Tab buttons */}
-          <div className="flex bg-slate-800/90 p-1 rounded-xl border border-white/5 flex-1 sm:flex-none">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-border flex-1 sm:flex-none">
             <button
               onClick={() => setActiveTab('family')}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'family'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white text-navy-850 shadow-sm'
+                  : 'text-slate-500 hover:text-navy-850'
               }`}
             >
-              <Users className="w-3.5 h-3.5" />
+              <Users className="w-3.5 h-3.5 text-teal-600" />
               <span>Family Guide</span>
             </button>
             <button
               onClick={() => setActiveTab('clinical')}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'clinical'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white text-navy-850 shadow-sm'
+                  : 'text-slate-500 hover:text-navy-850'
               }`}
             >
-              <Stethoscope className="w-3.5 h-3.5" />
-              <span>Doctor / Clinical</span>
+              <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+              <span>Doctor / Specialist</span>
             </button>
           </div>
 
           <button
             onClick={handlePrint}
-            title="Print or Save PDF report for the doctor or family"
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-white/5 transition-colors"
+            title="Print or Save PDF report for doctor or family"
+            className="p-2 bg-white hover:bg-slate-50 text-slate-600 hover:text-navy-850 rounded-xl border border-border shadow-button-secondary transition-colors"
           >
             <Printer className="w-4 h-4" />
           </button>
@@ -144,49 +144,49 @@ export const DualAnalysisReport: React.FC<DualAnalysisReportProps> = ({ result, 
       {activeTab === 'family' && (
         <div className="p-6 space-y-6">
           {/* Top plain-language headline */}
-          <div className={`p-4 rounded-2xl border flex items-start gap-4 ${
+          <div className={`p-4 rounded-xl border flex items-start gap-4 ${
             result.urgency === 'emergency'
-              ? 'bg-red-500/10 border-red-500/30 text-red-200'
+              ? 'bg-red-50/70 border-red-200 text-red-950'
               : result.urgency === 'see_doctor_today'
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-              : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+              ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+              : 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
           }`}>
-            <div className={`p-2.5 rounded-xl ${
+            <div className={`p-2.5 rounded-xl flex-shrink-0 ${
               result.urgency === 'emergency'
-                ? 'bg-red-500 text-white'
+                ? 'bg-red-600 text-white shadow-sm'
                 : result.urgency === 'see_doctor_today'
-                ? 'bg-amber-500 text-white'
-                : 'bg-emerald-500 text-white'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'bg-emerald-600 text-white shadow-sm'
             }`}>
               {result.urgency === 'emergency' ? <AlertTriangle className="w-5 h-5" /> : <Heart className="w-5 h-5" />}
             </div>
             <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-80">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {language === 'hi' ? 'परिवार के लिए सारांश' : 'Summary for Patient & Family'}
               </span>
-              <h4 className="text-base font-bold text-white">
+              <h4 className="text-base font-bold text-navy-850">
                 {language === 'hi' ? explainer.plainNameHi : explainer.plainNameEn}
               </h4>
-              <p className="text-xs leading-relaxed opacity-90">
+              <p className="text-xs leading-relaxed text-slate-600">
                 {language === 'hi' ? explainer.whatItMeansHi : explainer.whatItMeansEn}
               </p>
             </div>
           </div>
 
           {/* Everyday Analogy Card ("Think of it like...") */}
-          <div className="p-4 bg-slate-900/60 rounded-2xl border border-white/5 space-y-2">
-            <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
-              <span>💡 Easy-to-Understand Analogy</span>
+          <div className="p-4 bg-surface-secondary rounded-xl border border-border space-y-2">
+            <div className="flex items-center gap-2 text-teal-800 font-bold text-xs uppercase tracking-wider">
+              <span>💡 Plain Everyday Analogy</span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed italic">
+            <p className="text-xs text-slate-700 leading-relaxed italic">
               "{language === 'hi' ? explainer.analogyHi : explainer.analogyEn}"
             </p>
           </div>
 
           {/* Condition Breakdown in Simple Words */}
           <div className="space-y-3">
-            <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+            <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 text-teal-600" />
               What Was Found in Simple Words
             </h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -197,25 +197,25 @@ export const DualAnalysisReport: React.FC<DualAnalysisReportProps> = ({ result, 
                     key={cond.code}
                     className={`p-3.5 rounded-xl border transition-all ${
                       cond.detected
-                        ? 'bg-slate-900/90 border-amber-500/30'
-                        : 'bg-slate-900/40 border-white/5 opacity-70'
+                        ? 'bg-amber-50/50 border-amber-200'
+                        : 'bg-white border-border'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-white">
+                      <span className="text-xs font-bold text-navy-850">
                         {language === 'hi' ? info.plainNameHi : info.plainNameEn}
                       </span>
                       <span
                         className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                           cond.detected
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            : 'bg-slate-800 text-slate-400'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                            : 'bg-slate-100 text-slate-600'
                         }`}
                       >
                         {cond.detected ? (language === 'hi' ? 'पहचाना गया' : 'Flagged') : (language === 'hi' ? 'सामान्य' : 'Clear')}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-400 leading-normal">
+                    <p className="text-[11px] text-slate-600 leading-normal">
                       {language === 'hi' ? info.whatItMeansHi : info.whatItMeansEn}
                     </p>
                   </div>
@@ -225,48 +225,48 @@ export const DualAnalysisReport: React.FC<DualAnalysisReportProps> = ({ result, 
           </div>
 
           {/* What Family Should Do Right Now */}
-          <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 space-y-3">
-            <h5 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4" />
+          <div className="p-4 bg-teal-50/50 rounded-xl border border-teal-200 space-y-3">
+            <h5 className="text-xs font-bold text-teal-800 uppercase tracking-wider flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-teal-600" />
               What the Family Should Do Right Now
             </h5>
-            <ul className="space-y-2 text-xs text-slate-300">
+            <ul className="space-y-2 text-xs text-slate-700">
               <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 mt-0.5 flex-shrink-0" />
                 <span><strong>Keep the patient calm:</strong> Avoid stressful conversations and keep them seated comfortably.</span>
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 mt-0.5 flex-shrink-0" />
                 <span><strong>Gather medication records:</strong> Have their current prescription bottles ready for the doctor to review.</span>
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 mt-0.5 flex-shrink-0" />
                 <span><strong>Hydration & rest:</strong> Avoid caffeinated drinks, tobacco, and physical exertion until evaluated.</span>
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 mt-0.5 flex-shrink-0" />
                 <span>{language === 'hi' ? explainer.familyAdviceHi : explainer.familyAdviceEn}</span>
               </li>
             </ul>
           </div>
 
           {/* Questions to Ask the Doctor */}
-          <div className="p-4 bg-slate-900/60 rounded-2xl border border-white/5 space-y-3">
-            <h5 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-blue-400" />
-              Good Questions to Ask Your Doctor
+          <div className="p-4 bg-surface-secondary rounded-xl border border-border space-y-3">
+            <h5 className="text-xs font-bold text-navy-850 uppercase tracking-wider flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-blue-600" />
+              Helpful Questions to Ask Your Doctor
             </h5>
-            <div className="space-y-1.5 text-xs text-slate-300">
+            <div className="space-y-1.5 text-xs text-slate-600">
               <p className="flex items-start gap-2">
-                <ChevronRight className="w-3 h-3 text-blue-400 mt-1 flex-shrink-0" />
+                <ChevronRight className="w-3 h-3 text-blue-600 mt-1 flex-shrink-0" />
                 <span>"Does this ECG finding suggest our loved one needs an echocardiogram (ultrasound of the heart)?"</span>
               </p>
               <p className="flex items-start gap-2">
-                <ChevronRight className="w-3 h-3 text-blue-400 mt-1 flex-shrink-0" />
+                <ChevronRight className="w-3 h-3 text-blue-600 mt-1 flex-shrink-0" />
                 <span>"Are their current blood pressure or cholesterol medicines at the target dosage?"</span>
               </p>
               <p className="flex items-start gap-2">
-                <ChevronRight className="w-3 h-3 text-blue-400 mt-1 flex-shrink-0" />
+                <ChevronRight className="w-3 h-3 text-blue-600 mt-1 flex-shrink-0" />
                 <span>"What specific symptoms should prompt us to call 112 or visit the emergency room right away?"</span>
               </p>
             </div>
@@ -278,68 +278,76 @@ export const DualAnalysisReport: React.FC<DualAnalysisReportProps> = ({ result, 
           PERSPECTIVE 2: CLINICAL / DOCTOR SPECIALIST REPORT
          ───────────────────────────────────────────────────────────── */}
       {activeTab === 'clinical' && (
-        <div className="p-6 space-y-6 font-mono text-xs">
+        <div className="p-6 space-y-6 text-xs">
           {/* Formal Electrophysiological Header */}
-          <div className="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/30 text-blue-200 space-y-2">
+          <div className="p-4 bg-blue-50/60 rounded-xl border border-blue-200 text-blue-950 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-blue-300">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-blue-700">
                 Electrophysiological Diagnostic Impression
               </span>
-              <span className="text-[10px] bg-blue-900/80 px-2 py-0.5 rounded text-blue-200">
+              <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-mono font-bold">
                 ICD-10 / PTB-XL Schema
               </span>
             </div>
-            <p className="text-xs text-white font-bold leading-relaxed">
+            <p className="text-xs text-navy-850 font-bold leading-relaxed">
               {result.overall_assessment}
             </p>
           </div>
 
           {/* Quantitative Interval Metrics */}
           <div className="space-y-2">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               Time-Domain Measurements & Waveform Metrics
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
-              <div className="p-2.5 bg-slate-900 rounded-xl border border-white/5">
-                <span className="text-[9px] text-slate-500 uppercase block">Ventricular Rate</span>
-                <span className="text-xs font-black text-white">{result.heart_rate_bpm ? `${result.heart_rate_bpm} BPM` : 'N/A'}</span>
+              <div className="p-3 bg-surface-secondary rounded-xl border border-border">
+                <span className="text-[10px] text-slate-500 uppercase block font-bold">Ventricular Rate</span>
+                <span className="text-sm font-black text-navy-850 tabular-nums">
+                  {result.heart_rate_bpm ? `${result.heart_rate_bpm} BPM` : 'N/A'}
+                </span>
               </div>
-              <div className="p-2.5 bg-slate-900 rounded-xl border border-white/5">
-                <span className="text-[9px] text-slate-500 uppercase block">QRS Complex Duration</span>
-                <span className="text-xs font-black text-white">{result.qrs_duration_ms ? `${result.qrs_duration_ms} ms` : 'N/A'}</span>
+              <div className="p-3 bg-surface-secondary rounded-xl border border-border">
+                <span className="text-[10px] text-slate-500 uppercase block font-bold">QRS Duration</span>
+                <span className="text-sm font-black text-navy-850 tabular-nums">
+                  {result.qrs_duration_ms ? `${result.qrs_duration_ms} ms` : 'N/A'}
+                </span>
               </div>
-              <div className="p-2.5 bg-slate-900 rounded-xl border border-white/5">
-                <span className="text-[9px] text-slate-500 uppercase block">Rhythm Morphology</span>
-                <span className="text-xs font-black text-white truncate block">{result.rhythm || 'Sinus Rhythm'}</span>
+              <div className="p-3 bg-surface-secondary rounded-xl border border-border">
+                <span className="text-[10px] text-slate-500 uppercase block font-bold">Rhythm Classification</span>
+                <span className="text-xs font-bold text-navy-850 truncate block mt-0.5">
+                  {result.rhythm || 'Sinus Rhythm'}
+                </span>
               </div>
-              <div className="p-2.5 bg-slate-900 rounded-xl border border-white/5">
-                <span className="text-[9px] text-slate-500 uppercase block">Model Architecture</span>
-                <span className="text-xs font-black text-emerald-400">1D ResNet (ONNX)</span>
+              <div className="p-3 bg-surface-secondary rounded-xl border border-border">
+                <span className="text-[10px] text-slate-500 uppercase block font-bold">Model Engine</span>
+                <span className="text-xs font-bold text-teal-700 block mt-0.5 font-mono">
+                  1D ResNet (ONNX)
+                </span>
               </div>
             </div>
           </div>
 
           {/* Lead Distribution of ST Findings */}
           {(result.st_elevation_leads.length > 0 || result.st_depression_leads.length > 0) && (
-            <div className="p-3 bg-red-950/40 rounded-xl border border-red-500/30 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-red-300">ST-Segment Vector Abnormalities:</span>
+            <div className="p-3 bg-red-50 rounded-xl border border-red-200 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-red-800">ST-Segment Vector Abnormalities:</span>
               {result.st_elevation_leads.length > 0 && (
-                <p className="text-red-400">Elevations (Injury): {result.st_elevation_leads.join(', ')}</p>
+                <p className="text-red-700 font-mono">Elevations (Myocardial Injury): {result.st_elevation_leads.join(', ')}</p>
               )}
               {result.st_depression_leads.length > 0 && (
-                <p className="text-amber-400">Depressions (Reciprocal/Ischemia): {result.st_depression_leads.join(', ')}</p>
+                <p className="text-amber-700 font-mono">Depressions (Reciprocal / Subendocardial Strain): {result.st_depression_leads.join(', ')}</p>
               )}
             </div>
           )}
 
           {/* 5-Class Quantitative Decision Matrix */}
           <div className="space-y-2">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               Calibrated Superclass Outputs & Validation Thresholds
             </span>
-            <div className="overflow-x-auto rounded-xl border border-white/5">
-              <table className="w-full text-left text-[11px]">
-                <thead className="bg-slate-900 text-slate-400 border-b border-white/5">
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-600 border-b border-border text-[10px] font-bold">
                   <tr>
                     <th className="p-2.5">Superclass</th>
                     <th className="p-2.5">Model Score</th>
@@ -348,20 +356,22 @@ export const DualAnalysisReport: React.FC<DualAnalysisReportProps> = ({ result, 
                     <th className="p-2.5">Electrophysiologic Finding</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 bg-slate-950/60">
+                <tbody className="divide-y divide-border bg-white font-medium">
                   {(result.conditions || []).map(cond => (
-                    <tr key={cond.code} className={cond.detected ? 'bg-red-500/5' : ''}>
-                      <td className="p-2.5 font-bold text-white">{cond.code} ({cond.name.split(' ')[0]})</td>
-                      <td className="p-2.5 font-bold text-emerald-400">{cond.model_score.toFixed(4)}</td>
-                      <td className="p-2.5 text-slate-400">{cond.threshold.toFixed(2)}</td>
+                    <tr key={cond.code} className={cond.detected ? 'bg-amber-50/30' : ''}>
+                      <td className="p-2.5 font-bold text-navy-850">{cond.code} ({cond.name.split(' ')[0]})</td>
+                      <td className="p-2.5 font-bold text-teal-700 font-mono">{cond.model_score.toFixed(4)}</td>
+                      <td className="p-2.5 text-slate-500 font-mono">{cond.threshold.toFixed(2)}</td>
                       <td className="p-2.5">
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                          cond.detected ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400'
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          cond.detected
+                            ? 'bg-red-50 text-red-700 border border-red-200'
+                            : 'bg-slate-100 text-slate-600'
                         }`}>
-                          {cond.detected ? 'DETECTED' : 'NOT DETECTED'}
+                          {cond.detected ? 'DETECTED' : 'CLEAR'}
                         </span>
                       </td>
-                      <td className="p-2.5 text-slate-300 text-[10px]">{cond.key_finding || cond.explanation_en}</td>
+                      <td className="p-2.5 text-slate-600 text-[11px]">{cond.key_finding || cond.explanation_en}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -371,12 +381,12 @@ export const DualAnalysisReport: React.FC<DualAnalysisReportProps> = ({ result, 
 
           {/* Clinical Management Recommendations */}
           {result.recommendations && result.recommendations.length > 0 && (
-            <div className="p-4 bg-slate-900 rounded-xl border border-white/5 space-y-2">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Cardiology Clinical Guidance</span>
-              <ul className="space-y-1 text-slate-300">
+            <div className="p-4 bg-surface-secondary rounded-xl border border-border space-y-2">
+              <span className="text-[10px] uppercase font-bold text-slate-500">Cardiology Guidance</span>
+              <ul className="space-y-1 text-slate-700">
                 {result.recommendations.map((rec, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-bold">•</span>
+                    <span className="text-teal-600 font-bold">•</span>
                     <span>{rec}</span>
                   </li>
                 ))}
@@ -387,9 +397,9 @@ export const DualAnalysisReport: React.FC<DualAnalysisReportProps> = ({ result, 
       )}
 
       {/* Footer Prototype Notice */}
-      <div className="p-3.5 bg-slate-950 border-t border-white/5 text-[10px] text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <div className="p-3.5 bg-slate-50 border-t border-border text-[10px] text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
         <span>Research & Educational Prototype · Not a certified diagnostic device</span>
-        <span>PTB-XL Benchmark Fold 10 (AUROC: 0.9265, F1: 0.7520)</span>
+        <span className="font-mono text-teal-800">PTB-XL Benchmark Fold 10 (AUROC: 0.9265, F1: 0.7520)</span>
       </div>
     </div>
   );

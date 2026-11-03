@@ -20,12 +20,32 @@ class UserProfileIn(BaseModel):
     height_cm: Optional[float] = Field(None, ge=50, le=250)
 
 
+class UserRegisterIn(UserProfileIn):
+    email: str = Field(..., pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$", description="Valid email address")
+    password: str = Field(..., min_length=8, description="Password minimum 8 characters")
+    role: Optional[str] = Field(default="clinician", pattern="^(clinician|patient|researcher)$")
+
+
+class UserLoginIn(BaseModel):
+    email: str = Field(..., description="Registered email address")
+    password: str = Field(..., description="Account password")
+
+
 class UserProfileOut(UserProfileIn):
     id: str
+    email: Optional[str] = None
+    role: Optional[str] = "clinician"
+    is_active: bool = True
     created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserProfileOut
 
 
 # ─────────────────────────────────────────────

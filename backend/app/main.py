@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import init_db
-from .routers import vitals, ecg, emergency, hospitals, chat
+from .routers import auth, vitals, ecg, emergency, hospitals, chat
 
 # ── Create FastAPI app
 app = FastAPI(
@@ -48,6 +48,7 @@ app.add_middleware(
 )
 
 # ── Routers
+app.include_router(auth.router)
 app.include_router(vitals.router)
 app.include_router(ecg.router)
 app.include_router(emergency.router)

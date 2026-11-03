@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models_db import VitalsLog, User
 from ..schemas import VitalsIn, VitalsOut, UserProfileIn, UserProfileOut
+from ..auth import get_optional_user
 from ..ml.risk_model import RiskModel
 from ..ml.vitals_validator import VitalsValidator
 from ..ml.risk_auditor import RiskAuditor
@@ -56,13 +57,16 @@ def get_risk_auditor() -> RiskAuditor:
 @router.get("/user/profile")
 async def get_profile(
     user_id: str = Query(default="default_user"),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    target_id = current_user.id if current_user else user_id
+    user = db.query(User).filter(User.id == target_id).first()
     if not user:
         return None
     return {
         "id": user.id,
+        "email": user.email,
         "name": user.name,
         "age": user.age,
         "sex": user.sex,
@@ -75,23 +79,25 @@ async def get_profile(
 
 @router.put("/user/profile")
 async def update_profile(
-    profile: Dict[str, Any],
+    profile: UserProfileIn,
     user_id: str = Query(default="default_user"),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    target_id = current_user.id if current_user else user_id
+    user = db.query(User).filter(User.id == target_id).first()
     if not user:
-        user = User(id=user_id)
+        user = User(id=target_id)
         db.add(user)
 
     allowed_fields = {"name", "age", "sex", "is_smoker", "is_diabetic", "has_family_history", "height_cm"}
-    for key, value in profile.items():
+    for key, value in profile.model_dump().items():
         if key in allowed_fields and hasattr(user, key):
             setattr(user, key, value)
 
     user.updated_at = datetime.utcnow()
     db.commit()
-    return {"message": "Profile updated", "user_id": user_id}
+    return {"message": "Profile updated", "user_id": target_id}
 
 
 # ─────────────────────────────────────────────────────────
@@ -102,15 +108,18 @@ async def update_profile(
 async def log_vitals(
     vitals: VitalsIn,
     user_id: str = Query(default="default_user"),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     """
     Log vitals → run LightGBM + Framingham risk model → return SHAP explanation.
     """
+    effective_user_id = current_user.id if current_user else user_id
+
     # Get or create user
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == effective_user_id).first()
     if not user:
-        user = User(id=user_id, name="User", age=45, sex="Male")
+        user = User(id=effective_user_id, name="User", age=45, sex="Male")
         db.add(user)
         db.commit()
 
@@ -150,7 +159,7 @@ async def log_vitals(
     # Compute trend_delta from previous reading
     previous = (
         db.query(VitalsLog)
-        .filter(VitalsLog.user_id == user_id)
+        .filter(VitalsLog.user_id == effective_user_id)
         .order_by(VitalsLog.timestamp.desc())
         .first()
     )
@@ -161,7 +170,7 @@ async def log_vitals(
     # Persist to database
     record = VitalsLog(
         id=str(uuid.uuid4()),
-        user_id=user_id,
+        user_id=effective_user_id,
         bp_sys=vitals.bp_sys,
         bp_dia=vitals.bp_dia,
         hr=vitals.hr,
@@ -194,14 +203,25 @@ async def log_vitals(
 async def get_vitals_history(
     user_id: str = Query(default="default_user"),
     days: int = Query(default=30, ge=1, le=365),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
-    """Get vitals history for the last N days with trend analysis."""
+    """Get vitals history for the last N days with trend analysis and access control."""
+    if current_user:
+        if user_id != "default_user" and user_id != current_user.id and current_user.role not in ("clinician", "researcher"):
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: Cannot access vitals of another user.",
+            )
+        target_id = current_user.id if user_id == "default_user" else user_id
+    else:
+        target_id = user_id
+
     since = datetime.utcnow() - timedelta(days=days)
 
     records = (
         db.query(VitalsLog)
-        .filter(VitalsLog.user_id == user_id, VitalsLog.timestamp >= since)
+        .filter(VitalsLog.user_id == target_id, VitalsLog.timestamp >= since)
         .order_by(VitalsLog.timestamp.desc())
         .all()
     )

@@ -33,10 +33,12 @@ def register_user(payload: UserRegisterIn, db: Session = Depends(get_db)):
         )
 
     hashed_pw = hash_password(payload.password)
+    # Security Rule: Public self-registration ALWAYS creates a patient.
+    # Client-supplied role is strictly ignored to prevent privilege escalation.
     user = User(
         email=normalized_email,
         hashed_password=hashed_pw,
-        role=payload.role or "clinician",
+        role="patient",
         name=payload.name or "User",
         age=payload.age,
         sex=payload.sex,
@@ -54,6 +56,47 @@ def register_user(payload: UserRegisterIn, db: Session = Depends(get_db)):
         data={"sub": user.id, "email": user.email, "role": user.role}
     )
     return TokenOut(access_token=token, token_type="bearer", user=UserProfileOut.model_validate(user))
+
+
+@router.post("/admin/create-clinician", response_model=UserProfileOut, status_code=status.HTTP_201_CREATED)
+def admin_create_clinician(
+    payload: UserRegisterIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Admin-only endpoint to provision verified clinician accounts."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can provision clinician accounts.",
+        )
+
+    normalized_email = payload.email.strip().lower()
+    existing_user = db.query(User).filter(User.email == normalized_email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email address already exists.",
+        )
+
+    hashed_pw = hash_password(payload.password)
+    clinician = User(
+        email=normalized_email,
+        hashed_password=hashed_pw,
+        role="clinician",
+        name=payload.name or "Clinician",
+        age=payload.age,
+        sex=payload.sex,
+        is_smoker=payload.is_smoker,
+        is_diabetic=payload.is_diabetic,
+        has_family_history=payload.has_family_history,
+        height_cm=payload.height_cm,
+        is_active=True,
+    )
+    db.add(clinician)
+    db.commit()
+    db.refresh(clinician)
+    return UserProfileOut.model_validate(clinician)
 
 
 @router.post("/login", response_model=TokenOut)

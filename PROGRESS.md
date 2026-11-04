@@ -575,3 +575,27 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     backend/tests/test_jwt_secret_enforcement.py::test_jwt_secret_enforcement_valid PASSED [100%]
     3 passed in 14.16s
     ```
+
+### Fix 2: Registration Role Hardening & Admin-Only Clinician Provisioning
+- **Vulnerability Addressed**: [READINESS.md](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/READINESS.md) §2 Finding #4 (Self-registration privilege escalation via client-supplied `role` parameter; default fallback to `"clinician"`).
+- **Remediation**:
+  - Edited [`backend/app/routers/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/auth.py):
+    - `POST /api/v1/auth/register` now strictly forces `role="patient"` and completely ignores any client-supplied role in payload.
+    - Added dedicated admin-only provisioning route `POST /api/v1/auth/admin/create-clinician` requiring `current_user.role == "admin"`.
+  - Updated [`backend/app/models_db.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/models_db.py) and [`backend/app/schemas.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/schemas.py) so default role across models and schemas is `"patient"`.
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_role_hardening.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_role_hardening.py)
+  - Failing output on old code:
+    ```text
+    FAILED backend/tests/test_role_hardening.py::test_self_registration_ignores_role_and_defaults_to_patient - AssertionError: Expected patient, but got clinician
+    FAILED backend/tests/test_role_hardening.py::test_self_registration_without_role_creates_patient - AssertionError: assert 'clinician' == 'patient'
+    FAILED backend/tests/test_role_hardening.py::test_admin_create_clinician_requires_admin - assert 404 == 401
+    ```
+  - Passing output on new code:
+    ```text
+    backend/tests/test_role_hardening.py::test_self_registration_ignores_role_and_defaults_to_patient PASSED [ 33%]
+    backend/tests/test_role_hardening.py::test_self_registration_without_role_creates_patient PASSED [ 66%]
+    backend/tests/test_role_hardening.py::test_admin_create_clinician_requires_admin PASSED [100%]
+    3 passed in 33.80s
+    ```
+

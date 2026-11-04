@@ -54,7 +54,7 @@ def test_register_success(client):
     assert "access_token" in data
     assert data["token_type"] == "bearer"
     assert data["user"]["email"] == unique_email
-    assert data["user"]["role"] == "clinician"
+    assert data["user"]["role"] == "patient"
 
 
 def test_register_duplicate_email(client):

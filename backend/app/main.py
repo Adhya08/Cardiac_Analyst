@@ -58,9 +58,8 @@ app.include_router(emergency.router)
 app.include_router(hospitals.router)
 app.include_router(chat.router)
 
-# ── Static: serve uploaded ECG images
+# ── Internal ECG storage directory (not mounted publicly; served only via authenticated endpoints)
 os.makedirs("uploads/ecg", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 # ── Events

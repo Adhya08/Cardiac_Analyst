@@ -16,7 +16,13 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models_db import User
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "cardiac-analyst-secure-clinical-key-2026")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY or len(JWT_SECRET_KEY.strip()) < 32:
+    raise RuntimeError(
+        "FATAL: JWT_SECRET_KEY must be set in the environment and be at least 32 characters long. "
+        "Hardcoded fallbacks have been removed for clinical security compliance."
+    )
+JWT_SECRET_KEY = JWT_SECRET_KEY.strip()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
 

@@ -552,7 +552,26 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   - Valid PTB-XL digital signal evaluation across all 5 classes (`NORM`, `MI`, `STTC`, `CD`, `HYP`).
   - AST audit confirming zero Gemini/cloud calls in diagnostic path.
 
+---
 
+## Phase 8.1: Security Findings Remediation (READINESS.md Sections 2 & 3)
 
-
-
+### Fix 3: Mandatory Cryptographic JWT Secret Enforcement (No Fallback)
+- **Vulnerability Addressed**: [READINESS.md](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/READINESS.md) §3 Finding #1 (`JWT_SECRET_KEY` had a hardcoded default fallback string `"cardiac-analyst-secure-clinical-key-2026"`).
+- **Remediation**:
+  - Edited [`backend/app/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/auth.py): removed fallback default. Added startup validation: if `JWT_SECRET_KEY` is missing, empty, or $<32$ characters, the backend raises `RuntimeError` immediately and refuses to start.
+  - Added secure 64-character clinical secret key to [`backend/.env`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/.env).
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_jwt_secret_enforcement.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_jwt_secret_enforcement.py)
+  - Failing output on old code:
+    ```text
+    FAILED backend/tests/test_jwt_secret_enforcement.py::test_jwt_secret_enforcement_missing - Failed: DID NOT RAISE RuntimeError
+    FAILED backend/tests/test_jwt_secret_enforcement.py::test_jwt_secret_enforcement_too_short - Failed: DID NOT RAISE RuntimeError
+    ```
+  - Passing output on new code:
+    ```text
+    backend/tests/test_jwt_secret_enforcement.py::test_jwt_secret_enforcement_missing PASSED [ 33%]
+    backend/tests/test_jwt_secret_enforcement.py::test_jwt_secret_enforcement_too_short PASSED [ 66%]
+    backend/tests/test_jwt_secret_enforcement.py::test_jwt_secret_enforcement_valid PASSED [100%]
+    3 passed in 14.16s
+    ```

@@ -15,7 +15,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models_db import ECGAnalysis
+from ..models_db import ECGAnalysis, User
+from ..auth import get_current_user, verify_patient_access
 from ..ml.sarvam_assistant import get_sarvam_assistant
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
@@ -32,7 +33,10 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000, description="Patient's message")
     ecg_id: Optional[str] = Field(None, description="ECG session ID to inject as context")
     history: Optional[List[ChatMessage]] = Field(default=[], description="Prior conversation turns")
-    user_id: str = Field(default="default_user")
+    consent_third_party_ai: bool = Field(
+        False,
+        description="Explicit opt-in consent to transmit de-identified query to third-party AI (Sarvam AI)"
+    )
 
 
 class ChatResponse(BaseModel):
@@ -47,6 +51,10 @@ class SummarizeRequest(BaseModel):
         default="en",
         pattern="^(en|hi|en-hi)$",
         description="Response language: 'en', 'hi', or 'en-hi' (bilingual)",
+    )
+    consent_third_party_ai: bool = Field(
+        False,
+        description="Explicit opt-in consent to transmit de-identified ECG report to third-party AI"
     )
 
 
@@ -67,6 +75,10 @@ class AdviceRequest(BaseModel):
     weight: Optional[float] = Field(None, description="Weight kg")
     risk_tier: str = Field(default="Borderline", description="Low | Borderline | Elevated")
     ecg_urgency: Optional[str] = Field(None, description="routine | see_doctor_today | emergency")
+    consent_third_party_ai: bool = Field(
+        False,
+        description="Explicit opt-in consent to transmit de-identified vitals metrics to third-party AI"
+    )
 
 
 class AdviceResponse(BaseModel):
@@ -78,10 +90,13 @@ class AdviceResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _fetch_ecg_analysis(ecg_id: str, db: Session) -> Optional[dict]:
-    """Load a stored ECG analysis dict by session ID."""
+def _fetch_verified_ecg_analysis(ecg_id: str, current_user: User, db: Session) -> Optional[dict]:
+    """Load a stored ECG analysis dict, strictly enforcing ownership or clinician access."""
     record = db.query(ECGAnalysis).filter(ECGAnalysis.id == ecg_id).first()
-    if record and record.analysis_json:
+    if not record:
+        return None
+    verify_patient_access(current_user=current_user, patient_id=record.user_id, db=db)
+    if record.analysis_json:
         return json.loads(record.analysis_json)
     return None
 
@@ -90,7 +105,7 @@ def _fetch_ecg_analysis(ecg_id: str, db: Session) -> Optional[dict]:
 
 @router.get("/health")
 async def chat_health():
-    """Check whether Sarvam AI is configured and reachable."""
+    """Check whether Sarvam AI is configured and reachable (public status probe, no user data)."""
     api_key = os.getenv("SARVAM_API_KEY")
     if not api_key:
         return {"status": "unavailable", "reason": "SARVAM_API_KEY not set"}
@@ -105,28 +120,39 @@ async def chat_health():
 @router.post("/message", response_model=ChatResponse)
 async def chat_message(
     req: ChatRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Patient Q&A — ask anything about your ECG or cardiac health.
-    Optionally pass ecg_id to give the AI context of your latest ECG report.
+    Patient Q&A — ask anything about cardiac health.
+    Strictly authenticated.
+    Requires explicit user opt-in consent before transmitting de-identified queries to Sarvam AI.
     """
+    if not req.consent_third_party_ai:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Third-party AI processing disabled without explicit patient consent. "
+                "You must opt in by checking 'consent_third_party_ai' to consult the cloud assistant."
+            ),
+        )
+
     try:
         assistant = get_sarvam_assistant()
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
-    # Load ECG context if requested
+    # Load verified ECG context if requested
     ecg_context = None
     if req.ecg_id:
-        ecg_context = _fetch_ecg_analysis(req.ecg_id, db)
+        ecg_context = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
         if ecg_context is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"ECG session '{req.ecg_id}' not found.",
             )
 
-    # Convert history to plain dicts
+    # Convert history to plain dicts (no identifying personal info)
     history = [{"role": m.role, "content": m.content} for m in (req.history or [])]
 
     result = assistant.patient_chat(
@@ -152,24 +178,36 @@ async def chat_message(
 @router.post("/summarize", response_model=SummarizeResponse)
 async def summarize_ecg(
     req: SummarizeRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Generate a plain-language, patient-friendly summary of an ECG report.
-    Supports English, Hindi, and bilingual (en-hi) output.
+    Generate a plain-language summary of an ECG report.
+    Strictly authenticated and verified to patient record.
+    Requires explicit user opt-in consent.
     """
+    if not req.consent_third_party_ai:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Third-party AI processing disabled without explicit patient consent. "
+                "You must opt in by checking 'consent_third_party_ai' to generate an AI summary."
+            ),
+        )
+
     try:
         assistant = get_sarvam_assistant()
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
-    ecg_analysis = _fetch_ecg_analysis(req.ecg_id, db)
+    ecg_analysis = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
     if ecg_analysis is None:
         raise HTTPException(
             status_code=404,
             detail=f"ECG session '{req.ecg_id}' not found.",
         )
 
+    # Only anonymized clinical metrics are sent to Sarvam AI (no name, email, IP, user_id)
     result = assistant.summarize_report(ecg_analysis, language=req.language)
 
     return SummarizeResponse(
@@ -181,10 +219,23 @@ async def summarize_ecg(
 
 
 @router.post("/advice", response_model=AdviceResponse)
-async def get_advice(req: AdviceRequest):
+async def get_advice(
+    req: AdviceRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
     Generate personalised cardiac lifestyle advice based on patient vitals and risk tier.
+    Strictly authenticated and requires explicit opt-in consent.
     """
+    if not req.consent_third_party_ai:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Third-party AI processing disabled without explicit patient consent. "
+                "You must opt in by checking 'consent_third_party_ai' to receive AI lifestyle advice."
+            ),
+        )
+
     try:
         assistant = get_sarvam_assistant()
     except RuntimeError as e:

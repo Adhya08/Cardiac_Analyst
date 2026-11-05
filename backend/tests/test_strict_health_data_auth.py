@@ -79,9 +79,7 @@ def test_unauthenticated_request_to_every_health_endpoint_returns_401(client):
     res = client.get(f"/api/v1/ecg/{uuid.uuid4()}")
     assert res.status_code == 401, f"GET /ecg/id returned {res.status_code}"
 
-    # 8. POST /emergency/triage
-    res = client.post("/api/v1/emergency/triage", json={"symptoms": [False] * 8})
-    assert res.status_code == 401, f"POST /emergency/triage returned {res.status_code}"
+    # 8. Note: POST /emergency/triage is a public life-safety endpoint tested in test_emergency_public_access.py
 
 
 def test_user_a_cannot_access_user_b_records(client):

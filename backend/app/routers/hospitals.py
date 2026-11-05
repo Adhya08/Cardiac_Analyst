@@ -8,8 +8,10 @@ import math
 import os
 import requests
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Request
 from typing import Optional
+
+from ..rate_limiter import check_rate_limit
 
 router = APIRouter(prefix="/api/v1", tags=["hospitals"])
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
@@ -26,14 +28,16 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 @router.get("/hospitals/nearby")
 def get_nearby_hospitals(
+    request: Request,
     lat: float = Query(..., description="User latitude"),
     lon: float = Query(..., description="User longitude"),
     radius_km: float = Query(default=10, ge=1, le=50),
 ):
     """
-    Finds the closest emergency care facilities. 
+    Finds the closest emergency care facilities with IP rate limiting.
     Prioritizes ultra-close general hospitals (within 5km) and cardiac centers (up to 20km).
     """
+    check_rate_limit(request, limit=30, window_seconds=60, scope="hospitals_nearby")
     if not GOOGLE_MAPS_API_KEY:
         mock_names = [
             ("Fortis Escorts Heart Institute", "Okhla Rd, New Delhi, Delhi", 1.8),
@@ -146,13 +150,15 @@ def get_nearby_hospitals(
 
 @router.get("/ambulance/nearby")
 def get_nearby_ambulances(
+    request: Request,
     lat: float = Query(..., description="User latitude"),
     lon: float = Query(..., description="User longitude"),
 ):
     """
-    Returns government emergency numbers + nearby private ambulance services.
+    Returns government emergency numbers + nearby private ambulance services with IP rate limiting.
     Always includes India 112 and 108 as first options.
     """
+    check_rate_limit(request, limit=30, window_seconds=60, scope="ambulance_nearby")
     ambulances = [
         {
             "service": "India Emergency (112)",

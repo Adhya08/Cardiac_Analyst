@@ -11,17 +11,24 @@ import requests
 from datetime import datetime
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models_db import TriageEvent, User
 from ..schemas import TriageIn, TriageOut
-from ..auth import get_current_user, verify_patient_access
+from ..auth import get_optional_current_user, verify_patient_access
+from ..rate_limiter import check_rate_limit
 from ..ml.triage import assess_emergency, TRIAGE_QUESTIONS
 
 router = APIRouter(prefix="/api/v1/emergency", tags=["emergency"])
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+
+
+class SOSRequest(BaseModel):
+    lat: Optional[float] = Field(None, description="Optional caller latitude")
+    lon: Optional[float] = Field(None, description="Optional caller longitude")
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -111,24 +118,59 @@ def fetch_hospitals_from_google(lat: float, lon: float) -> List[dict]:
 
 
 @router.get("/questions")
-async def get_questions():
-    """Return the 8 triage questions."""
+async def get_questions(request: Request):
+    """Return the 8 triage questions with IP rate limiting."""
+    check_rate_limit(request, limit=60, window_seconds=60, scope="emergency_questions")
     return {"questions": TRIAGE_QUESTIONS}
+
+
+@router.post("/sos")
+def emergency_sos(
+    request: Request,
+    payload: Optional[SOSRequest] = None,
+):
+    """
+    Emergency SOS broadcast & hospital locator.
+    Completely public, life-safety endpoint requiring zero login.
+    Enforces IP rate limiting.
+    """
+    check_rate_limit(request, limit=30, window_seconds=60, scope="emergency_sos")
+    use_lat = payload.lat if (payload and payload.lat is not None) else 28.6139
+    use_lon = payload.lon if (payload and payload.lon is not None) else 77.2090
+    hospitals = fetch_hospitals_from_google(use_lat, use_lon)
+
+    return {
+        "status": "emergency_active",
+        "emergency_hotlines": [
+            {"service": "India National Emergency", "number": "112", "type": "universal"},
+            {"service": "Ambulance Hotline", "number": "108", "type": "medical"},
+            {"service": "Red Cross Emergency", "number": "1800-180-7676", "type": "helpline"},
+        ],
+        "instructions": [
+            "🚨 Call 112 immediately. Do not delay.",
+            "Sit or lie down in a comfortable position. Do NOT drive yourself.",
+            "Unlock your front door so emergency responders can enter.",
+            "Remain calm and rest quietly until paramedics arrive.",
+        ],
+        "hospitals": hospitals,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 
 @router.post("/triage")
 def submit_triage(
     data: TriageIn,
-    current_user: User = Depends(get_current_user),
+    request: Request,
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Assess emergency severity using NICE CG95 and ACC/AHA rules,
     then fetch real nearby hospitals via Google Places API.
-    Strictly authenticated: stored under current user or granted patient.
+    Life-safety public access: works without login.
+    If authenticated, links triage event to user; otherwise does NOT store in database.
     """
-    target_id = data.user_id if data.user_id and data.user_id != "default_user" else current_user.id
-    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
+    check_rate_limit(request, limit=30, window_seconds=60, scope="emergency_triage")
 
     if len(data.symptoms) != 8:
         raise HTTPException(status_code=422, detail="Exactly 8 symptom answers required.")
@@ -173,24 +215,29 @@ def submit_triage(
         },
     ]
 
-    # ── Persist event
-    event = TriageEvent(
-        id=str(uuid.uuid4()),
-        user_id=target_id,
-        symptoms_json=str(data.symptoms),
-        severity=assessment["severity"],
-        confidence=assessment["confidence"],
-        risk_score=assessment["risk_score"],
-        lat=data.lat,
-        lon=data.lon,
-        timestamp=datetime.utcnow(),
-    )
-    db.add(event)
-    db.commit()
+    triage_id = "unauthenticated"
+    # ── Persist event only if caller is authenticated
+    if current_user:
+        target_id = data.user_id if data.user_id and data.user_id != "default_user" else current_user.id
+        verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
+        event = TriageEvent(
+            id=str(uuid.uuid4()),
+            user_id=target_id,
+            symptoms_json=str(data.symptoms),
+            severity=assessment["severity"],
+            confidence=assessment["confidence"],
+            risk_score=assessment["risk_score"],
+            lat=data.lat,
+            lon=data.lon,
+            timestamp=datetime.utcnow(),
+        )
+        db.add(event)
+        db.commit()
+        triage_id = event.id
 
     return {
         **assessment,
         "hospitals": hospitals,
         "ambulances": ambulances,
-        "triage_id": event.id,
+        "triage_id": triage_id,
     }

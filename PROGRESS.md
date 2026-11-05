@@ -616,4 +616,45 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     1 passed in 19.42s
     ```
 
+### Fix 1: Strict Authentication on Every Health Endpoint & Patient-Clinician Access Delegation
+- **Vulnerability Addressed**: [READINESS.md](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/READINESS.md) §2 Findings #1, #2, #3 (Unauthenticated access via `get_optional_user` bypass and `"default_user"` fallback across vitals, triage, and ECG endpoints; lack of explicit patient-clinician delegation).
+- **Remediation**:
+  - Edited [`backend/app/models_db.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/models_db.py):
+    - Added `PatientClinicianGrant` SQLAlchemy model linking `patient_id` to `clinician_id` with `is_active` boolean and unique constraint.
+  - Edited [`backend/app/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/auth.py):
+    - Completely removed `get_optional_user` bypass.
+    - Added `verify_patient_access(current_user, patient_id, db)` enforcing strict identity match (patient owns record) or an active `PatientClinicianGrant` record.
+  - Edited [`backend/app/routers/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/auth.py):
+    - Added `POST /api/v1/auth/grant-clinician/{clinician_id}` allowing patients to grant access to a verified clinician.
+    - Added `DELETE /api/v1/auth/grant-clinician/{clinician_id}` allowing patients to revoke access at any time.
+  - Edited [`backend/app/routers/vitals.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/vitals.py):
+    - Removed all `"default_user"` fallbacks.
+    - `POST /api/v1/vitals`, `GET /api/v1/vitals/history`, `GET /api/v1/user/profile`, and `PUT /api/v1/user/profile` strictly require `current_user: User = Depends(get_current_user)`.
+    - Profile queries and updates are strictly bound to `current_user.id` or delegated clinicians.
+  - Edited [`backend/app/routers/ecg.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/ecg.py):
+    - Removed all `"default_user"` fallbacks.
+    - `POST /api/v1/ecg/upload`, `GET /api/v1/ecg/history`, and `GET /api/v1/ecg/{ecg_id}` strictly require `current_user: User = Depends(get_current_user)` and call `verify_patient_access`.
+  - Edited [`backend/app/routers/emergency.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/emergency.py):
+    - `POST /api/v1/emergency/triage` strictly requires authenticated `current_user: User = Depends(get_current_user)` and logs the event under `current_user.id`.
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_strict_health_data_auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_strict_health_data_auth.py)
+  - Failing output on old code:
+    ```text
+    FAILED backend/tests/test_strict_health_data_auth.py::test_unauthenticated_request_to_every_health_endpoint_returns_401 - AssertionError: Endpoint GET /api/v1/user/profile allowed unauthenticated access with status 200
+    FAILED backend/tests/test_strict_health_data_auth.py::test_user_a_cannot_access_user_b_records - AssertionError: User A accessed User B's record!
+    FAILED backend/tests/test_strict_health_data_auth.py::test_clinician_access_delegation_flow - AssertionError: Clinician was not granted access
+    ```
+  - Passing output on new code:
+    ```text
+    backend/tests/test_strict_health_data_auth.py::test_unauthenticated_request_to_every_health_endpoint_returns_401 PASSED [ 33%]
+    backend/tests/test_strict_health_data_auth.py::test_user_a_cannot_access_user_b_records PASSED [ 66%]
+    backend/tests/test_strict_health_data_auth.py::test_clinician_access_delegation_flow PASSED [100%]
+    3 passed in 9.90s
+    ```
+  - Full project test suite:
+    ```text
+    ======================= 48 passed, 3 warnings in 52.80s =======================
+    ```
+
+
 

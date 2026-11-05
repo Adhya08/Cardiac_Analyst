@@ -15,6 +15,7 @@ Verifies:
 """
 
 import io
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 
@@ -29,7 +30,18 @@ def client():
         yield c
 
 
-def test_vitals_rejects_low_systolic_bp(client):
+@pytest.fixture(scope="module")
+def auth_headers(client):
+    email = f"val_user_{uuid.uuid4().hex[:8]}@example.com"
+    reg = client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password123!"}
+    )
+    token = reg.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_vitals_rejects_low_systolic_bp(client, auth_headers):
     payload = {
         "bp_sys": 50,  # Below minimum 60 / sane threshold 70
         "bp_dia": 70,
@@ -37,11 +49,11 @@ def test_vitals_rejects_low_systolic_bp(client):
         "weight": 70.0,
         "spo2": 98.0,
     }
-    resp = client.post("/api/v1/vitals", json=payload)
+    resp = client.post("/api/v1/vitals", json=payload, headers=auth_headers)
     assert resp.status_code == 422
 
 
-def test_vitals_rejects_extreme_high_systolic_bp(client):
+def test_vitals_rejects_extreme_high_systolic_bp(client, auth_headers):
     payload = {
         "bp_sys": 280,  # Above maximum 250
         "bp_dia": 110,
@@ -49,11 +61,11 @@ def test_vitals_rejects_extreme_high_systolic_bp(client):
         "weight": 75.0,
         "spo2": 96.0,
     }
-    resp = client.post("/api/v1/vitals", json=payload)
+    resp = client.post("/api/v1/vitals", json=payload, headers=auth_headers)
     assert resp.status_code == 422
 
 
-def test_vitals_rejects_invalid_heart_rate(client):
+def test_vitals_rejects_invalid_heart_rate(client, auth_headers):
     payload_low = {
         "bp_sys": 120,
         "bp_dia": 80,
@@ -61,7 +73,7 @@ def test_vitals_rejects_invalid_heart_rate(client):
         "weight": 70.0,
         "spo2": 98.0,
     }
-    assert client.post("/api/v1/vitals", json=payload_low).status_code == 422
+    assert client.post("/api/v1/vitals", json=payload_low, headers=auth_headers).status_code == 422
 
     payload_high = {
         "bp_sys": 120,
@@ -70,10 +82,10 @@ def test_vitals_rejects_invalid_heart_rate(client):
         "weight": 70.0,
         "spo2": 98.0,
     }
-    assert client.post("/api/v1/vitals", json=payload_high).status_code == 422
+    assert client.post("/api/v1/vitals", json=payload_high, headers=auth_headers).status_code == 422
 
 
-def test_vitals_rejects_invalid_spo2(client):
+def test_vitals_rejects_invalid_spo2(client, auth_headers):
     payload_low = {
         "bp_sys": 120,
         "bp_dia": 80,
@@ -81,7 +93,7 @@ def test_vitals_rejects_invalid_spo2(client):
         "weight": 70.0,
         "spo2": 30.0,  # Below 40%
     }
-    assert client.post("/api/v1/vitals", json=payload_low).status_code == 422
+    assert client.post("/api/v1/vitals", json=payload_low, headers=auth_headers).status_code == 422
 
     payload_high = {
         "bp_sys": 120,
@@ -90,10 +102,10 @@ def test_vitals_rejects_invalid_spo2(client):
         "weight": 70.0,
         "spo2": 105.0,  # Above 100%
     }
-    assert client.post("/api/v1/vitals", json=payload_high).status_code == 422
+    assert client.post("/api/v1/vitals", json=payload_high, headers=auth_headers).status_code == 422
 
 
-def test_vitals_rejects_invalid_weight(client):
+def test_vitals_rejects_invalid_weight(client, auth_headers):
     payload = {
         "bp_sys": 120,
         "bp_dia": 80,
@@ -101,23 +113,23 @@ def test_vitals_rejects_invalid_weight(client):
         "weight": 10.0,  # Below 20 kg
         "spo2": 98.0,
     }
-    assert client.post("/api/v1/vitals", json=payload).status_code == 422
+    assert client.post("/api/v1/vitals", json=payload, headers=auth_headers).status_code == 422
 
 
-def test_demographics_rejects_underage_and_invalid_sex(client):
+def test_demographics_rejects_underage_and_invalid_sex(client, auth_headers):
     underage_payload = {
         "name": "Underage",
         "age": 15,  # Below 18
         "sex": "Male",
     }
-    assert client.put("/api/v1/user/profile", json=underage_payload).status_code == 422
+    assert client.put("/api/v1/user/profile", json=underage_payload, headers=auth_headers).status_code == 422
 
     invalid_sex_payload = {
         "name": "Invalid Sex",
         "age": 45,
         "sex": "Alien",  # Must be Male, Female, Other
     }
-    assert client.put("/api/v1/user/profile", json=invalid_sex_payload).status_code == 422
+    assert client.put("/api/v1/user/profile", json=invalid_sex_payload, headers=auth_headers).status_code == 422
 
 
 def test_register_rejects_invalid_email_format(client):
@@ -130,10 +142,10 @@ def test_register_rejects_invalid_email_format(client):
     assert resp.status_code == 422
 
 
-def test_ecg_upload_rejects_image_scan_with_guidance(client):
+def test_ecg_upload_rejects_image_scan_with_guidance(client, auth_headers):
     fake_png = io.BytesIO(b"\x89PNG\r\n\x1a\nFake PNG content")
     files = {"file": ("ecg_photo.png", fake_png, "image/png")}
-    resp = client.post("/api/v1/ecg/upload", files=files)
+    resp = client.post("/api/v1/ecg/upload", files=files, headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "analysis_unavailable"
@@ -141,7 +153,7 @@ def test_ecg_upload_rejects_image_scan_with_guidance(client):
     assert "digital" in data["abstain_reason"].lower() or "photo" in data["abstain_reason"].lower()
 
 
-def test_valid_vitals_payload_succeeds(client):
+def test_valid_vitals_payload_succeeds(client, auth_headers):
     payload = {
         "bp_sys": 125,
         "bp_dia": 82,
@@ -151,7 +163,7 @@ def test_valid_vitals_payload_succeeds(client):
         "glucose": 95.0,
         "cholesterol": 185.0,
     }
-    resp = client.post("/api/v1/vitals", json=payload)
+    resp = client.post("/api/v1/vitals", json=payload, headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert "risk_score" in data

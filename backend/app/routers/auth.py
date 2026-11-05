@@ -149,3 +149,65 @@ def update_authenticated_profile(
     db.commit()
     db.refresh(current_user)
     return UserProfileOut.model_validate(current_user)
+
+
+@router.post("/grant-clinician/{clinician_id}", status_code=status.HTTP_200_OK)
+def grant_clinician_access(
+    clinician_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Patient explicitly grants a verified clinician access to their health records."""
+    from ..models_db import PatientClinicianGrant
+
+    clinician = db.query(User).filter(User.id == clinician_id, User.role == "clinician").first()
+    if not clinician:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clinician not found.",
+        )
+
+    grant = (
+        db.query(PatientClinicianGrant)
+        .filter(
+            PatientClinicianGrant.patient_id == current_user.id,
+            PatientClinicianGrant.clinician_id == clinician_id,
+        )
+        .first()
+    )
+    if grant:
+        grant.is_active = True
+    else:
+        grant = PatientClinicianGrant(
+            patient_id=current_user.id,
+            clinician_id=clinician_id,
+            is_active=True,
+        )
+        db.add(grant)
+
+    db.commit()
+    return {"status": "granted", "patient_id": current_user.id, "clinician_id": clinician_id}
+
+
+@router.delete("/grant-clinician/{clinician_id}", status_code=status.HTTP_200_OK)
+def revoke_clinician_access(
+    clinician_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Patient explicitly revokes a clinician's access to their health records."""
+    from ..models_db import PatientClinicianGrant
+
+    grant = (
+        db.query(PatientClinicianGrant)
+        .filter(
+            PatientClinicianGrant.patient_id == current_user.id,
+            PatientClinicianGrant.clinician_id == clinician_id,
+        )
+        .first()
+    )
+    if grant:
+        grant.is_active = False
+        db.commit()
+
+    return {"status": "revoked", "patient_id": current_user.id, "clinician_id": clinician_id}

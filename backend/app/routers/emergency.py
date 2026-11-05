@@ -15,8 +15,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models_db import TriageEvent
+from ..models_db import TriageEvent, User
 from ..schemas import TriageIn, TriageOut
+from ..auth import get_current_user, verify_patient_access
 from ..ml.triage import assess_emergency, TRIAGE_QUESTIONS
 
 router = APIRouter(prefix="/api/v1/emergency", tags=["emergency"])
@@ -118,12 +119,17 @@ async def get_questions():
 @router.post("/triage")
 def submit_triage(
     data: TriageIn,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Assess emergency severity using NICE CG95 and ACC/AHA rules,
     then fetch real nearby hospitals via Google Places API.
+    Strictly authenticated: stored under current user or granted patient.
     """
+    target_id = data.user_id if data.user_id and data.user_id != "default_user" else current_user.id
+    verify_patient_access(current_user=current_user, patient_id=target_id, db=db)
+
     if len(data.symptoms) != 8:
         raise HTTPException(status_code=422, detail="Exactly 8 symptom answers required.")
 
@@ -170,7 +176,7 @@ def submit_triage(
     # ── Persist event
     event = TriageEvent(
         id=str(uuid.uuid4()),
-        user_id=data.user_id,
+        user_id=target_id,
         symptoms_json=str(data.symptoms),
         severity=assessment["severity"],
         confidence=assessment["confidence"],

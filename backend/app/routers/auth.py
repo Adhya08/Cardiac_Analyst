@@ -3,8 +3,9 @@ Authentication & User Account Router
 ------------------------------------
 Provides secure user registration, login, and profile access with JWT tokens.
 """
+import re
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -16,13 +17,50 @@ from ..auth import (
     create_access_token,
     get_current_user,
 )
+from ..rate_limiter import (
+    get_client_ip,
+    check_rate_limit,
+    record_failed_login,
+    is_login_locked,
+    record_successful_login,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+def check_password_complexity(password: str) -> None:
+    """Enforce minimum 8 chars, uppercase, lowercase, number, and special symbol."""
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must be at least 8 characters long.",
+        )
+    if not re.search(r"[A-Z]", password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must contain at least one uppercase letter (A-Z).",
+        )
+    if not re.search(r"[a-z]", password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must contain at least one lowercase letter (a-z).",
+        )
+    if not re.search(r"[0-9]", password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must contain at least one numeric digit (0-9).",
+        )
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must contain at least one special character (!@#$%^&*...).",
+        )
 
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
 def register_user(payload: UserRegisterIn, db: Session = Depends(get_db)):
     """Register a new user account with hashed password and return access token."""
+    check_password_complexity(payload.password)
     normalized_email = payload.email.strip().lower()
 
     existing_user = db.query(User).filter(User.email == normalized_email).first()
@@ -79,6 +117,7 @@ def admin_create_clinician(
             detail="An account with this email address already exists.",
         )
 
+    check_password_complexity(payload.password)
     hashed_pw = hash_password(payload.password)
     clinician = User(
         email=normalized_email,
@@ -100,12 +139,36 @@ def admin_create_clinician(
 
 
 @router.post("/login", response_model=TokenOut)
-def login_user(payload: UserLoginIn, db: Session = Depends(get_db)):
-    """Authenticate email and password, returning a signed JWT access token."""
+def login_user(payload: UserLoginIn, request: Request, db: Session = Depends(get_db)):
+    """Authenticate email and password with rate limiting and brute-force lockout."""
+    check_rate_limit(request, limit=20, window_seconds=60, scope="auth_login")
+
     normalized_email = payload.email.strip().lower()
+    client_ip = get_client_ip(request)
+
+    # 1. Check IP lockout
+    ip_locked, ip_rem = is_login_locked(f"ip:{client_ip}")
+    if ip_locked:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many failed login attempts from this network. Temporarily locked for {ip_rem} seconds.",
+            headers={"Retry-After": str(ip_rem)},
+        )
+
+    # 2. Check Account lockout
+    email_locked, email_rem = is_login_locked(f"email:{normalized_email}")
+    if email_locked:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Account temporarily locked due to repeated failed login attempts. Please try again in {email_rem} seconds.",
+            headers={"Retry-After": str(email_rem)},
+        )
+
     user = db.query(User).filter(User.email == normalized_email).first()
 
     if not user or not user.hashed_password or not verify_password(payload.password, user.hashed_password):
+        record_failed_login(f"ip:{client_ip}", max_attempts=5, lockout_seconds=900)
+        record_failed_login(f"email:{normalized_email}", max_attempts=5, lockout_seconds=900)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password.",
@@ -117,6 +180,10 @@ def login_user(payload: UserLoginIn, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated.",
         )
+
+    # Authentication successful: clear lockout tracking
+    record_successful_login(f"ip:{client_ip}")
+    record_successful_login(f"email:{normalized_email}")
 
     token = create_access_token(
         data={"sub": user.id, "email": user.email, "role": user.role}

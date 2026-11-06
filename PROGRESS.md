@@ -698,10 +698,30 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     ```
   - Passing output on remediated code:
     ```text
-    backend/tests/test_route_security_audit.py::test_public_allowlist_is_minimal PASSED [ 50%]
-    backend/tests/test_route_security_audit.py::test_every_route_is_allowlisted_or_returns_401 PASSED [100%]
-    2 passed in 10.60s
+### Fix 1b - Item 3: Admin Bootstrap CLI Tool & Verified Clinician Provisioning Architecture
+- **Problem Addressed**:
+  - Lack of a secure, out-of-band bootstrapping mechanism for the initial administrator.
+  - Clarification of the "verified clinician" role and delegation hierarchy.
+- **Remediation**:
+  - Created [`backend/bootstrap_admin.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/bootstrap_admin.py):
+    - Independent CLI tool (not exposed via HTTP).
+    - Reads credentials from environment variables (`BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`) or interactive prompt.
+    - Zero default credentials.
+    - Enforces 12+ character password complexity with uppercase, lowercase, digit, and special character checks.
+    - Strictly one-time: prevents creating duplicate administrators if an admin already exists.
+  - **Clinical Architecture Clarification**:
+    - **"Verified Clinician"**: An account in `users` table with `role == "clinician"`.
+    - **Who creates one**: ONLY authenticated administrators via `POST /api/v1/auth/admin/create-clinician`. Patients cannot self-register as clinicians.
+    - **Access Delegation**: Being a clinician alone does NOT grant access to patient data. The patient must explicitly grant access via `POST /api/v1/auth/grant-clinician/{clinician_id}` which writes an active `PatientClinicianGrant` record.
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_admin_bootstrap_cli.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_admin_bootstrap_cli.py)
+  - Passing output:
+    ```text
+    backend/tests/test_admin_bootstrap_cli.py::test_bootstrap_rejects_weak_passwords PASSED [ 50%]
+    backend/tests/test_admin_bootstrap_cli.py::test_bootstrap_admin_creation_and_one_time_guarantee PASSED [100%]
+    2 passed in 1.54s
     ```
+
 
 
 

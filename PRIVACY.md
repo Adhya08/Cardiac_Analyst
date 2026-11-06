@@ -38,9 +38,36 @@ If an account is created:
 
 ---
 
-## 4. Third-Party Service Interactions
+## 4. Third-Party Data Flow & External Service Integrations
 
-- **Geocoding & Emergency Routing (Optional):** When using the Emergency Mode hospital finder, browser geolocation coordinates are used to query OpenStreetMap Nominatim and Overpass APIs for nearby emergency care centers. No patient identifiers, medical histories, or ECG findings are transmitted in these geographic lookups.
+Cardiac Analyst limits external cloud service interactions to non-diagnostic utilities. All core diagnostic machine learning (PTB-XL 1D ResNet, LightGBM Routine Risk Model, and NICE CG95 Triage Rules) executes **100% locally on-premise** with zero data leaving the host machine.
+
+The platform interacts with two external services strictly under the following privacy constraints:
+
+### 4.1 Google Places / Maps API (Emergency Facility Locator)
+- **Purpose**: Geolocation lookup for emergency cardiac hospitals and trauma centers within a 15 km radius.
+- **Endpoint**: `https://maps.googleapis.com/maps/api/place/nearbysearch/json`
+- **Data Transmitted**:
+  - Geographic latitude and longitude coordinates (`lat`, `lon`).
+  - Search query filters (`keyword="cardiac heart cardiology emergency"`, `type="hospital"`).
+- **Data NOT Transmitted**:
+  - Zero patient identifiers (no names, emails, user IDs, or IP addresses).
+  - Zero medical records (no symptoms, vitals, triage scores, or ECG waveforms).
+- **Fallback Guarantee**: If `GOOGLE_MAPS_API_KEY` is absent or the service is unreachable, a static verified directory of regional cardiac facilities is used locally, generating zero external network calls.
+
+### 4.2 Sarvam AI Cloud Assistant (Multilingual Reports & Q&A)
+- **Purpose**: Optional, plain-language patient education and Hindi/English bilingual report summaries. **Sarvam AI is strictly secondary and never used for clinical diagnosis or triage decisions.**
+- **Endpoint**: `https://api.sarvam.ai/v1/chat/completions` (model: `sarvam-m`)
+- **Explicit Opt-In Consent**:
+  - The chat, summary, and lifestyle advice endpoints (`/api/v1/chat/message`, `/api/v1/chat/summarize`, `/api/v1/chat/advice`) are **disabled by default**.
+  - Any request must include an explicit user opt-in flag: `consent_third_party_ai=True`. Requests without explicit consent are immediately rejected with `HTTP 403 Forbidden`.
+- **Data Transmitted (De-Identified Only)**:
+  - User's conversational query string.
+  - Anonymized clinical metrics (super-class diagnostic probabilities e.g., `NORM: 0.92`, heart rate bpm, numerical BP/SpO2/glucose levels).
+- **Data NOT Transmitted**:
+  - Zero Direct Identifiers: Patient name, email address, database user ID, client IP address, and date of birth are strictly stripped.
+  - Zero Raw Waveforms: Raw continuous 1,000-sample voltage arrays are never transmitted to external APIs.
+- **Access Control**: Users can only request summaries for ECG records they own or have explicit clinician delegation access to.
 
 ---
 

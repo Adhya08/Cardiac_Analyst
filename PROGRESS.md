@@ -717,10 +717,30 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   - Test suite: [`backend/tests/test_admin_bootstrap_cli.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_admin_bootstrap_cli.py)
   - Passing output:
     ```text
-    backend/tests/test_admin_bootstrap_cli.py::test_bootstrap_rejects_weak_passwords PASSED [ 50%]
-    backend/tests/test_admin_bootstrap_cli.py::test_bootstrap_admin_creation_and_one_time_guarantee PASSED [100%]
-    2 passed in 1.54s
+### Fix 1b - Item 4: Third-Party Data Flow Control & Explicit Opt-In Consent
+- **Problem Addressed**:
+  - Risk of transmitting sensitive patient data to third-party APIs without explicit consent or patient identification stripping.
+- **Remediation**:
+  - Audited all external service calls:
+    - **Google Places API**: Only numerical coordinates (`lat`, `lon`) and keywords (`hospital`, `cardiac`) are sent for emergency facility routing. Zero patient health data or identifiers sent.
+    - **Sarvam AI Cloud Assistant**: Strictly secondary for patient text Q&A and bilingual summary generation.
+  - Hardened [`backend/app/routers/chat.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/chat.py):
+    - Added mandatory `consent_third_party_ai: bool` field to all chat/summary/advice endpoints.
+    - Enforced opt-in requirement: requests without explicit consent are rejected with `HTTP 403 Forbidden`.
+    - Enforced patient isolation: callers cannot summarize an ECG report they do not own or have clinician delegation for.
+    - Verified zero identifying information (name, email, user_id, IP) is included in external payloads.
+  - Documented third-party data flows, safeguards, and zero-PII guarantees in [`PRIVACY.md`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/PRIVACY.md).
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_third_party_data_flow.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_third_party_data_flow.py)
+  - Passing output:
+    ```text
+    backend/tests/test_third_party_data_flow.py::test_chat_message_requires_explicit_consent PASSED [ 25%]
+    backend/tests/test_third_party_data_flow.py::test_chat_summarize_requires_explicit_consent PASSED [ 50%]
+    backend/tests/test_third_party_data_flow.py::test_chat_advice_requires_explicit_consent PASSED [ 75%]
+    backend/tests/test_third_party_data_flow.py::test_chat_cannot_summarize_unauthorized_patient_ecg PASSED [100%]
+    4 passed in 7.15s
     ```
+
 
 
 

@@ -378,7 +378,10 @@ export const api = {
   // ── Health / Model Readiness
   async getHealth(): Promise<{ status: string; model_loaded: boolean; model_accuracy?: string }> {
     try {
-      const res = await fetch('/health');
+      let res = await fetch(`${BASE}/health`);
+      if (!res.ok) {
+        res = await fetch('/health');
+      }
       if (!res.ok) throw new Error('Health check failed');
       return res.json();
     } catch {

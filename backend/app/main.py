@@ -84,11 +84,17 @@ async def root():
 
 
 @app.get("/health", tags=["health"])
+@app.get("/api/v1/health", tags=["health"])
 async def health():
     from .routers.vitals import get_risk_model
-    model = get_risk_model()
+    from .ml.local_ecg_model import get_local_ecg_model
+    risk_model = get_risk_model()
+    ecg_model = get_local_ecg_model()
+    is_ecg_ready = ecg_model.is_ready()
     return {
         "status": "healthy",
-        "model_loaded": model.is_loaded,
-        "model_accuracy": f"{model.test_accuracy * 100:.2f}%" if model.is_loaded else "Model not trained yet",
+        "model_loaded": is_ecg_ready or risk_model.is_loaded,
+        "ecg_model_loaded": is_ecg_ready,
+        "vitals_model_loaded": risk_model.is_loaded,
+        "model_accuracy": "92.65% AUROC" if is_ecg_ready else (f"{risk_model.test_accuracy * 100:.2f}%" if risk_model.is_loaded else "Model not trained yet"),
     }

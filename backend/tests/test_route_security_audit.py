@@ -19,6 +19,7 @@ PUBLIC_ALLOWLIST = {
     # Health checks & platform probe
     ("GET", "/"),
     ("GET", "/health"),
+    ("GET", "/api/v1/health"),
     # Public authentication entry points
     ("POST", "/api/v1/auth/register"),
     ("POST", "/api/v1/auth/login"),
@@ -62,7 +63,7 @@ def test_public_allowlist_is_minimal():
     """Ensure public allowlist only contains strictly necessary routes."""
     for method, path in PUBLIC_ALLOWLIST:
         assert path in (
-            "/", "/health",
+            "/", "/health", "/api/v1/health",
             "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/token",
             "/api/v1/emergency/questions", "/api/v1/emergency/triage", "/api/v1/emergency/sos",
             "/api/v1/hospitals/nearby", "/api/v1/ambulance/nearby",

@@ -136,7 +136,7 @@ def test_emergency_hospitals_and_ambulances_without_token(client):
 def test_emergency_ip_rate_limiting(client):
     """Test IP rate limiting on public emergency endpoints."""
     hit_429 = False
-    for _ in range(40):
+    for _ in range(125):
         resp = client.post(
             "/api/v1/emergency/triage",
             json={"symptoms": [False] * 8, "lat": 28.6139, "lon": 77.2090}

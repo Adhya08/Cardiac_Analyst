@@ -128,13 +128,14 @@ async def get_questions(request: Request):
 def emergency_sos(
     request: Request,
     payload: Optional[SOSRequest] = None,
+    db: Session = Depends(get_db),
 ):
     """
     Emergency SOS broadcast & hospital locator.
     Completely public, life-safety endpoint requiring zero login.
-    Enforces IP rate limiting.
+    Enforces IP rate limiting with high ceiling for life-safety.
     """
-    check_rate_limit(request, limit=30, window_seconds=60, scope="emergency_sos")
+    check_rate_limit(request, limit=60, window_seconds=60, scope="emergency_sos", db=db)
     use_lat = payload.lat if (payload and payload.lat is not None) else 28.6139
     use_lon = payload.lon if (payload and payload.lon is not None) else 77.2090
     hospitals = fetch_hospitals_from_google(use_lat, use_lon)
@@ -170,7 +171,7 @@ def submit_triage(
     Life-safety public access: works without login.
     If authenticated, links triage event to user; otherwise does NOT store in database.
     """
-    check_rate_limit(request, limit=30, window_seconds=60, scope="emergency_triage")
+    check_rate_limit(request, limit=120, window_seconds=60, scope="emergency_triage", db=db)
 
     if len(data.symptoms) != 8:
         raise HTTPException(status_code=422, detail="Exactly 8 symptom answers required.")

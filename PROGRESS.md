@@ -785,6 +785,49 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   3. `git branch --show-current`: Confirmed active branch is `main`.
 - **Status**: Verified clean. No environment files containing secrets are tracked in Git. All 66 tests passing.
 
+---
+
+### Fix 1c - Item 1: Client IP Security Behind Reverse Proxies, Persistent Rate Limiting & Emergency Fallback
+- **Problems Addressed**:
+  - `get_client_ip` previously read `x-forwarded-for.split(",")[0]`, allowing clients to spoof arbitrary IPs by prepending spoofed headers.
+  - In-memory rate limits were lost on server restarts or unshared across multi-worker Uvicorn instances on Render.
+  - Emergency endpoints had overly restrictive rate limits (30 req/min) that could block rapid retries during cardiac events.
+- **Remediation**:
+  1. **Trusted Proxy Resolution**:
+     - Tailored for Render behind Vercel:
+       - If coming via Vercel (`x-vercel-forwarded-for` or `x-vercel-id` present), uses Vercel's edge-verified client socket IP or checks 2 hops from the right (`ips[-2]`).
+       - If direct to Render (1 hop), checks the rightmost IP appended by Render (`ips[-1]`).
+       - Validates all extracted IPs via `ipaddress.ip_address`. Never trusts client-supplied leftmost headers blindly.
+  2. **Database-Backed Persistent Rate Limiting & Lockouts**:
+     - Added `RateLimitEvent` and `LoginLockout` models in [`backend/app/models_db.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/models_db.py).
+     - Rate limits and lockout states persist across restarts and are shared across all worker processes.
+     - *Limitation*: For extreme scale (>5,000 req/sec), SQL disk writes can be offloaded to Redis; for current deployment, indexed SQLite/Postgres tables eliminate ephemeral in-memory state loss.
+  3. **Emergency Endpoints Raised & Frontend Fallback**:
+     - Raised rate limits: Emergency Triage (120 req/min), SOS (60 req/min), Hospital/Ambulance lookups (120 req/min).
+     - Enhanced [`src/modes/EmergencyMode.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/modes/EmergencyMode.tsx): on 429 or any server error, the UI seamlessly applies deterministic offline NICE CG95 rules, displays an alert banner, and offers a direct one-touch `tel:112` call button.
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_client_ip_and_rate_limits.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_client_ip_and_rate_limits.py)
+  - Failing output on un-remediated code:
+    ```text
+    FAILED backend/tests/test_client_ip_and_rate_limits.py::test_client_ip_rejects_spoofed_leftmost_header_behind_vercel
+    AssertionError: Expected real IP 198.51.100.5, got spoofed or proxy IP: 203.0.113.199
+    FAILED backend/tests/test_client_ip_and_rate_limits.py::test_client_ip_direct_render_proxy
+    AssertionError: Expected real IP 198.51.100.22, got: 8.8.8.8
+    FAILED backend/tests/test_client_ip_and_rate_limits.py::test_rate_limit_and_lockout_persists_in_database
+    ImportError: cannot import name 'RateLimitEvent' from 'app.models_db'
+    FAILED backend/tests/test_client_ip_and_rate_limits.py::test_emergency_triage_rate_limit_raised
+    AssertionError: Failed at request 31 with 429
+    ```
+  - Passing output on remediated code:
+    ```text
+    backend/tests/test_client_ip_and_rate_limits.py::test_client_ip_rejects_spoofed_leftmost_header_behind_vercel PASSED [ 25%]
+    backend/tests/test_client_ip_and_rate_limits.py::test_client_ip_direct_render_proxy PASSED [ 50%]
+    backend/tests/test_client_ip_and_rate_limits.py::test_rate_limit_and_lockout_persists_in_database PASSED [ 75%]
+    backend/tests/test_client_ip_and_rate_limits.py::test_emergency_triage_rate_limit_raised PASSED [100%]
+    4 passed in 13.63s
+    ```
+
+
 
 
 

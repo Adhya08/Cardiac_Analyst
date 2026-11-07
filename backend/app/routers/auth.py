@@ -141,13 +141,13 @@ def admin_create_clinician(
 @router.post("/login", response_model=TokenOut)
 def login_user(payload: UserLoginIn, request: Request, db: Session = Depends(get_db)):
     """Authenticate email and password with rate limiting and brute-force lockout."""
-    check_rate_limit(request, limit=20, window_seconds=60, scope="auth_login")
+    check_rate_limit(request, limit=20, window_seconds=60, scope="auth_login", db=db)
 
     normalized_email = payload.email.strip().lower()
     client_ip = get_client_ip(request)
 
     # 1. Check IP lockout
-    ip_locked, ip_rem = is_login_locked(f"ip:{client_ip}")
+    ip_locked, ip_rem = is_login_locked(f"ip:{client_ip}", db=db)
     if ip_locked:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -156,7 +156,7 @@ def login_user(payload: UserLoginIn, request: Request, db: Session = Depends(get
         )
 
     # 2. Check Account lockout
-    email_locked, email_rem = is_login_locked(f"email:{normalized_email}")
+    email_locked, email_rem = is_login_locked(f"email:{normalized_email}", db=db)
     if email_locked:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -167,8 +167,8 @@ def login_user(payload: UserLoginIn, request: Request, db: Session = Depends(get
     user = db.query(User).filter(User.email == normalized_email).first()
 
     if not user or not user.hashed_password or not verify_password(payload.password, user.hashed_password):
-        record_failed_login(f"ip:{client_ip}", max_attempts=5, lockout_seconds=900)
-        record_failed_login(f"email:{normalized_email}", max_attempts=5, lockout_seconds=900)
+        record_failed_login(f"ip:{client_ip}", max_attempts=5, lockout_seconds=900, db=db)
+        record_failed_login(f"email:{normalized_email}", max_attempts=5, lockout_seconds=900, db=db)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password.",
@@ -182,8 +182,8 @@ def login_user(payload: UserLoginIn, request: Request, db: Session = Depends(get
         )
 
     # Authentication successful: clear lockout tracking
-    record_successful_login(f"ip:{client_ip}")
-    record_successful_login(f"email:{normalized_email}")
+    record_successful_login(f"ip:{client_ip}", db=db)
+    record_successful_login(f"email:{normalized_email}", db=db)
 
     token = create_access_token(
         data={"sub": user.id, "email": user.email, "role": user.role}

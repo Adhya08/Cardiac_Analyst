@@ -4,8 +4,11 @@ Authentication & User Account Router
 Provides secure user registration, login, and profile access with JWT tokens.
 """
 import re
+import uuid
 from datetime import datetime
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -218,27 +221,68 @@ def update_authenticated_profile(
     return UserProfileOut.model_validate(current_user)
 
 
-@router.post("/grant-clinician/{clinician_id}", status_code=status.HTTP_200_OK)
-def grant_clinician_access(
-    clinician_id: str,
+class ClinicianGrantIn(BaseModel):
+    email: Optional[str] = Field(None, description="Clinician email address")
+    invite_code: Optional[str] = Field(None, description="Clinician invite code")
+
+
+def _find_clinician(
+    db: Session,
+    email: Optional[str] = None,
+    invite_code: Optional[str] = None,
+    identifier: Optional[str] = None,
+) -> Optional[User]:
+    """
+    Safely resolves a verified, active clinician by invite_code, email, or identifier.
+    Returns None if not found or if the account is not a clinician.
+    """
+    query = db.query(User).filter(User.role == "clinician", User.is_active == True)
+    if invite_code:
+        return query.filter(User.invite_code == invite_code.strip()).first()
+    if email:
+        return query.filter(User.email == email.strip().lower()).first()
+    if identifier:
+        target = identifier.strip()
+        # Look up by invite_code, email, or internal id
+        return query.filter(
+            (User.id == target) |
+            (User.email == target.lower()) |
+            (User.invite_code == target)
+        ).first()
+    return None
+
+
+@router.post("/grant-clinician", status_code=status.HTTP_200_OK)
+def grant_clinician_by_email_or_code(
+    payload: ClinicianGrantIn,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Patient explicitly grants a verified clinician access to their health records."""
+    """
+    Patient explicitly grants a verified clinician access to their health records
+    using the clinician's email or invite code (never raw database IDs).
+    Anti-enumeration: Returns generic 400 for non-existent users or non-clinicians.
+    """
     from ..models_db import PatientClinicianGrant
 
-    clinician = db.query(User).filter(User.id == clinician_id, User.role == "clinician").first()
+    if not payload.email and not payload.invite_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to grant access. Invalid clinician email or invite code.",
+        )
+
+    clinician = _find_clinician(db, email=payload.email, invite_code=payload.invite_code)
     if not clinician:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Clinician not found.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to grant access. Invalid clinician email or invite code.",
         )
 
     grant = (
         db.query(PatientClinicianGrant)
         .filter(
             PatientClinicianGrant.patient_id == current_user.id,
-            PatientClinicianGrant.clinician_id == clinician_id,
+            PatientClinicianGrant.clinician_id == clinician.id,
         )
         .first()
     )
@@ -246,14 +290,83 @@ def grant_clinician_access(
         grant.is_active = True
     else:
         grant = PatientClinicianGrant(
+            id=str(uuid.uuid4()),
             patient_id=current_user.id,
-            clinician_id=clinician_id,
+            clinician_id=clinician.id,
             is_active=True,
         )
         db.add(grant)
 
     db.commit()
-    return {"status": "granted", "patient_id": current_user.id, "clinician_id": clinician_id}
+    return {"status": "granted", "message": "Clinician access granted successfully."}
+
+
+@router.post("/revoke-clinician", status_code=status.HTTP_200_OK)
+def revoke_clinician_by_email_or_code(
+    payload: ClinicianGrantIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Patient explicitly revokes a clinician's access using email or invite code.
+    Idempotent and anti-enumeration: always returns status: revoked.
+    """
+    from ..models_db import PatientClinicianGrant
+
+    clinician = _find_clinician(db, email=payload.email, invite_code=payload.invite_code)
+    if clinician:
+        grant = (
+            db.query(PatientClinicianGrant)
+            .filter(
+                PatientClinicianGrant.patient_id == current_user.id,
+                PatientClinicianGrant.clinician_id == clinician.id,
+            )
+            .first()
+        )
+        if grant:
+            grant.is_active = False
+            db.commit()
+
+    return {"status": "revoked", "message": "Clinician access revoked successfully."}
+
+
+@router.post("/grant-clinician/{clinician_id}", status_code=status.HTTP_200_OK)
+def grant_clinician_access(
+    clinician_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Legacy / identifier grant endpoint with anti-enumeration protection."""
+    from ..models_db import PatientClinicianGrant
+
+    clinician = _find_clinician(db, identifier=clinician_id)
+    if not clinician:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to grant access. Invalid clinician email or invite code.",
+        )
+
+    grant = (
+        db.query(PatientClinicianGrant)
+        .filter(
+            PatientClinicianGrant.patient_id == current_user.id,
+            PatientClinicianGrant.clinician_id == clinician.id,
+        )
+        .first()
+    )
+    if grant:
+        grant.is_active = True
+    else:
+        grant = PatientClinicianGrant(
+            id=str(uuid.uuid4()),
+            patient_id=current_user.id,
+            clinician_id=clinician.id,
+            is_active=True,
+        )
+        db.add(grant)
+
+    db.commit()
+    return {"status": "granted", "patient_id": current_user.id, "clinician_id": clinician.id}
 
 
 @router.delete("/grant-clinician/{clinician_id}", status_code=status.HTTP_200_OK)
@@ -262,19 +375,38 @@ def revoke_clinician_access(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Patient explicitly revokes a clinician's access to their health records."""
+    """Legacy / identifier revoke endpoint."""
     from ..models_db import PatientClinicianGrant
 
-    grant = (
-        db.query(PatientClinicianGrant)
-        .filter(
-            PatientClinicianGrant.patient_id == current_user.id,
-            PatientClinicianGrant.clinician_id == clinician_id,
+    clinician = _find_clinician(db, identifier=clinician_id)
+    if clinician:
+        grant = (
+            db.query(PatientClinicianGrant)
+            .filter(
+                PatientClinicianGrant.patient_id == current_user.id,
+                PatientClinicianGrant.clinician_id == clinician.id,
+            )
+            .first()
         )
-        .first()
-    )
-    if grant:
-        grant.is_active = False
-        db.commit()
+        if grant:
+            grant.is_active = False
+            db.commit()
 
     return {"status": "revoked", "patient_id": current_user.id, "clinician_id": clinician_id}
+
+
+@router.get("/my-invite-code", status_code=status.HTTP_200_OK)
+def get_my_invite_code(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Retrieve clinician's unique invite code. Clinician-only."""
+    if current_user.role != "clinician":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only clinicians have invite codes.",
+        )
+    if not current_user.invite_code:
+        current_user.invite_code = f"DR-{uuid.uuid4().hex[:6].upper()}"
+        db.commit()
+    return {"invite_code": current_user.invite_code}

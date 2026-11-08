@@ -897,6 +897,39 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     5 passed in 19.44s
     ```
 
+### Fix 1c - Item 4: Clinician Grants by Email / Invite Code & Anti-Enumeration Protection
+- **Problems Addressed**:
+  - Clinician access grants previously required exposing and transmitting raw database UUIDs (`/grant-clinician/{clinician_id}`).
+  - Probing the old endpoint with an invalid identifier yielded HTTP 404 "Clinician not found", permitting malicious actors to enumerate valid vs invalid registered clinician email/ID lists.
+- **Remediation**:
+  1. **Clinician Invite Codes & Flexible Lookup**:
+     - Added `invite_code` column to `User` in [`backend/app/models_db.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/models_db.py) and added safe schema migration in [`backend/app/database.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/database.py).
+     - Added `GET /api/v1/auth/my-invite-code` in [`backend/app/routers/auth.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/auth.py) for verified clinicians to retrieve a shareable invite code (e.g. `DR-A1B2C3`).
+  2. **Grant & Revocation via Email or Invite Code**:
+     - Implemented `POST /api/v1/auth/grant-clinician` and `POST /api/v1/auth/revoke-clinician` accepting `{email, invite_code}` JSON payload.
+     - Preserved backward compatibility on path parameter endpoints (`/grant-clinician/{identifier}`).
+  3. **Strict Anti-Enumeration Protections**:
+     - If a supplied email does not exist, or belongs to a non-clinician (e.g., standard patient account), or has an invalid invite code, the API returns the exact same generic error: `HTTP 400 Bad Request` with detail `"Unable to grant access. Invalid clinician email or invite code."`.
+     - Revocation is completely idempotent and returns `"status": "revoked"` regardless of whether the identifier exists or was previously granted.
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_clinician_grants_by_email.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_clinician_grants_by_email.py)
+  - Failing output on un-remediated code:
+    ```text
+    FAILED tests/test_clinician_grants_by_email.py::test_grant_endpoints_require_authentication - assert 404 == 401
+    ERROR tests/test_clinician_grants_by_email.py::test_patient_can_grant_and_revoke_by_email - TypeError: 'invite_code' is an invalid keyword argument for User
+    ERROR tests/test_clinician_grants_by_email.py::test_patient_can_grant_and_revoke_by_invite_code - TypeError: 'invite_code' is an invalid keyword argument for User
+    ERROR tests/test_clinician_grants_by_email.py::test_grant_avoids_user_enumeration - TypeError: 'invite_code' is an invalid keyword argument for User
+    1 failed, 3 errors in 13.55s
+    ```
+  - Passing output on remediated code:
+    ```text
+    tests/test_clinician_grants_by_email.py::test_grant_endpoints_require_authentication PASSED [ 25%]
+    tests/test_clinician_grants_by_email.py::test_patient_can_grant_and_revoke_by_email PASSED [ 50%]
+    tests/test_clinician_grants_by_email.py::test_patient_can_grant_and_revoke_by_invite_code PASSED [ 75%]
+    tests/test_clinician_grants_by_email.py::test_grant_avoids_user_enumeration PASSED [100%]
+    4 passed in 46.96s
+    ```
+
 
 
 

@@ -827,6 +827,44 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
     4 passed in 13.63s
     ```
 
+### Fix 1c - Item 2: Server-Side Consent Management & External Assistant Protection
+- **Problems Addressed**:
+  - The client previously sent `consent_third_party_ai: true` in the HTTP JSON request payload. Any attacker or script could forge this flag without the user having actually granted consent in their profile/account.
+  - No mechanism existed to persist consent state, version the terms agreed to, or allow users to revoke consent and immediately terminate data flow to external assistants.
+- **Remediation**:
+  1. **Persistent `UserConsent` Database Model**:
+     - Added `UserConsent` in [`backend/app/models_db.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/models_db.py) storing: `user_id`, `consent_type` (e.g., `third_party_ai`), `granted` (boolean), `policy_version`, and `timestamp`.
+  2. **Consent API Router**:
+     - Implemented [`backend/app/routers/consent.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/consent.py) with authenticated endpoints:
+       - `POST /api/v1/consent/grant`: records explicit consent with policy version.
+       - `POST /api/v1/consent/revoke`: immediately revokes consent.
+       - `GET /api/v1/consent`: checks current consent state for specified type.
+  3. **Strict Server-Side Verification on Chat Endpoints**:
+     - Updated [`backend/app/routers/chat.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/routers/chat.py) with helper `check_server_side_consent(db, user.id, "third_party_ai")`.
+     - Endpoints `/api/v1/chat/message`, `/api/v1/chat/summarize`, and `/api/v1/chat/advice` query `UserConsent` directly. If not explicitly granted, requests are immediately halted with `HTTP 403 Forbidden` (`{"detail": "Server-side consent for third-party AI assistance has not been granted..."}`) before any prompt preparation or external API call.
+- **Automated Test Evidence**:
+  - Test suite: [`backend/tests/test_server_side_consent.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_server_side_consent.py)
+  - Failing output on un-remediated code:
+    ```text
+    FAILED backend/tests/test_server_side_consent.py::test_chat_rejected_when_no_server_side_consent_even_if_client_claims_true
+    AssertionError: Expected 403 Forbidden without server consent, got 503
+    FAILED backend/tests/test_server_side_consent.py::test_grant_and_verify_server_side_consent
+    AssertionError: Expected 200 OK, got: 404 Not Found
+    FAILED backend/tests/test_server_side_consent.py::test_revoke_consent_immediately_blocks_chat
+    AssertionError: Expected 200 OK, got: 404 Not Found
+    ```
+  - Passing output on remediated code:
+    ```text
+    tests/test_server_side_consent.py::test_chat_rejected_when_no_server_side_consent_even_if_client_claims_true PASSED [ 14%]
+    tests/test_server_side_consent.py::test_grant_and_verify_server_side_consent PASSED [ 28%]
+    tests/test_server_side_consent.py::test_revoke_consent_immediately_blocks_chat PASSED [ 42%]
+    tests/test_third_party_data_flow.py::test_chat_message_requires_explicit_consent PASSED [ 57%]
+    tests/test_third_party_data_flow.py::test_chat_summarize_requires_explicit_consent PASSED [ 71%]
+    tests/test_third_party_data_flow.py::test_chat_advice_requires_explicit_consent PASSED [ 85%]
+    tests/test_third_party_data_flow.py::test_chat_cannot_summarize_unauthorized_patient_ecg PASSED [100%]
+    7 passed in 37.03s
+    ```
+
 
 
 

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models_db import ECGAnalysis, User
+from ..models_db import ECGAnalysis, User, UserConsent
 from ..auth import get_current_user, verify_patient_access
 from ..ml.sarvam_assistant import get_sarvam_assistant
 
@@ -33,9 +33,9 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000, description="Patient's message")
     ecg_id: Optional[str] = Field(None, description="ECG session ID to inject as context")
     history: Optional[List[ChatMessage]] = Field(default=[], description="Prior conversation turns")
-    consent_third_party_ai: bool = Field(
-        False,
-        description="Explicit opt-in consent to transmit de-identified query to third-party AI (Sarvam AI)"
+    consent_third_party_ai: Optional[bool] = Field(
+        None,
+        description="Optional client-side consent flag; server-side stored consent is authoritative."
     )
 
 
@@ -52,9 +52,9 @@ class SummarizeRequest(BaseModel):
         pattern="^(en|hi|en-hi)$",
         description="Response language: 'en', 'hi', or 'en-hi' (bilingual)",
     )
-    consent_third_party_ai: bool = Field(
-        False,
-        description="Explicit opt-in consent to transmit de-identified ECG report to third-party AI"
+    consent_third_party_ai: Optional[bool] = Field(
+        None,
+        description="Optional client-side consent flag; server-side stored consent is authoritative."
     )
 
 
@@ -75,9 +75,9 @@ class AdviceRequest(BaseModel):
     weight: Optional[float] = Field(None, description="Weight kg")
     risk_tier: str = Field(default="Borderline", description="Low | Borderline | Elevated")
     ecg_urgency: Optional[str] = Field(None, description="routine | see_doctor_today | emergency")
-    consent_third_party_ai: bool = Field(
-        False,
-        description="Explicit opt-in consent to transmit de-identified vitals metrics to third-party AI"
+    consent_third_party_ai: Optional[bool] = Field(
+        None,
+        description="Optional client-side consent flag; server-side stored consent is authoritative."
     )
 
 
@@ -99,6 +99,33 @@ def _fetch_verified_ecg_analysis(ecg_id: str, current_user: User, db: Session) -
     if record.analysis_json:
         return json.loads(record.analysis_json)
     return None
+
+
+def check_server_side_consent(user_id: str, db: Session, client_flag: Optional[bool] = None) -> None:
+    """
+    Checks stored server-side consent record in the database.
+    Rejects with 403 Forbidden if consent is missing, revoked, or client explicitly opted out.
+    """
+    if client_flag is False:
+        raise HTTPException(
+            status_code=403,
+            detail="Third-party AI processing disabled: request explicitly opted out via consent flag.",
+        )
+
+    latest = (
+        db.query(UserConsent)
+        .filter(UserConsent.user_id == user_id, UserConsent.consent_type == "third_party_ai")
+        .order_by(UserConsent.timestamp.desc())
+        .first()
+    )
+    if not latest or not latest.granted:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Third-party AI processing disabled: Server-side consent has not been granted or has been revoked. "
+                "You must grant consent via /api/v1/consent/grant to use cloud assistant features."
+            ),
+        )
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -126,16 +153,9 @@ async def chat_message(
     """
     Patient Q&A — ask anything about cardiac health.
     Strictly authenticated.
-    Requires explicit user opt-in consent before transmitting de-identified queries to Sarvam AI.
+    Requires server-side stored consent before transmitting de-identified queries to Sarvam AI.
     """
-    if not req.consent_third_party_ai:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Third-party AI processing disabled without explicit patient consent. "
-                "You must opt in by checking 'consent_third_party_ai' to consult the cloud assistant."
-            ),
-        )
+    check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
 
     # Load verified ECG context if requested (Access control verified before external call)
     ecg_context = None
@@ -184,16 +204,9 @@ async def summarize_ecg(
     """
     Generate a plain-language summary of an ECG report.
     Strictly authenticated and verified to patient record.
-    Requires explicit user opt-in consent.
+    Requires server-side stored consent.
     """
-    if not req.consent_third_party_ai:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Third-party AI processing disabled without explicit patient consent. "
-                "You must opt in by checking 'consent_third_party_ai' to generate an AI summary."
-            ),
-        )
+    check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
 
     # Access control verification before external API assistant initialization
     ecg_analysis = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
@@ -223,19 +236,13 @@ async def summarize_ecg(
 async def get_advice(
     req: AdviceRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Generate personalised cardiac lifestyle advice based on patient vitals and risk tier.
-    Strictly authenticated and requires explicit opt-in consent.
+    Strictly authenticated and requires server-side stored consent.
     """
-    if not req.consent_third_party_ai:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Third-party AI processing disabled without explicit patient consent. "
-                "You must opt in by checking 'consent_third_party_ai' to receive AI lifestyle advice."
-            ),
-        )
+    check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
 
     try:
         assistant = get_sarvam_assistant()

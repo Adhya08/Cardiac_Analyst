@@ -108,3 +108,17 @@ class LoginLockout(Base):
     failure_count = Column(Integer, default=0)
     last_failure_at = Column(Float, nullable=False)
 
+
+class UserConsent(Base):
+    """Persistent server-side user consent tracking."""
+    __tablename__ = "user_consents"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, index=True, nullable=False)
+    consent_type = Column(String(64), index=True, nullable=False)  # e.g., "third_party_ai"
+    granted = Column(Boolean, default=False, nullable=False)
+    policy_version = Column(String(32), default="v1.0", nullable=False)
+    ip_address = Column(String(64), nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+

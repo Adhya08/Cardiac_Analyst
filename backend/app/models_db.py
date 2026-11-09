@@ -3,7 +3,7 @@ SQLAlchemy ORM Models — Database table definitions.
 """
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text, LargeBinary
 from .database import Base
 
 
@@ -55,6 +55,7 @@ class ECGAnalysis(Base):
     user_id = Column(String, default="default_user", index=True)
     file_path = Column(String, nullable=True)
     file_name = Column(String, nullable=True)
+    file_data = Column(LargeBinary, nullable=True)  # Raw digital ECG signal bytes stored in DB
     urgency = Column(String, default="see_doctor_today")
     heart_rate_bpm = Column(Integer, nullable=True)
     rhythm = Column(String, nullable=True)

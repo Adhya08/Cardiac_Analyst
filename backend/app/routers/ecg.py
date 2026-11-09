@@ -117,6 +117,7 @@ async def upload_ecg(
             user_id=target_id,
             file_path=filepath,
             file_name=filename_orig,
+            file_data=content,  # Persistent in database across redeploys!
             urgency=result.get("urgency", "routine"),
             heart_rate_bpm=result.get("heart_rate_bpm"),
             rhythm=result.get("rhythm"),
@@ -197,3 +198,41 @@ async def get_ecg_analysis(
     if "model_scores" not in result:
         result["model_scores"] = {}
     return result
+
+
+@router.get("/{ecg_id}/download")
+async def download_ecg_file(
+    ecg_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Download raw uploaded ECG file.
+    Serves directly from database byte storage (survives redeploys and disk wipes)
+    with disk fallback.
+    """
+    from fastapi.responses import Response
+
+    record = db.query(ECGAnalysis).filter(ECGAnalysis.id == ecg_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="ECG record not found.")
+
+    verify_patient_access(current_user=current_user, patient_id=record.user_id, db=db, request=request)
+
+    file_bytes = None
+    if record.file_data:
+        file_bytes = record.file_data
+    elif record.file_path and os.path.isfile(record.file_path):
+        with open(record.file_path, "rb") as f:
+            file_bytes = f.read()
+
+    if not file_bytes:
+        raise HTTPException(status_code=404, detail="Raw ECG file content not found in database or disk.")
+
+    filename = record.file_name or f"{record.id}.csv"
+    return Response(
+        content=file_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

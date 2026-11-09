@@ -175,7 +175,7 @@ class ECGOut(BaseModel):
 # ─────────────────────────────────────────────
 
 class TriageIn(BaseModel):
-    symptoms: List[bool] = Field(..., min_length=8, max_length=8)
+    symptoms: List[bool] = Field(..., min_length=8, max_length=12, description="List of boolean symptom & risk factor answers (8 to 12)")
     bp_sys: Optional[int] = None
     hr: Optional[int] = None
     lat: Optional[float] = None
@@ -218,3 +218,5 @@ class TriageOut(BaseModel):
     hospitals: List[HospitalOut]
     ambulances: List[AmbulanceOut]
     triage_id: str
+    urgency_tier: Optional[str] = None
+    action_headline: Optional[str] = None

@@ -948,6 +948,63 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
        `"notice": "THIS API DOES NOT ALERT OR DISPATCH EMERGENCY SERVICES. Dial 112 or your local emergency number directly from your phone."`
 - **Automated Test Evidence**:
   - Full backend test suite (`pytest tests/`): **80 passed**, 0 internal application warnings.
+
+---
+
+## Fix 2: Rework Emergency Triage Protocol
+
+### Requirements Addressed
+1. **Single Source of Truth (`shared/triage_rules.json`)**:
+   - Defined all clinical decision rules, question metadata, tier definitions, and action instructions once in a shared JSON file.
+   - Both backend ([`backend/app/ml/triage.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/app/ml/triage.py)) and frontend ([`src/modes/EmergencyMode.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/modes/EmergencyMode.tsx) via [`src/lib/triageEvaluator.ts`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/lib/triageEvaluator.ts)) load this exact data file. Online and offline evaluation results are guaranteed to be 100% mathematically identical.
+2. **Elimination of "Normal / Low-Risk" & "Wait a Week"**:
+   - Completely eradicated all instances of `"normal"`, `"low-risk"`, and instructions telling users to "wait a week" or "schedule within the week" from code, UI, translations, and tests.
+   - Lowest tier is strictly titled `no_emergency_warning_signs` and reads:
+     > *"No emergency warning signs were identified from your answers. If symptoms continue, get worse, or you are worried, seek medical care."*
+3. **Clinical Red-Flag & Emergency Escalation Rules**:
+   - Defined 6 cardinal red flags: crushing chest pain, radiating pain to arm/jaw, dyspnea at rest, cold sweats, fainting, and palpitations.
+   - Any single red-flag symptom immediately commands at least **"See a Doctor Today"** (`see_doctor_today`).
+   - Syncope / fainting alone $\to$ **"Call Emergency Services Now"** (`emergency`).
+   - Any two or more red flags together $\to$ **"Call Emergency Services Now"** (`emergency`).
+   - Cold sweats with nausea/lightheadedness $\to$ **"Call Emergency Services Now"** (`emergency`).
+   - Crushing chest pain with confusion (cardiogenic shock) $\to$ **"Call Emergency Services Now"** (`emergency`).
+4. **Cardiovascular Risk Stratification (Age $\ge 40$, Diabetes, Known CAD, Duration $> 1\text{ hr}$)**:
+   - Added questions for age over 40, diabetes, known heart disease, and symptom duration over 1 hour.
+   - Mathematically enforced **monotonicity**: risk factors only **raise** urgency, never lower it ($\forall A \subseteq B \implies \text{Tier}(B) \ge \text{Tier}(A)$).
+5. **Clinical Validation Disclaimer**:
+   - Included clinical disclaimer at the top of [`shared/triage_rules.json`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/shared/triage_rules.json):
+     `"These rules have NOT been clinically validated. Requires review by a qualified clinician before public release."`
+6. **Clinician Review Specification ([`RULES_FOR_CLINICIAN_REVIEW.md`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/RULES_FOR_CLINICIAN_REVIEW.md))**:
+   - Created a clean, comprehensive markdown table of every rule, rationale, and question, readable by an emergency physician/cardiologist in 10 minutes with approve/change review checkboxes and sign-off block.
+7. **Exhaustive 4,096 Combinatorial Safety Test Suite ([`backend/tests/test_triage_exhaustive_safety.py`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/backend/tests/test_triage_exhaustive_safety.py))**:
+   - Exhaustively tested all $2^{12} = 4,096$ boolean answer combinations across both backend and frontend evaluation logic.
+   - Verified 100% parity across all 4,096 combinations, all safety rules, and strict risk factor monotonicity.
+
+### Real Test Output
+- **Full Backend Pytest Suite**: **88 passed** in 66.51s
+  ```text
+  tests/test_triage_exhaustive_safety.py::test_shared_rules_file_exists_and_contains_clinical_comment PASSED [ 90%]
+  tests/test_triage_exhaustive_safety.py::test_lowest_tier_wording_matches_specification_exactly PASSED [ 92%]
+  tests/test_triage_exhaustive_safety.py::test_no_forbidden_reassurances_or_delays_in_any_tier[emergency] PASSED [ 93%]
+  tests/test_triage_exhaustive_safety.py::test_no_forbidden_reassurances_or_delays_in_any_tier[see_doctor_today] PASSED [ 94%]
+  tests/test_triage_exhaustive_safety.py::test_no_forbidden_reassurances_or_delays_in_any_tier[no_emergency_warning_signs] PASSED [ 95%]
+  tests/test_triage_exhaustive_safety.py::test_exhaustive_4096_answer_combinations_and_parity PASSED [ 96%]
+  tests/test_triage_exhaustive_safety.py::test_risk_factors_raise_urgency_never_lower_it PASSED [ 97%]
+  tests/test_triage_exhaustive_safety.py::test_vital_signs_always_escalate_to_emergency PASSED [ 98%]
+  ================== 88 passed, 7 warnings in 66.51s (0:01:06) ==================
+  ```
+- **Node Exhaustive Frontend Logic Evaluation**:
+  ```text
+  Running exhaustive evaluation across 4096 combinations...
+  [Frontend Exhaustive Parity] 100% of 4096 combinations passed all safety invariants!
+  Urgency Distribution: { emergency: 3840, see_doctor_today: 231, no_emergency_warning_signs: 25 }
+  ```
+- **Frontend TypeScript & Production Bundling**:
+  ```text
+  > cardiac-analyst@2.0.0 build
+  > tsc -b && vite build
+  ✓ built in 6.08s
+  ```
   - Production frontend build (`npm run build`): **Clean exit, 0 TypeScript errors**.
 
 

@@ -175,8 +175,8 @@ def submit_triage(
     """
     check_rate_limit(request, limit=120, window_seconds=60, scope="emergency_triage", db=db)
 
-    if len(data.symptoms) != 8:
-        raise HTTPException(status_code=422, detail="Exactly 8 symptom answers required.")
+    if len(data.symptoms) not in (8, 12):
+        raise HTTPException(status_code=422, detail="Expected 8 or 12 symptom and risk factor answers.")
 
     # ── Clinical assessment
     assessment = assess_emergency(

@@ -12,18 +12,10 @@ import HospitalMap from '../components/HospitalMap';
 import { api, type TriageResponse } from '../lib/api';
 import { translations } from '../lib/translations';
 import { useStore } from '../store/useStore';
-
-// Triage questions — same as backend (NICE CG95)
-const TRIAGE_QUESTIONS = [
-  "Are you experiencing crushing or squeezing chest pain?",
-  "Does the pain radiate to your left arm, jaw, or shoulder?",
-  "Are you short of breath even while resting?",
-  "Are you feeling nauseous or lightheaded / dizzy?",
-  "Is your heart racing or beating irregularly?",
-  "Are you sweating profusely or having cold sweats?",
-  "Have you fainted or nearly fainted recently?",
-  "Is your vision blurry or are you confused?",
-];
+import {
+  TRIAGE_QUESTION_DEFS,
+  evaluateTriage
+} from '../lib/triageEvaluator';
 
 type Step = 'triage' | 'analyzing' | 'result';
 
@@ -70,7 +62,7 @@ export const EmergencyMode: React.FC = () => {
     const next = { ...answers, [qIdx]: val };
     setAnswers(next);
 
-    if (Object.keys(next).length === TRIAGE_QUESTIONS.length) {
+    if (Object.keys(next).length === TRIAGE_QUESTION_DEFS.length) {
       await submitTriage(next);
     }
   };
@@ -79,7 +71,7 @@ export const EmergencyMode: React.FC = () => {
     setStep('analyzing');
     setApiError(null);
 
-    const symptoms = TRIAGE_QUESTIONS.map((_, i) => finalAnswers[i] ?? false);
+    const symptoms = TRIAGE_QUESTION_DEFS.map((_, i) => finalAnswers[i] ?? false);
 
     try {
       const result = await api.submitTriage({
@@ -91,46 +83,15 @@ export const EmergencyMode: React.FC = () => {
       setStep('result');
     } catch (err: any) {
       setApiError(err.message);
-      // Fallback result — deterministic offline evaluation matching NICE CG95
-      const yesCount = Object.values(finalAnswers).filter(Boolean).length;
-      const stemiSuspicious = Boolean(finalAnswers[0] && finalAnswers[1]);
-      const syncope = Boolean(finalAnswers[6]);
-      const chestPainDyspnea = Boolean(finalAnswers[0] && finalAnswers[2]);
-      const isEmergent = yesCount >= 5 || stemiSuspicious || syncope || chestPainDyspnea;
-      const isDoctor = yesCount >= 1 || Boolean(finalAnswers[0]) || Boolean(finalAnswers[2]);
-      const severity = isEmergent ? 'emergency' : isDoctor ? 'see_doctor' : 'normal';
-
-      const instructions = isEmergent ? [
-        '🚨 Call 112 immediately. Do not wait.',
-        'Sit or lie down in a comfortable position. Do NOT drive yourself.',
-        'Unlock your front door so emergency responders can enter.',
-        'Remain calm and rest quietly until emergency medical personnel arrive.',
-      ] : isDoctor ? [
-        'Visit a cardiologist or urgent care clinic within 24 hours.',
-        'Rest completely and avoid physical exertion.',
-        'If symptoms worsen at any point, call 112 immediately.',
-        'Do not drive — arrange transport with someone else.',
-      ] : [
-        'Your symptoms appear low-risk at this time.',
-        'Monitor yourself and rest if you feel unwell.',
-        'Maintain your daily vitals log to detect trends.',
-        'Schedule a routine check-up with your doctor within the week.',
-        'Call 112 if any new or worsening symptoms develop.',
-      ];
+      // Fallback result — deterministic offline evaluation matching shared rules exactly
+      const evalRes = evaluateTriage(finalAnswers);
 
       setTriageResult({
-        severity,
-        confidence: 0.8,
-        risk_score: isEmergent ? 70 : isDoctor ? 35 : 5,
-        yes_count: yesCount,
-        stemi_suspicious: stemiSuspicious,
-        combo_triggered: isEmergent,
-        vitals_red_flag: false,
-        instructions,
+        ...evalRes,
         hospitals: [],
         ambulances: [
-          { service: 'India Emergency', contact: '112', type: 'government' },
-          { service: 'Govt Ambulance', contact: '108', type: 'government' },
+          { service: 'India Emergency (112)', contact: '112', type: 'government', notes: 'National emergency helpline' },
+          { service: 'Govt Ambulance (108)', contact: '108', type: 'government', notes: 'Free medical ambulance' },
         ],
         triage_id: 'offline',
       });
@@ -145,9 +106,16 @@ export const EmergencyMode: React.FC = () => {
     setApiError(null);
   };
 
-  const progress = (Object.keys(answers).length / TRIAGE_QUESTIONS.length) * 100;
+  const totalQuestions = TRIAGE_QUESTION_DEFS.length;
+  const progress = (Object.keys(answers).length / totalQuestions) * 100;
   const currentQ = Object.keys(answers).length;
   const isEmergency = triageResult?.severity === 'emergency';
+  const isSeeDoctor = triageResult?.severity === 'see_doctor_today' || triageResult?.severity === 'see_doctor';
+
+  const currentDef = TRIAGE_QUESTION_DEFS[currentQ];
+  const questionTitle = currentDef
+    ? (language === 'hi' && currentDef.text_hi ? currentDef.text_hi : currentDef.text)
+    : '';
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -190,7 +158,7 @@ export const EmergencyMode: React.FC = () => {
             {/* Progress */}
             <div className="space-y-2">
               <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <span>{t.question} {currentQ + 1} {t.of} {TRIAGE_QUESTIONS.length}</span>
+                <span>{t.question} {currentQ + 1} {t.of} {totalQuestions}</span>
                 <span>{Math.round(progress)}% {t.complete}</span>
               </div>
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-border">
@@ -198,11 +166,28 @@ export const EmergencyMode: React.FC = () => {
               </div>
             </div>
 
-            {currentQ < TRIAGE_QUESTIONS.length ? (
+            {currentQ < totalQuestions && currentDef ? (
               <div className="space-y-8">
+                {/* Category Badge */}
+                <div className="flex justify-center">
+                  <span className={`text-[11px] font-black tracking-wider uppercase px-3 py-1 rounded-full border ${
+                    currentDef.category === 'red_flag'
+                      ? 'bg-red-50 border-red-200 text-red-700'
+                      : currentDef.category === 'risk_factor'
+                      ? 'bg-blue-50 border-blue-200 text-blue-700'
+                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                  }`}>
+                    {currentDef.category === 'red_flag'
+                      ? '⚠ Red Flag Symptom'
+                      : currentDef.category === 'risk_factor'
+                      ? 'Risk Factor Profile'
+                      : 'Associated Symptom'}
+                  </span>
+                </div>
+
                 <div className="min-h-[90px] flex items-center justify-center text-center">
                   <h3 className="text-xl sm:text-2xl font-bold text-navy-850 leading-snug">
-                    {TRIAGE_QUESTIONS[currentQ]}
+                    {questionTitle}
                   </h3>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -275,19 +260,25 @@ export const EmergencyMode: React.FC = () => {
             <div className={`p-6 sm:p-8 rounded-2xl text-white shadow-md space-y-6 ${
               isEmergency
                 ? 'bg-red-600'
-                : triageResult.severity === 'see_doctor'
+                : isSeeDoctor
                 ? 'bg-amber-600'
                 : 'bg-emerald-700'
             }`}>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-1">
                   <h2 className="text-3xl font-black uppercase tracking-tight">
-                    {isEmergency ? t.emergency : triageResult.severity === 'see_doctor' ? t.see_doctor_today : t.low_risk}
+                    {isEmergency
+                      ? t.emergency
+                      : isSeeDoctor
+                      ? t.see_doctor_today
+                      : t.no_emergency_warning}
                   </h2>
                   <p className="opacity-90 font-medium text-xs sm:text-sm">
-                    {isEmergency ? t.potential_risk :
-                      triageResult.severity === 'see_doctor' ? t.eval_needed :
-                      t.symptoms_non_emergent}
+                    {isEmergency
+                      ? t.potential_risk
+                      : isSeeDoctor
+                      ? t.eval_needed
+                      : t.symptoms_non_emergent}
                   </p>
                   <p className="text-xs opacity-80 font-mono">
                     Confidence: {(triageResult.confidence * 100).toFixed(0)}% · Calculated Risk: {triageResult.risk_score.toFixed(0)}%
@@ -315,8 +306,8 @@ export const EmergencyMode: React.FC = () => {
                 <div className="bg-white/10 p-3 rounded-xl flex items-center gap-3">
                   <CheckCircle className="w-4 h-4 text-white" />
                   <div>
-                    <p className="text-[10px] font-bold uppercase opacity-80">Positive Findings</p>
-                    <p className="font-bold">{triageResult.yes_count} of 8 symptoms reported</p>
+                    <p className="text-[10px] font-bold uppercase opacity-80">Reported Items</p>
+                    <p className="font-bold">{triageResult.yes_count} of {totalQuestions} questions answered YES</p>
                   </div>
                 </div>
               </div>

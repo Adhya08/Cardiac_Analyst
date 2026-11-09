@@ -11,12 +11,24 @@ env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 load_dotenv()  # Fallback to current working directory .env
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import init_db
 from .routers import auth, vitals, ecg, emergency, hospitals, chat, consent
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    print("\n" + "=" * 50)
+    print("  CARDIAC AI BACKEND v2.0 — LIVE")
+    print("  Docs: http://localhost:8000/docs")
+    print("=" * 50 + "\n")
+    yield
+
 
 # ── Create FastAPI app
 app = FastAPI(
@@ -31,6 +43,7 @@ app = FastAPI(
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ── CORS (allow React dev server)
@@ -63,14 +76,7 @@ app.include_router(consent.router)
 os.makedirs("uploads/ecg", exist_ok=True)
 
 
-# ── Events
-@app.on_event("startup")
-async def startup():
-    init_db()
-    print("\n" + "=" * 50)
-    print("  CARDIAC AI BACKEND v2.0 — LIVE")
-    print("  Docs: http://localhost:8000/docs")
-    print("=" * 50 + "\n")
+# ── Health check
 
 
 # ── Health check

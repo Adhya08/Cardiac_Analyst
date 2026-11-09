@@ -1,7 +1,7 @@
 """
 Pydantic Schemas — Request / Response validation models.
 """
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -32,14 +32,13 @@ class UserLoginIn(BaseModel):
 
 
 class UserProfileOut(UserProfileIn):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     email: Optional[str] = None
     role: Optional[str] = "patient"
     is_active: bool = True
     created_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 class TokenOut(BaseModel):

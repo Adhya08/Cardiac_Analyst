@@ -315,12 +315,12 @@ class LocalECGModel:
                 "Schedule a non-emergency clinical review with your primary healthcare provider.",
             ]
 
-        # GradCAM-style lead highlights
-        gradcam_highlights = []
+        # Rule-based lead highlights (heuristic ST wave deviation checks)
+        rule_based_highlights = []
         for lead in measurements["st_elevation_leads"]:
-            gradcam_highlights.append({"lead": lead, "finding": "ST elevation / prominent R wave", "severity": "detected"})
+            rule_based_highlights.append({"lead": lead, "finding": "ST elevation / prominent R wave", "severity": "detected"})
         for lead in measurements["st_depression_leads"]:
-            gradcam_highlights.append({"lead": lead, "finding": "ST depression / T-wave change", "severity": "possible"})
+            rule_based_highlights.append({"lead": lead, "finding": "ST depression / T-wave change", "severity": "possible"})
 
         return {
             "status": "success",
@@ -334,7 +334,8 @@ class LocalECGModel:
             "st_elevation_leads": measurements["st_elevation_leads"],
             "st_depression_leads": measurements["st_depression_leads"],
             "conditions": conditions_out,
-            "gradcam_highlights": gradcam_highlights,
+            "rule_based_highlights": rule_based_highlights,
+            "gradcam_highlights": rule_based_highlights,
             "overall_assessment": assessment,
             "urgency": urgency,
             "recommendations": recommendations,
@@ -493,6 +494,7 @@ class LocalECGModel:
             "st_elevation_leads": [],
             "st_depression_leads": [],
             "conditions": empty_conditions,
+            "rule_based_highlights": [],
             "gradcam_highlights": [],
             "overall_assessment": f"ANALYSIS UNAVAILABLE: {reason}",
             "urgency": "see_doctor_today",

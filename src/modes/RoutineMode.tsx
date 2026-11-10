@@ -8,7 +8,7 @@ import { RiskArc } from '../components/RiskArc';
 import {
   Activity, Plus, TrendingUp, History, Info,
   AlertCircle, CheckCircle2, Loader2, TrendingDown,
-  Heart, BarChart2
+  Heart, BarChart2, AlertTriangle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api, type HistoryRecord } from '../lib/api';
@@ -241,7 +241,7 @@ export const RoutineMode: React.FC = () => {
                     Patient Vitals Entry & ASCVD Assessment
                   </h3>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono">Server-side LightGBM Model</span>
+                <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-mono font-bold">Experimental, not validated</span>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -345,6 +345,14 @@ export const RoutineMode: React.FC = () => {
             <h3 className="text-xs font-bold text-navy-850 uppercase tracking-wider">
               {t.risk_assessment}
             </h3>
+
+            <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 text-amber-900 text-xs flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold uppercase tracking-wider text-[10px] block text-amber-800">Research Prototype</span>
+                <span className="text-[11px] leading-tight">Vitals risk score is <strong>experimental, not validated</strong> for independent clinical diagnostic decisions.</span>
+              </div>
+            </div>
 
             {risk ? (
               <div className="space-y-4">

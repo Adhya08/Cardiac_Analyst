@@ -71,14 +71,19 @@ export const RiskArc: React.FC<RiskArcProps> = ({ score, tier }) => {
         </span>
       </div>
 
-      <div className="mt-4 flex gap-6 w-full justify-center border-t border-border pt-4">
-        <div className="text-center">
-          <p className="text-[10px] text-slate-400 uppercase font-bold">Model Engine</p>
-          <p className="text-xs font-bold text-navy-850 font-mono">LightGBM</p>
-        </div>
-        <div className="text-center border-l border-border pl-6">
-          <p className="text-[10px] text-slate-400 uppercase font-bold">Reference Calibration</p>
-          <p className="text-xs font-bold text-navy-850">Framingham / ICMR</p>
+      <div className="mt-4 flex flex-col items-center gap-2 w-full justify-center border-t border-border pt-4">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+          Experimental, not validated
+        </span>
+        <div className="flex gap-6 w-full justify-center">
+          <div className="text-center">
+            <p className="text-[10px] text-slate-400 uppercase font-bold">Model Engine</p>
+            <p className="text-xs font-bold text-navy-850 font-mono">LightGBM (Research)</p>
+          </div>
+          <div className="text-center border-l border-border pl-6">
+            <p className="text-[10px] text-slate-400 uppercase font-bold">Reference Calibration</p>
+            <p className="text-xs font-bold text-navy-850">Framingham / ICMR</p>
+          </div>
         </div>
       </div>
     </div>

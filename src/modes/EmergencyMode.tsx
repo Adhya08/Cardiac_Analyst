@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import HospitalMap from '../components/HospitalMap';
-import { api, type TriageResponse } from '../lib/api';
+import { api, type TriageResponse, type Hospital } from '../lib/api';
 import { translations } from '../lib/translations';
 import { useStore } from '../store/useStore';
 import {
@@ -18,6 +18,66 @@ import {
 } from '../lib/triageEvaluator';
 
 type Step = 'triage' | 'analyzing' | 'result';
+
+const DEFAULT_OFFLINE_HOSPITALS: Hospital[] = [
+  {
+    name: 'All India Institute of Medical Sciences (AIIMS) - Emergency Cardiac Center',
+    address: 'Sri Aurobindo Marg, Ansari Nagar, New Delhi, Delhi 110029',
+    lat: 28.5672,
+    lon: 77.2100,
+    distance_km: 2.5,
+    rating: 4.8,
+    open_now: true,
+    contact: '+91-11-26588500',
+    maps_url: 'https://maps.google.com/?q=AIIMS+New+Delhi+Emergency',
+  },
+  {
+    name: 'Fortis Escorts Heart Institute (24x7 Cath Lab & Emergency)',
+    address: 'Okhla Road, Sukhdev Vihar, New Delhi, Delhi 110025',
+    lat: 28.5603,
+    lon: 77.2790,
+    distance_km: 5.1,
+    rating: 4.6,
+    open_now: true,
+    contact: '+91-11-47135000',
+    maps_url: 'https://maps.google.com/?q=Fortis+Escorts+Heart+Institute',
+  },
+  {
+    name: 'Apollo Hospital - Emergency & Interventional Cardiology',
+    address: 'Sarita Vihar, Delhi Mathura Road, New Delhi, Delhi 110076',
+    lat: 28.5355,
+    lon: 77.2874,
+    distance_km: 7.8,
+    rating: 4.7,
+    open_now: true,
+    contact: '+91-11-26925858',
+    maps_url: 'https://maps.google.com/?q=Indraprastha+Apollo+Hospital',
+  },
+  {
+    name: 'Max Super Speciality Hospital - Cardiac Emergency',
+    address: '1, 2, Press Enclave Marg, Saket, New Delhi, Delhi 110017',
+    lat: 28.5284,
+    lon: 77.2115,
+    distance_km: 6.2,
+    rating: 4.5,
+    open_now: true,
+    contact: '+91-11-26515050',
+    maps_url: 'https://maps.google.com/?q=Max+Hospital+Saket',
+  },
+];
+
+const getCachedHospitals = (): Hospital[] => {
+  try {
+    const raw = localStorage.getItem('cardiac_cached_hospitals');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return DEFAULT_OFFLINE_HOSPITALS;
+};
 
 export const EmergencyMode: React.FC = () => {
   const { language } = useStore();
@@ -79,19 +139,28 @@ export const EmergencyMode: React.FC = () => {
         lat: location?.lat,
         lon: location?.lon,
       });
+      if (result.hospitals && result.hospitals.length > 0) {
+        try {
+          localStorage.setItem('cardiac_cached_hospitals', JSON.stringify(result.hospitals));
+        } catch {
+          // ignore localStorage errors
+        }
+      }
       setTriageResult(result);
       setStep('result');
     } catch (err: any) {
       setApiError(err.message);
       // Fallback result — deterministic offline evaluation matching shared rules exactly
       const evalRes = evaluateTriage(finalAnswers);
+      const offlineHospitals = getCachedHospitals();
 
       setTriageResult({
         ...evalRes,
-        hospitals: [],
+        hospitals: offlineHospitals,
         ambulances: [
-          { service: 'India Emergency (112)', contact: '112', type: 'government', notes: 'National emergency helpline' },
-          { service: 'Govt Ambulance (108)', contact: '108', type: 'government', notes: 'Free medical ambulance' },
+          { service: 'National Emergency Helpline (112)', contact: '112', type: 'government', notes: 'Immediate all-in-one emergency dispatch (police/fire/medical)' },
+          { service: 'Govt Medical Ambulance (108)', contact: '108', type: 'government', notes: '24/7 free cardiac ambulance & basic/advanced life support' },
+          { service: 'Govt Emergency Transport (102)', contact: '102', type: 'government', notes: 'Free medical patient referral and transfer helpline' },
         ],
         triage_id: 'offline',
       });
@@ -339,7 +408,15 @@ export const EmergencyMode: React.FC = () => {
                       <Navigation className="w-4 h-4 text-teal-600" />
                       {t.nearest_hospitals}
                     </h3>
-                    <span className="text-[10px] text-slate-400 font-mono">Live Google Places API</span>
+                    <span className="text-[10px] font-mono font-bold">
+                      {triageResult.triage_id === 'offline' ? (
+                        <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                          Offline Emergency Directory
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Live Hospital Locator</span>
+                      )}
+                    </span>
                   </div>
 
                   {location && triageResult.hospitals.length > 0 && (

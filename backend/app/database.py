@@ -54,7 +54,8 @@ def init_db():
             ecg_cols = [c["name"] for c in inspector.get_columns("ecg_analyses")]
             with engine.begin() as conn:
                 if "file_data" not in ecg_cols:
-                    conn.execute(text("ALTER TABLE ecg_analyses ADD COLUMN file_data BLOB"))
+                    col_type = "BYTEA" if ("postgres" in DATABASE_URL or "postgresql" in DATABASE_URL) else "BLOB"
+                    conn.execute(text(f"ALTER TABLE ecg_analyses ADD COLUMN file_data {col_type}"))
     except Exception as e:
         print(f"[DB] Migration check notice: {e}")
 

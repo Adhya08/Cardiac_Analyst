@@ -1,6 +1,6 @@
 # ❤️ Cardiac Analyst v2.0
 
-> **Clinical-Grade, AI-Assisted Cardiac Risk Stratification, 12-Lead ECG Analysis, and Emergency Triage System**  
+> **Academic Research & Educational Prototype for Cardiac Risk Stratification, 12-Lead ECG Analysis, and Emergency Triage**  
 > *A responsive Progressive Web App (PWA) running locally in any browser with deterministic machine learning, explainable risk modeling, and zero generative AI in the diagnostic pathway.*
 
 [![React 19](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev)

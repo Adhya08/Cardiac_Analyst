@@ -1,0 +1,31 @@
+# Gitleaks custom configuration for Cardiac Analyst
+title = "Cardiac Analyst Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "kaggle-api-token"
+description = "Kaggle API Token (KGAT_)"
+regex = '''KGAT_[0-9a-zA-Z]{20,}'''
+keywords = ["KGAT_"]
+
+[[rules]]
+id = "neon-postgres-token"
+description = "Neon Database API / DB Token (npg_)"
+regex = '''npg_[0-9a-zA-Z]{16,}'''
+keywords = ["npg_"]
+
+[[rules]]
+id = "database-connection-url-with-password"
+description = "PostgreSQL or MySQL connection URL with cleartext password"
+regex = '''(?i)(?:postgres(?:ql)?|mysql)://[a-zA-Z0-9_\-\.]+:[^@\s/]+@[a-zA-Z0-9_\-\.]+'''
+keywords = ["postgres://", "postgresql://"]
+
+[rules.allowlist]
+description = "Allow harmless documentation placeholders and dummy unit test fixtures"
+paths = [
+    '''backend/tests/test_database_and_migrations\..*''',
+    '''backend/tests/__pycache__/test_database_and_migrations\..*''',
+    '''KAGGLE_WORKFLOW\.md''',
+]

@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Pre-commit secret scanning hook using Gitleaks
+# Blocks commits containing API keys, private tokens, passwords, or connection strings.
+
+echo "🔍 Running pre-commit secret scan..."
+
+# Try gitleaks command or common installation locations
+GITLEAKS_CMD="gitleaks"
+if ! command -v gitleaks &> /dev/null; then
+    WINGET_GITLEAKS=$(find "$LOCALAPPDATA/Microsoft/WinGet/Packages" -name "gitleaks.exe" 2>/dev/null | head -n 1)
+    if [ -n "$WINGET_GITLEAKS" ] && [ -x "$WINGET_GITLEAKS" ]; then
+        GITLEAKS_CMD="$WINGET_GITLEAKS"
+    fi
+fi
+
+if command -v "$GITLEAKS_CMD" &> /dev/null || [ -x "$GITLEAKS_CMD" ]; then
+    "$GITLEAKS_CMD" protect --staged --redact --verbose
+    SCAN_EXIT=$?
+    if [ $SCAN_EXIT -ne 0 ]; then
+        echo ""
+        echo "❌ COMMIT BLOCKED: Gitleaks detected sensitive credentials in staged files."
+        echo "👉 Remove the secret, add it to environment variables or .env, and try again."
+        exit 1
+    fi
+    echo "✅ Secret scan passed cleanly. No secrets detected."
+    exit 0
+else
+    echo "⚠️ Warning: gitleaks not found on PATH. Falling back to python secret scan..."
+    python -c "
+import subprocess, sys, re
+
+# Quick check on staged diff
+res = subprocess.run(['git', 'diff', '--cached', '-U0', '--no-color'], capture_output=True, text=True)
+staged_diff = res.stdout
+
+PATTERNS = [
+    ('Google API Key', r'AIza[0-9A-Za-z\\-_]{35}'),
+    ('Kaggle Token', r'KGAT_[0-9A-Za-z]{20,}'),
+    ('Neon Token', r'npg_[0-9A-Za-z]{16,}'),
+    ('DB URL with Password', r'(?i)postgres(?:ql)?://[a-zA-Z0-9_\\-\\.]+:[^@\\s/]+@[a-zA-Z0-9_\\-\\.]+'),
+    ('Private Key', r'-----BEGIN [A-Z ]+ PRIVATE KEY-----'),
+]
+
+has_error = False
+for line in staged_diff.splitlines():
+    if line.startswith('+') and not line.startswith('+++'):
+        added = line[1:]
+        for name, pat in PATTERNS:
+            if re.search(pat, added):
+                print(f'❌ BLOCKED: Staged diff matches secret pattern: {name}')
+                has_error = True
+
+if has_error:
+    sys.exit(1)
+"
+    FALLBACK_EXIT=$?
+    if [ $FALLBACK_EXIT -ne 0 ]; then
+        echo "❌ COMMIT BLOCKED: Fallback secret scanner detected sensitive patterns."
+        exit 1
+    fi
+    echo "✅ Fallback secret scan passed cleanly."
+    exit 0
+fi

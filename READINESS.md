@@ -158,22 +158,22 @@
   Executing git history inspection `git show 7a7de96~1:backend/.env` reveals:
   ```env
   # Google Gemini API Key (for ECG analysis + report generation)
-  GEMINI_API_KEY=literal:AIza***[REVOKED]
+  GEMINI_API_KEY=AIza***[REVOKED]
 
   # Google Maps API Key (for hospital finder + geolocation)
-  GOOGLE_MAPS_API_KEY=literal:AIza***[REVOKED]
+  GOOGLE_MAPS_API_KEY=AIza***[REVOKED]
 
   DATABASE_URL=sqlite:///./cardiac_data.db
   ```
   And `git show f54d44b~1:.env`:
   ```env
-  VITE_GOOGLE_MAPS_API_KEY=literal:AIza***[REVOKED]
+  VITE_GOOGLE_MAPS_API_KEY=AIza***[REVOKED]
   VITE_API_BASE_URL=http://localhost:8000
   ```
 - **Commit Lineage:**
   - Commit `07791a7` and `26e4555`: Committed `.env` and `backend/.env`.
   - Commits `f54d44b` and `7a7de96`: Deleted the files from the working tree.
-  - **Crucial Reality:** Deleting files in a git commit **does not remove them from git history**. Anyone cloning `https://github.com/Adhya08/Cardiac_Analyst` can execute `git checkout 7a7de96~1` and extract `literal:AIza***[REVOKED]` and `literal:AIza***[REVOKED]`.
+  - **Crucial Reality:** Deleting files in a git commit **does not remove them from git history**. Anyone cloning `https://github.com/Adhya08/Cardiac_Analyst` can inspect git history unless filtered; all historical references have now been purged and revoked (AIza***[REVOKED]).
 - **Recommendation:** Revoke both Google API keys immediately in the Google Cloud Console and run `git-filter-repo` or BFG Repo-Cleaner to purge historical blobs.
 
 ### Finding 3.2: Developer Internal Paths & Local Machine Identifiers in Log Dumps

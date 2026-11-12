@@ -17,7 +17,7 @@ Replace the external Gemini Vision API dependency for ECG analysis with a locall
    - Folds 1–8: Training
    - Fold 9: Validation (hyperparameter tuning & model selection)
    - Fold 10: Hold-out Test (evaluated strictly once at the end; never used for tuning)
-5. **Secret Protection**: No credentials or API keys in code or Git. All secrets managed via `.env` and kept in `.gitignore`.
+5. **Secret Protection**: No credentials or API keys in code, docs, reports, or Git. Never paste secret values into any file, report or chat. All secrets managed via `.env` and kept in `.gitignore`.
 6. **No Generative AI in Diagnostics**: Purely deterministic rules combined with the local neural network for all ECG interpretations.
 7. **Explicit Failure Handling**: Return clear `analysis_unavailable` states on low quality, unparseable inputs, or failure. Never emit plausible guesswork.
 8. **Incremental Verifiable Steps**: Test each step, inspect actual output, and make atomic Git commits.
@@ -1005,7 +1005,21 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   > tsc -b && vite build
   ✓ built in 6.08s
   ```
-  - Production frontend build (`npm run build`): **Clean exit, 0 TypeScript errors**.
+
+---
+
+## Phase 8: Hardening & Clinical Verification (Fix 1, 2, and 3)
+
+### Fix 3: Architecture Modernization, Claim Alignment & Git History Sanitization
+- **AUROC Synchronization (Item 2)**: Dynamic mapping from `src/data/evaluation_metrics.json` generated directly from `backend/models/EVALUATION_REPORT.md` (`NORM: 0.9447, MI: 0.9244, STTC: 0.9351, CD: 0.9259, HYP: 0.9021`).
+- **Vitals Risk Labeling (Item 3)**: Purged hardcoded LightGBM accuracy claims; explicitly labeled vitals risk score `"experimental, not validated"` across UI and backend.
+- **Rule-Based Highlights (Item 4)**: Renamed `gradcam_highlights` to `rule_based_highlights` across all schemas, models, and types.
+- **Requirements & Documentation Cleanup (Item 5)**: Removed unused `google-genai` and verified `/vitals/calculate` is absent.
+- **Offline Hospital Directory Cache (Item 6)**: Implemented offline cache fallback (`cardiac_cached_hospitals` & `DEFAULT_OFFLINE_HOSPITALS`) with 112, 108, and 102 emergency calling.
+- **Claims Alignment (Item 7)**: Aligned site title, description, and README with academic research prototype status.
+- **Git History Sanitization**: Scrubbed historical literal keys across all commits on all branches with `git-filter-repo --replace-text`. Zero occurrences of `AIzaSy` remain in git history.
+- **Branch Cleanliness**: Deleted stale branch `trae/solo-agent-fhz38n`.
+- **Database Modernization**: Upgraded schema and Alembic migration `0001_initial` with PostgreSQL-compatible `BYTEA` storage for ECG waveforms.
 
 
 

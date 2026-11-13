@@ -46,15 +46,16 @@ def _make_dummy_request(headers=None, client_host="10.0.0.1"):
     return Request(scope)
 
 
-def test_client_ip_rejects_spoofed_leftmost_header_behind_vercel():
+def test_client_ip_rejects_spoofed_leftmost_header_behind_vercel(monkeypatch):
     """
     Scenario: Client sends forged 'X-Forwarded-For: 203.0.113.199'.
     Vercel receives from real client 198.51.100.5, sets X-Vercel-Forwarded-For: 198.51.100.5
     and appends 198.51.100.5 to X-Forwarded-For.
     Render receives from Vercel (76.76.21.21) and appends 76.76.21.21.
     X-Forwarded-For header received by app: '203.0.113.199, 198.51.100.5, 76.76.21.21'
-    Expected: Real client IP is 198.51.100.5, NOT the spoofed 203.0.113.199.
+    Expected: When 76.76.21.21 is in TRUSTED_PROXY_IPS, real client IP is 198.51.100.5.
     """
+    monkeypatch.setenv("TRUSTED_PROXY_IPS", "76.76.21.21")
     req = _make_dummy_request(
         headers={
             "x-forwarded-for": "203.0.113.199, 198.51.100.5, 76.76.21.21",
@@ -83,6 +84,26 @@ def test_client_ip_direct_render_proxy():
     )
     resolved_ip = get_client_ip(req)
     assert resolved_ip == "198.51.100.22", f"Expected real IP 198.51.100.22, got: {resolved_ip}"
+
+
+def test_client_ip_direct_render_rejects_forged_vercel_header():
+    """
+    Scenario: Direct request to Render with forged X-Vercel-Forwarded-For.
+    Attacker supplies 'X-Vercel-Forwarded-For: 1.1.1.1' directly to Render.
+    Render appends real client IP 198.51.100.22 to X-Forwarded-For.
+    Expected: Because 198.51.100.22 is not in TRUSTED_PROXY_IPS, forged header is ignored
+    and real client IP 198.51.100.22 is returned.
+    """
+    req = _make_dummy_request(
+        headers={
+            "x-forwarded-for": "198.51.100.22",
+            "x-vercel-forwarded-for": "1.1.1.1",
+        },
+        client_host="10.0.4.12",
+    )
+    resolved_ip = get_client_ip(req)
+    assert resolved_ip == "198.51.100.22", f"Expected real client IP 198.51.100.22, got forged: {resolved_ip}"
+
 
 
 def test_rate_limit_and_lockout_persists_in_database():

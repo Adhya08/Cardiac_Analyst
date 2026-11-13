@@ -19,6 +19,7 @@ Storage:
   and survives service restarts.
 """
 
+import os
 import time
 import ipaddress
 import uuid
@@ -57,38 +58,60 @@ def _clean_ip(ip_str: str) -> str:
     return ip_str
 
 
+def _is_trusted_proxy(ip_str: str) -> bool:
+    """Check if an IP address matches any trusted proxy IP or CIDR range."""
+    trusted_raw = os.getenv("TRUSTED_PROXY_IPS", "")
+    if not trusted_raw:
+        return False
+    trusted_list = [t.strip() for t in trusted_raw.split(",") if t.strip()]
+    clean = _clean_ip(ip_str)
+    try:
+        candidate_ip = ipaddress.ip_address(clean)
+        for trusted in trusted_list:
+            if "/" in trusted:
+                if candidate_ip in ipaddress.ip_network(trusted, strict=False):
+                    return True
+            else:
+                if candidate_ip == ipaddress.ip_address(trusted):
+                    return True
+    except (ValueError, AttributeError):
+        pass
+    return False
+
+
 def get_client_ip(request: Request) -> str:
     """
     Extract verified client IP from trusted reverse proxy headers.
     Never trusts client-supplied leftmost X-Forwarded-For header.
+    Only trusts X-Vercel-Forwarded-For if the immediate upstream hop
+    (rightmost X-Forwarded-For) is a verified trusted proxy in TRUSTED_PROXY_IPS.
+    On direct connections to Render, uses the rightmost hop appended by Render.
     """
     headers = request.headers
-
-    # 1. Check if request came through Vercel Edge Proxy
-    # Vercel strips client-supplied x-vercel-forwarded-for and sets it to the socket IP.
-    vercel_forwarded = headers.get("x-vercel-forwarded-for")
-    if vercel_forwarded:
-        first_ip = vercel_forwarded.split(",")[0].strip()
-        if _is_valid_ip(first_ip):
-            return _clean_ip(first_ip)
-
-    # 2. Inspect X-Forwarded-For from the RIGHT (trusted proxy chain)
     forwarded = headers.get("x-forwarded-for")
+
     if forwarded:
         parts = [p.strip() for p in forwarded.split(",") if p.strip()]
         if parts:
-            is_vercel = bool(headers.get("x-vercel-id") or headers.get("x-vercel-deployment-url"))
-            if is_vercel and len(parts) >= 2:
-                # Hop chain: [untrusted client spoof...], [Client IP (by Vercel)], [Vercel IP (by Render)]
-                candidate = parts[-2]
-            else:
-                # Direct Render proxy (1 hop): [untrusted client spoof...], [Client IP (by Render)]
-                candidate = parts[-1]
+            immediate_upstream = parts[-1]
 
-            if _is_valid_ip(candidate):
-                return _clean_ip(candidate)
+            # 1. Check if request came through a verified trusted proxy (e.g. Vercel)
+            if _is_trusted_proxy(immediate_upstream):
+                vercel_forwarded = headers.get("x-vercel-forwarded-for")
+                if vercel_forwarded:
+                    first_ip = vercel_forwarded.split(",")[0].strip()
+                    if _is_valid_ip(first_ip):
+                        return _clean_ip(first_ip)
+                if len(parts) >= 2 and _is_valid_ip(parts[-2]):
+                    return _clean_ip(parts[-2])
 
-    # 3. Fallback to direct client socket host
+            # 2. Direct connection to Render (immediate upstream is NOT a trusted proxy):
+            # Render appended the real client IP as the rightmost entry.
+            # Any forged x-vercel-forwarded-for is intentionally ignored.
+            if _is_valid_ip(immediate_upstream):
+                return _clean_ip(immediate_upstream)
+
+    # Fallback to direct client socket host
     if request.client and request.client.host:
         candidate = request.client.host
         if _is_valid_ip(candidate):

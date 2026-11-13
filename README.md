@@ -220,10 +220,9 @@ The backend exposes an asynchronous REST API under the `/api/v1` namespace. Inte
 | `POST` | `/api/v1/ecg/upload` | Ingests a 12-lead digital ECG signal (CSV, NPY, JSON, WFDB) and returns deterministic measurements & 5-class model scores. |
 | `GET` | `/api/v1/ecg/history` | Retrieves historical ECG upload sessions for the active user. |
 | `GET` | `/api/v1/ecg/{ecg_id}` | Retrieves full diagnostic measurements and scores for a specific ECG session. |
-| `POST` | `/api/v1/vitals/calculate` | Computes 10-year ASCVD risk, risk tier, and TreeSHAP feature contributions from clinical vitals. |
-| `POST` | `/api/v1/vitals` | Logs daily vitals record to the local SQLite database. |
+| `POST` | `/api/v1/vitals` | Evaluates clinical vitals (TreeSHAP) and persists daily health record to the database. |
 | `GET` | `/api/v1/vitals/history` | Returns longitudinal vitals history with 30-day time-series arrays. |
-| `POST` | `/api/v1/emergency/triage` | Evaluates 8 symptom flags against NICE CG95 acute coronary syndrome rules. |
+| `POST` | `/api/v1/emergency/triage` | Evaluates 12 symptom flags and risk factors against clinical acute coronary syndrome rules. |
 | `GET` | `/api/v1/hospitals/nearby` | Finds nearby emergency hospitals and cath labs via Overpass / OpenStreetMap. |
 | `GET` | `/health` | Service health check returning uptime and ONNX engine status. |
 

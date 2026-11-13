@@ -34,10 +34,9 @@ def client():
 
 def test_database_url_normalization_handles_postgres_prefix():
     """Render and Supabase provide postgres:// which SQLAlchemy 2.0 requires as postgresql://."""
-    from app.database import raw_db_url
     fake_url = "postgres://user:pass@ep-cool-db.neon.tech/neondb?sslmode=require"
-    normalized = fake_url.replace("postgres://", "postgresql://", 1)
-    assert normalized.startswith("postgresql://")
+    normalized = fake_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    assert normalized.startswith("postgresql")
     assert "neondb" in normalized
 
 

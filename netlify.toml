@@ -4,13 +4,13 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://cardiac-analyst-backend.onrender.com/api/:splat"
+  to = "https://cardiac-backend-nhl5.onrender.com/api/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/uploads/*"
-  to = "https://cardiac-analyst-backend.onrender.com/uploads/:splat"
+  to = "https://cardiac-backend-nhl5.onrender.com/uploads/:splat"
   status = 200
   force = true
 

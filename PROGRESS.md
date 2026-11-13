@@ -1061,6 +1061,66 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   - While Git excludes `.env` from version control, OneDrive synchronizes all local files to the Microsoft Cloud automatically.
   - Historical snapshots of local `.env` files can exist in OneDrive cloud versioning and cross-device syncing, meaning sensitive API tokens must be managed in platform secret stores (Render/Vercel/Neon) rather than kept unencrypted in OneDrive-synced directories.
 
+---
+
+## Phase 10: Neon Serverless PostgreSQL Migration & Backend Architecture
+
+### 1. Database Architecture & Alembic Head Upgrade
+- **Postgres Driver Normalization**: Configured `backend/app/database.py` to route both `postgres://` and `postgresql://` URIs reliably through `postgresql+psycopg2://`.
+- **Serverless Resilience & Pooling**:
+  - `pool_pre_ping=True`: Detects severed or dead connections before executing queries.
+  - `pool_recycle=300`: Automatically recycles connection pool handles every 5 minutes to prevent stale TCP sockets when Neon serverless computes suspend.
+  - `connect_args={"connect_timeout": 15}`: Provides generous headroom for cold-boot resumption from Neon sleep states without dropping requests.
+- **Alembic Initial Migration (`0001_initial`)**:
+  - Removed implicit module-import-time table creation (`init_db()`) to ensure schema state is purely governed by Alembic.
+  - Executed `alembic upgrade head` against pristine, empty Neon PostgreSQL database:
+    ```text
+    INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+    INFO  [alembic.runtime.migration] Will assume transactional DDL.
+    INFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial, initial_schema_with_grants_consent_and_audit
+    ```
+  - Created and verified all 10 core tables: `users`, `ecg_analyses`, `vitals_logs`, `access_audit_logs`, `login_lockouts`, `rate_limit_events`, `triage_events`, `user_consents`, `patient_clinician_grants`, `alembic_version`.
+
+### 2. Full Test Suite Verification Against Neon PostgreSQL
+- Executed the entire test suite against the live Neon PostgreSQL database:
+  ```text
+  ============================= test session starts =============================
+  platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0
+  rootdir: C:\Users\Vivan\OneDrive\Documents\PROJECTS\Cardiac_Analyst\backend
+  plugins: anyio-4.15.1, platformdirs-4.13.5
+  collected 97 items
+
+  tests\test_access_audit_log.py ...                                       [  3%]
+  tests\test_admin_bootstrap_cli.py ..                                     [  5%]
+  tests\test_auth_access_control.py ..........                             [ 15%]
+  tests\test_client_ip_and_rate_limits.py ....                             [ 19%]
+  tests\test_clinician_grants_by_email.py ....                             [ 23%]
+  tests\test_database_and_migrations.py ...                                [ 26%]
+  tests\test_ecg_pipeline.py ..........                                    [ 37%]
+  tests\test_emergency_path.py .........                                   [ 46%]
+  tests\test_emergency_public_access.py ......                             [ 52%]
+  tests\test_evaluation_report_sync.py .                                   [ 53%]
+  tests\test_input_validation.py .........                                 [ 62%]
+  tests\test_jwt_secret_enforcement.py ...                                 [ 65%]
+  tests\test_login_protection.py ....                                      [ 70%]
+  tests\test_role_hardening.py ...                                         [ 73%]
+  tests\test_route_security_audit.py ..                                    [ 75%]
+  tests\test_server_side_consent.py ...                                    [ 78%]
+  tests\test_staging_verification.py .....                                 [ 83%]
+  tests\test_strict_health_data_auth.py ...                                [ 86%]
+  tests\test_third_party_data_flow.py ....                                 [ 90%]
+  tests\test_triage_exhaustive_safety.py ........                          [ 98%]
+  tests\test_uploads_protection.py .                                       [100%]
+
+  ================= 97 passed, 8 warnings in 729.75s (0:12:09) ==================
+  ```
+
+### 3. Unified Hosting Architecture
+- Standardized backend reverse proxy routing across both `vercel.json` and `netlify.toml` to the active Render service:
+  `https://cardiac-backend-nhl5.onrender.com`
+- Total Infrastructure Cost: **$0.00 / month** (Render Free Web Service + Neon Serverless Free Tier + Vercel/Netlify Free Tier).
+
+
 
 
 

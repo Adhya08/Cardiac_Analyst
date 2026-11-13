@@ -36,6 +36,7 @@ def upgrade() -> None:
         sa.Column('has_family_history', sa.Boolean(), server_default=sa.false(), nullable=True),
         sa.Column('height_cm', sa.Float(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('updated_at', sa.DateTime(), nullable=True),
     )
     op.create_index('ix_users_email', 'users', ['email'], unique=True)
     op.create_index('ix_users_invite_code', 'users', ['invite_code'], unique=True)

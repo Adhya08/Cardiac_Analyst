@@ -10,12 +10,14 @@ Verifies:
 """
 
 import time
+import uuid
 import pytest
 from starlette.requests import Request
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.database import SessionLocal, init_db
+from app.models_db import LoginLockout, RateLimitEvent
 from app.rate_limiter import (
     get_client_ip,
     check_rate_limit,
@@ -88,9 +90,8 @@ def test_rate_limit_and_lockout_persists_in_database():
     Verifies that login lockouts and rate limit events persist to the database
     so multiple server workers / restarts share the lockout state.
     """
-    from app.models_db import RateLimitEvent, LoginLockout
     db = SessionLocal()
-    test_key = "test_user_lockout@hospital.org"
+    test_key = f"test_user_lockout_{uuid.uuid4().hex[:8]}@hospital.org"
     
     # Record 5 failures
     for _ in range(5):

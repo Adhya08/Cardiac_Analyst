@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://cardiac-backend-nhl5.onrender.com/api/:path*"
+      "destination": "https://cardiac-backend-staging.onrender.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://cardiac-backend-nhl5.onrender.com/uploads/:path*"
+      "destination": "https://cardiac-backend-staging.onrender.com/uploads/:path*"
     }
   ]
 }

@@ -13,6 +13,12 @@ import uuid
 import time
 import requests
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 def run_staging_checks(base_url: str):
     base_url = base_url.rstrip("/")
     print(f"\n=======================================================")

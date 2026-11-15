@@ -7,7 +7,7 @@
 - **Output Activation**: Multi-label Sigmoid (5 independent binary probabilities)
 - **Target Superclasses**: `NORM` (Normal), `MI` (Myocardial Infarction), `STTC` (ST/T Changes), `CD` (Conduction Disturbance), `HYP` (Hypertrophy)
 - **Training Date**: 2026-10-25
-- **Kaggle Kernel**: `cyberfocus2410/cardiac-analyst-phase-4-full-training`
+- **Kaggle Kernel**: `adhya08/cardiac-analyst-phase-4-full-training`
 - **Trained Artifact**: `best_model.keras`
 
 ## Intended Use

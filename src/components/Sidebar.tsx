@@ -1,9 +1,10 @@
 import React from 'react';
 import {
   LayoutDashboard, Activity, Heart, Clock, AlertTriangle,
-  ChevronLeft, ChevronRight, Settings, HeartPulse
+  ChevronLeft, ChevronRight, Settings, HeartPulse, LogOut, LogIn
 } from 'lucide-react';
 import { useStore, type NavigationMode } from '../store/useStore';
+import { isAuthenticated } from '../lib/api';
 
 interface NavItem {
   id: NavigationMode;
@@ -65,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onOpenProfile,
 }) => {
-  const { currentMode, setMode, isSidebarCollapsed, toggleSidebar, language, backendHealth } = useStore();
+  const { currentMode, setMode, isSidebarCollapsed, toggleSidebar, language, backendHealth, authUser, logout, openAuthModal } = useStore();
 
   const handleSelect = (mode: NavigationMode) => {
     setMode(mode);
@@ -208,11 +209,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-navy-850 hover:bg-white transition-all border border-transparent hover:border-border ${
               isSidebarCollapsed ? 'justify-center' : ''
             }`}
-            title="Configure Patient Profile"
+            title="Configure Patient Profile & Demographics"
           >
             <Settings className="w-4 h-4 text-slate-400" />
             {!isSidebarCollapsed && <span>Patient Settings</span>}
           </button>
+
+          {/* Dedicated Sign Out / Sign In Action */}
+          {isAuthenticated() ? (
+            <button
+              onClick={logout}
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-200 ${
+                isSidebarCollapsed ? 'justify-center' : ''
+              }`}
+              title={`Sign Out of Patient Account ${authUser?.email ? `(${authUser.email})` : ''}`}
+            >
+              <LogOut className="w-4 h-4 text-rose-500 flex-shrink-0" />
+              {!isSidebarCollapsed && (
+                <span className="truncate text-left">
+                  Sign Out {authUser?.name ? `(${authUser.name})` : ''}
+                </span>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={() => openAuthModal('account')}
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-teal-700 hover:text-teal-800 hover:bg-teal-50 transition-all border border-teal-200/80 ${
+                isSidebarCollapsed ? 'justify-center' : ''
+              }`}
+              title="Sign In or Register Patient Account"
+            >
+              <LogIn className="w-4 h-4 text-teal-600" />
+              {!isSidebarCollapsed && <span>Sign In / Register</span>}
+            </button>
+          )}
         </div>
       </aside>
     </>

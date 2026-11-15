@@ -6,10 +6,11 @@ import { api, getStoredUser, type UserProfile } from '../lib/api';
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'demographics' | 'account';
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
-  const { user, setUser } = useStore();
+export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, initialTab }) => {
+  const { user, setUser, setAuthUser, logout } = useStore();
   const [activeTab, setActiveTab] = useState<'demographics' | 'account'>('account');
 
   // Account state
@@ -35,10 +36,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   useEffect(() => {
     const stored = getStoredUser();
     setCurrentUser(stored);
-    if (stored) {
+    setAuthUser(stored);
+    if (initialTab) {
+      setActiveTab(initialTab);
+    } else if (stored) {
       setActiveTab('demographics');
+    } else {
+      setActiveTab('account');
     }
-  }, [isOpen]);
+  }, [isOpen, initialTab, setAuthUser]);
 
   useEffect(() => {
     if (user) {
@@ -65,16 +71,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         const res = await api.register({
           email,
           password,
-          name: form.name || 'Clinician',
+          name: form.name || 'Patient',
           age: Number(form.age) || 45,
           sex: form.sex || 'Male',
         });
         setCurrentUser(res.user);
+        setAuthUser(res.user);
         setUser(res.user);
         setActiveTab('demographics');
       } else {
         const res = await api.login({ email, password });
         setCurrentUser(res.user);
+        setAuthUser(res.user);
         setUser(res.user);
         setActiveTab('demographics');
       }
@@ -86,9 +94,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   };
 
   const handleLogout = () => {
-    api.logout();
+    logout();
     setCurrentUser(null);
     setAuthMode('login');
+    setActiveTab('account');
   };
 
   const handleSaveDemographics = async (e: React.FormEvent) => {
@@ -174,21 +183,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 <div className="p-4 rounded-xl bg-teal-50/60 border border-teal-200 flex items-center gap-3">
                   <ShieldCheck className="w-6 h-6 text-teal-600 shrink-0" />
                   <div>
-                    <div className="text-xs font-bold text-navy-850">Authenticated Clinician</div>
+                    <div className="text-xs font-bold text-navy-850">
+                      {currentUser.role === 'clinician' ? 'Authenticated Clinician' : 'Authenticated Patient'}
+                    </div>
                     <div className="text-xs text-slate-600 font-mono mt-0.5">{currentUser.email || 'Active Account'}</div>
-                    <div className="text-[11px] text-teal-700 font-semibold uppercase tracking-wider mt-1">Role: {currentUser.role || 'Clinician'}</div>
+                    <div className="text-[11px] text-teal-700 font-semibold uppercase tracking-wider mt-1">
+                      Role: {currentUser.role ? currentUser.role.toUpperCase() : 'PATIENT'}
+                    </div>
                   </div>
                 </div>
-                <div className="text-xs text-slate-500">
-                  Your diagnostic sessions, vitals history, and local records are cryptographically isolated under your account ID.
+                <div className="text-xs text-slate-500 leading-relaxed">
+                  Your diagnostic sessions, 12-lead ECG records, vitals history, and longitudinal data are securely isolated under your patient account.
                 </div>
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="btn-clinical-secondary w-full text-xs text-red-600 hover:bg-red-50 hover:border-red-200"
+                  className="btn-clinical-secondary w-full text-xs text-red-600 hover:bg-red-50 hover:border-red-200 flex items-center justify-center gap-2 py-2.5 font-bold"
                 >
-                  <LogOut className="w-3.5 h-3.5 mr-1" />
-                  <span>Sign Out</span>
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out of Account</span>
                 </button>
               </div>
             ) : (

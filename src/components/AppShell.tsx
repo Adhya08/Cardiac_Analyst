@@ -9,9 +9,8 @@ interface AppShellProps {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
-  const { isSidebarCollapsed } = useStore();
+  const { isSidebarCollapsed, isAuthModalOpen, closeAuthModal, openAuthModal, authModalTab } = useStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-canvas text-navy-850 flex">
@@ -19,7 +18,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <Sidebar
         isOpenMobile={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
-        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenProfile={() => openAuthModal('demographics')}
       />
 
       {/* 2. Main Content Canvas */}
@@ -31,7 +30,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         {/* Top Application Bar */}
         <TopBar
           onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
-          onOpenProfile={() => setIsProfileModalOpen(true)}
+          onOpenProfile={() => openAuthModal('demographics')}
         />
 
         {/* Content Area with Top Padding for Fixed TopBar (64px) */}
@@ -40,10 +39,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         </main>
       </div>
 
-      {/* 3. Patient Demographics Modal */}
+      {/* 3. Patient Demographics & Account Modal */}
       <ProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
+        isOpen={isAuthModalOpen}
+        onClose={closeAuthModal}
+        initialTab={authModalTab}
       />
     </div>
   );

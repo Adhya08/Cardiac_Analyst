@@ -54,11 +54,11 @@ Replace the external Gemini Vision API dependency for ECG analysis with a locall
 | Version | Kaggle Notebook URL | Commit / Tag | Model Weights File | Val AUC / Macro F1 | Test (Fold 10) Metrics |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | *Baseline* | *Pre-training (Gemini Vision active)* | `a903c62` | *None (Gemini API)* | *N/A (External GenAI)* | *N/A (External GenAI)* |
-| **GPU Smoke Test** | `cyberfocus2410/cardiac-analyst-gpu-test` | `36c6486` | *None (Environment Check)* | *CUDA True (Tesla T4 14.56GB)* | *N/A (GPU Probe Only)* |
-| **Phase 3 Pipeline Smoke Test** | `cyberfocus2410/cardiac-analyst-phase-3-pipeline-smoke-test` | `656c510` | `smoke_model.pth` (33.4 MB) | **0.8625 AUC** / **0.6029 F1** *(2 epochs, 500 train)* | *N/A (Pipeline verification)* |
-| **Phase 4 Keras 1D ResNet (PTB-XL)** | `cyberfocus2410/cardiac-analyst-phase-4-full-training` | `4b1ce7d` | `best_model.keras` (100.3 MB) | **0.9290 AUC** / **0.7383 F1** *(Epoch 14)* | **0.9265 Macro AUROC** / **0.7520 Macro F1** |
-| **Phase 5 Keras-to-ONNX Conversion** | `cyberfocus2410/cardiac-analyst-phase-5-onnx-convert` | `9550f55` | `model.onnx` (33.37 MB) | **66.7% size reduction** (from 100MB) | **7.46 ms CPU latency** *(11.3x speedup, 2.09e-7 max diff)* |
-| **Residual 1D CNN (PTB-XL PyTorch)** | `cyberfocus2410/cardiac-analyst-ptb-xl-training` | `7cb55b1` | `ptbxl_resnet1d.onnx` (34.95 MB) | **0.9054 AUC** / **0.7014 F1** | **0.9042 Macro AUC** / **0.6997 Macro F1** |
+| **GPU Smoke Test** | `adhya08/cardiac-analyst-gpu-test` | `36c6486` | *None (Environment Check)* | *CUDA True (Tesla T4 14.56GB)* | *N/A (GPU Probe Only)* |
+| **Phase 3 Pipeline Smoke Test** | `adhya08/cardiac-analyst-phase-3-pipeline-smoke-test` | `656c510` | `smoke_model.pth` (33.4 MB) | **0.8625 AUC** / **0.6029 F1** *(2 epochs, 500 train)* | *N/A (Pipeline verification)* |
+| **Phase 4 Keras 1D ResNet (PTB-XL)** | `adhya08/cardiac-analyst-phase-4-full-training` | `4b1ce7d` | `best_model.keras` (100.3 MB) | **0.9290 AUC** / **0.7383 F1** *(Epoch 14)* | **0.9265 Macro AUROC** / **0.7520 Macro F1** |
+| **Phase 5 Keras-to-ONNX Conversion** | `adhya08/cardiac-analyst-phase-5-onnx-convert` | `9550f55` | `model.onnx` (33.37 MB) | **66.7% size reduction** (from 100MB) | **7.46 ms CPU latency** *(11.3x speedup, 2.09e-7 max diff)* |
+| **Residual 1D CNN (PTB-XL PyTorch)** | `adhya08/cardiac-analyst-ptb-xl-training` | `7cb55b1` | `ptbxl_resnet1d.onnx` (34.95 MB) | **0.9054 AUC** / **0.7014 F1** | **0.9042 Macro AUC** / **0.6997 Macro F1** |
 
 
 
@@ -116,7 +116,7 @@ Executed via `python -m unittest ml_training/tests/test_pipeline.py`:
 - `test_normalization_training_data_only`: **PASSED** (Verified normalization stats computed strictly on Folds 1–8)
 
 ### 4. Remote Kaggle GPU Smoke Test Execution
-- **Kernel**: `cyberfocus2410/cardiac-analyst-phase-3-pipeline-smoke-test` (Version 3)
+- **Kernel**: `adhya08/cardiac-analyst-phase-3-pipeline-smoke-test` (Version 3)
 - **Hardware**: Tesla T4 GPU (14.56 GB VRAM), CUDA 12.x
 - **Config**: 500 training records, 100 validation records, 2 epochs, batch size 32.
 - **Real Execution Output**:
@@ -1130,6 +1130,19 @@ Executed with `pytest` in `backend/venv` (`10 passed in 12.99s`):
   - Refactored `src/lib/api.ts` to omit `user_id` by default and bind uploads and vitals strictly to the authenticated `current_user`.
   - Hardened backend authorization in `backend/app/auth.py`, `backend/app/routers/ecg.py`, and `backend/app/routers/vitals.py` to seamlessly normalize `"default_user"` and empty values to `current_user.id`.
   - All access control and end-to-end staging tests passed (`10 passed in 115s` in `test_auth_access_control.py`, 5/5 groups verified on staging).
+
+### 5. Patient Authentication & Sign Out Experience
+- **Dedicated Sign Out Option**:
+  - Implemented an explicit, direct **"Sign Out"** button in [`src/components/TopBar.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/TopBar.tsx) with user identity chip showing active account name, email, and role (`PATIENT` or `CLINICIAN`).
+  - Added dedicated **"Sign Out"** action to the bottom navigation rail in [`src/components/Sidebar.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/Sidebar.tsx).
+  - Enhanced [`src/components/ProfileModal.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/components/ProfileModal.tsx) with a full account view, accurate role indicators, and an immediate "Sign Out of Account" action.
+- **Direct Sign In / Register Access**:
+  - Prominent **"Sign In / Register"** CTA in the TopBar and Sidebar when unauthenticated, immediately opening the account authentication modal.
+- **Friendly 401 Unauthenticated State in ECG Analysis**:
+  - Refactored [`src/modes/ECGMode.tsx`](file:///c:/Users/Vivan/OneDrive/Documents/PROJECTS/Cardiac_Analyst/src/modes/ECGMode.tsx) error handling: when an unauthenticated user runs analysis or selects a benchmark sample, the UI displays a clear "Patient Sign In Required" clinical banner with a one-click "Sign In / Register" button rather than a raw, confusing 401 error.
+- **Production Build Validation**:
+  - `tsc -b && vite build` passed cleanly in 28.0s. All changes committed and pushed to `staging` branch (`b1fd10f`).
+
 
 
 

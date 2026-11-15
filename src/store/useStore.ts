@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { UserProfile, VitalsResponse, HistoryRecord, ShapFactor } from '../lib/api';
+import { api, getStoredUser, type UserProfile, type VitalsResponse, type HistoryRecord, type ShapFactor } from '../lib/api';
 
 // Re-export for convenience
 export type { UserProfile, ShapFactor };
@@ -15,9 +15,12 @@ export interface BackendHealthInfo {
 }
 
 export interface AppState {
-  // ── User
+  // ── User & Auth
   user: UserProfile | null;
+  authUser: any | null;
   isProfileComplete: boolean;
+  isAuthModalOpen: boolean;
+  authModalTab: 'demographics' | 'account';
 
   // ── Current mode / screen
   currentMode: NavigationMode;
@@ -41,7 +44,11 @@ export interface AppState {
   vitalsHistory: HistoryRecord[];
 
   // ── Actions
-  setUser: (user: UserProfile) => void;
+  setUser: (user: UserProfile | null) => void;
+  setAuthUser: (authUser: any | null) => void;
+  openAuthModal: (tab?: 'demographics' | 'account') => void;
+  closeAuthModal: () => void;
+  logout: () => void;
   setMode: (mode: NavigationMode) => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -57,7 +64,10 @@ export const useStore = create<AppState>()(
   persist(
     (set) => ({
       user: null,
+      authUser: typeof window !== 'undefined' ? getStoredUser() : null,
       isProfileComplete: false,
+      isAuthModalOpen: false,
+      authModalTab: 'account',
       currentMode: 'overview',
       isSidebarCollapsed: false,
       backendHealth: {
@@ -74,8 +84,29 @@ export const useStore = create<AppState>()(
       setUser: (user) =>
         set({
           user,
-          isProfileComplete: !!(user.age && user.sex),
+          isProfileComplete: !!(user && user.age && user.sex),
         }),
+
+      setAuthUser: (authUser) => set({ authUser }),
+
+      openAuthModal: (tab = 'account') =>
+        set({ isAuthModalOpen: true, authModalTab: tab }),
+
+      closeAuthModal: () =>
+        set({ isAuthModalOpen: false }),
+
+      logout: () => {
+        api.logout();
+        set({
+          user: null,
+          authUser: null,
+          isProfileComplete: false,
+          latestRisk: null,
+          vitalsHistory: [],
+          activeECGStudyId: null,
+          isAuthModalOpen: false,
+        });
+      },
 
       setMode: (mode) => set({ currentMode: mode }),
 
@@ -95,19 +126,23 @@ export const useStore = create<AppState>()(
 
       setVitalsHistory: (history) => set({ vitalsHistory: history }),
 
-      clearProfile: () =>
+      clearProfile: () => {
+        api.logout();
         set({
           user: null,
+          authUser: null,
           isProfileComplete: false,
           latestRisk: null,
           vitalsHistory: [],
           activeECGStudyId: null,
-        }),
+        });
+      },
     }),
     {
       name: 'cardiac-clinical-v2',
       partialize: (s) => ({
         user: s.user,
+        authUser: s.authUser,
         isProfileComplete: s.isProfileComplete,
         language: s.language,
         currentMode: s.currentMode,
@@ -118,3 +153,4 @@ export const useStore = create<AppState>()(
     }
   )
 );
+

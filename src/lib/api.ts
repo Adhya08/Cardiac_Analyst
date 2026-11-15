@@ -291,13 +291,14 @@ export const api = {
     clearStoredAuth();
   },
 
-  // ── User Profile (Legacy / Guest)
-  async getProfile(userId = 'default_user'): Promise<UserProfile | null> {
+  // ── User Profile
+  async getProfile(userId?: string): Promise<UserProfile | null> {
     try {
       const token = getStoredToken();
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      const r = await fetch(`${BASE}/user/profile?user_id=${userId}`, { headers });
+      const query = userId && userId !== 'default_user' ? `?user_id=${encodeURIComponent(userId)}` : '';
+      const r = await fetch(`${BASE}/user/profile${query}`, { headers });
       if (!r.ok) return null;
       return r.json();
     } catch {
@@ -305,8 +306,9 @@ export const api = {
     }
   },
 
-  async updateProfile(profile: Partial<UserProfile>, userId = 'default_user'): Promise<void> {
-    await request(`${BASE}/user/profile?user_id=${userId}`, {
+  async updateProfile(profile: Partial<UserProfile>, userId?: string): Promise<void> {
+    const query = userId && userId !== 'default_user' ? `?user_id=${encodeURIComponent(userId)}` : '';
+    await request(`${BASE}/user/profile${query}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profile),
@@ -314,23 +316,27 @@ export const api = {
   },
 
   // ── Vitals
-  async logVitals(data: VitalsPayload, userId = 'default_user'): Promise<VitalsResponse> {
-    return request(`${BASE}/vitals?user_id=${userId}`, {
+  async logVitals(data: VitalsPayload, userId?: string): Promise<VitalsResponse> {
+    const query = userId && userId !== 'default_user' ? `?user_id=${encodeURIComponent(userId)}` : '';
+    return request(`${BASE}/vitals${query}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
   },
 
-  async getVitalsHistory(days = 30, userId = 'default_user'): Promise<VitalsHistory> {
-    return request(`${BASE}/vitals/history?user_id=${userId}&days=${days}`);
+  async getVitalsHistory(days = 30, userId?: string): Promise<VitalsHistory> {
+    const userParam = userId && userId !== 'default_user' ? `&user_id=${encodeURIComponent(userId)}` : '';
+    return request(`${BASE}/vitals/history?days=${days}${userParam}`);
   },
 
   // ── ECG
-  async uploadECG(file: File, ctx: ECGContext, userId = 'default_user'): Promise<ECGResponse> {
+  async uploadECG(file: File, ctx: ECGContext, userId?: string): Promise<ECGResponse> {
     const form = new FormData();
     form.append('file', file);
-    form.append('user_id', userId);
+    if (userId && userId !== 'default_user') {
+      form.append('user_id', userId);
+    }
     if (ctx.age) form.append('age', String(ctx.age));
     if (ctx.sex) form.append('sex', ctx.sex);
     if (ctx.conditions) form.append('conditions', ctx.conditions);
@@ -340,9 +346,10 @@ export const api = {
     return request(`${BASE}/ecg/upload`, { method: 'POST', body: form });
   },
 
-  async getECGHistory(userId = 'default_user') {
+  async getECGHistory(userId?: string) {
+    const query = userId && userId !== 'default_user' ? `?user_id=${encodeURIComponent(userId)}` : '';
     return request<{ ecg_sessions: any[]; total: number }>(
-      `${BASE}/ecg/history?user_id=${userId}`
+      `${BASE}/ecg/history${query}`
     );
   },
 

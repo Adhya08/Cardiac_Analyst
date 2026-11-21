@@ -52,6 +52,8 @@ htmlcov/
 Thumbs.db
 
 # Project specific & User Data
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
 backend/models_saved/
 backend/uploads/
 uploads/

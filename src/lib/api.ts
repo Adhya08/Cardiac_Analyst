@@ -249,7 +249,12 @@ async function request<T>(url: string, opts?: RequestInit): Promise<T> {
       clearStoredAuth();
     }
     const errText = await res.text().catch(() => res.statusText);
-    throw new Error(`API Error ${res.status}: ${errText}`);
+    let message = errText;
+    try {
+      const parsed = JSON.parse(errText);
+      message = parsed.detail || parsed.message || errText;
+    } catch {}
+    throw new Error(message || `API Error ${res.status}`);
   }
   return res.json() as Promise<T>;
 }

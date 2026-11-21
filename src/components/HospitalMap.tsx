@@ -61,6 +61,8 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
       mapInstance.current = null;
     }
 
+    let loadTimeout: ReturnType<typeof setTimeout> | undefined;
+
     try {
       const map = new Map({
         container: mapContainerRef.current,
@@ -80,7 +82,18 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
         'bottom-right'
       );
 
+      loadTimeout = setTimeout(() => {
+        setStatus((curr) => {
+          if (curr === 'loading') {
+            setErrorMsg('Interactive vector map tiles timed out. Please hard-refresh your browser (Ctrl+F5) or use the direct facility directions below.');
+            return 'error';
+          }
+          return curr;
+        });
+      }, 7000);
+
       map.on('load', () => {
+        clearTimeout(loadTimeout);
         setStatus('ready');
 
         // ── 1. User Location Marker (Pulsing Emerald)
@@ -210,6 +223,12 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
 
       map.on('error', (e: any) => {
         console.warn('MapLibre GL tile loading notice:', e);
+        const errStr = String(e?.error?.message || e?.message || e || '');
+        if (errStr.toLowerCase().includes('worker') || errStr.toLowerCase().includes('failed to load')) {
+          clearTimeout(loadTimeout);
+          setErrorMsg('Vector map worker could not initialize. Please hard-refresh (Ctrl+F5) to clear stale worker cache, or use the direct facility directions below.');
+          setStatus('error');
+        }
       });
 
       mapInstance.current = map;
@@ -220,6 +239,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
     }
 
     return () => {
+      clearTimeout(loadTimeout);
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
       if (mapInstance.current) {

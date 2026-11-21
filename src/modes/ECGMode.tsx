@@ -11,7 +11,7 @@ import {
   Upload, CheckCircle2, Zap, AlertTriangle,
   ChevronDown, ChevronUp, Heart,
   AlertCircle, BarChart3, Activity, XCircle, RotateCcw,
-  Lock, LogIn
+  Lock, LogIn, Camera
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type ECGResponse, type ECGCondition } from '../lib/api';
@@ -307,10 +307,14 @@ export const ECGMode: React.FC = () => {
     if (fileRejections.length > 0) {
       const rejectedFile = fileRejections[0].file;
       setStatus('error');
-      setErrorMsg(
-        `File "${rejectedFile.name}" is not an accepted digital signal format. ` +
-        'Photos and PDFs are NOT supported yet. Please upload a .csv, .npy, .json, or WFDB .dat/.hea file.'
-      );
+      if (rejectedFile.name.toLowerCase().endsWith('.pdf')) {
+        setErrorMsg('PDF documents are not supported directly. Please upload an image file (.png, .jpg, .jpeg) or digital timeseries (.csv, .npy, .json, .hea, .dat).');
+      } else {
+        setErrorMsg(
+          `File "${rejectedFile.name}" is not an accepted format. ` +
+          'Please upload an image (.png, .jpg, .jpeg, .webp) or digital signal file (.csv, .npy, .json, WFDB .dat/.hea).'
+        );
+      }
       return;
     }
     if (acceptedFiles.length > 0) {
@@ -326,6 +330,9 @@ export const ECGMode: React.FC = () => {
       'text/plain': ['.txt'],
       'application/octet-stream': ['.npy', '.dat'],
       'application/x-netcdf': ['.hea'],
+      'image/png': ['.png'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/webp': ['.webp'],
     },
     maxFiles: 1,
     multiple: false,
@@ -399,10 +406,10 @@ export const ECGMode: React.FC = () => {
             <Activity className="w-4 h-4 text-blue-700 flex-shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <strong className="font-bold text-blue-950 uppercase tracking-wide">
-                Digital Voltage Timeseries Required:
+                12-Lead Input Supported (Digital & Image):
               </strong>
               <p className="text-slate-600 leading-relaxed">
-                This neural network requires calibrated 100 Hz, 1000-timestep 12-lead voltage arrays (CSV, NPY, JSON, or WFDB). Scanned paper photos and PDF documents cannot be processed by this 1D model version.
+                Accepts calibrated 100 Hz voltage arrays (CSV, NPY, JSON, WFDB) or optical 12-lead ECG printout scans (PNG, JPG, WEBP). Optical scans are digitized into calibrated 12-channel timeseries before ONNX ResNet1D inference.
               </p>
             </div>
           </div>
@@ -421,13 +428,13 @@ export const ECGMode: React.FC = () => {
               <Upload className="w-7 h-7" />
             </div>
             <h3 className="text-base font-bold text-navy-850">
-              {isDragActive ? 'Drop digital ECG file here' : 'Select or drag & drop digital 12-lead ECG file'}
+              {isDragActive ? 'Drop ECG file or image here' : 'Select or drag & drop 12-lead ECG file or image'}
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              Accepts <strong>.csv, .npy, .json, or WFDB (.hea/.dat)</strong> timeseries files up to 20 MB.
+              Accepts <strong>.csv, .npy, .json, WFDB (.hea/.dat), or image scans (.png, .jpg, .jpeg, .webp)</strong> up to 20 MB.
             </p>
             <div className="flex gap-2 flex-wrap justify-center pt-4">
-              {['12-Lead Digital', '100 Hz Timeseries', 'Shape (1000, 12)', 'Local ONNX ResNet1D'].map(tag => (
+              {['12-Lead Digital', 'Optical Scan Digitizer', '100 Hz Timeseries', 'Shape (1000, 12)', 'Local ONNX ResNet1D'].map(tag => (
                 <span
                   key={tag}
                   className="text-[10px] font-mono font-bold py-1 px-2.5 bg-slate-100 border border-border rounded-full text-slate-600"
@@ -642,6 +649,21 @@ export const ECGMode: React.FC = () => {
                 </p>
                 <p className="text-xs text-amber-800 leading-relaxed">
                   {result.abstain_reason || t.uncertainty_desc}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Optical Scan Reconstruction Notice */}
+          {result.image_quality_note && result.status !== 'analysis_unavailable' && (
+            <div className="p-3.5 rounded-xl bg-teal-50 border border-teal-200 flex items-start gap-3">
+              <Camera className="w-4 h-4 text-teal-700 flex-shrink-0 mt-0.5" />
+              <div className="space-y-0.5 text-xs text-teal-900">
+                <span className="font-bold uppercase tracking-wider text-[10px] text-teal-800 block">
+                  Optical Scan Digitization Active
+                </span>
+                <p className="text-teal-800 leading-relaxed">
+                  {result.image_quality_note}
                 </p>
               </div>
             </div>

@@ -67,7 +67,7 @@ async def upload_ecg(
     # ── Save upload to disk
     ecg_id = str(uuid.uuid4())
     raw_ext = os.path.splitext(filename_orig)[1].lstrip(".").lower()
-    allowed_exts = {"csv", "json", "npy", "txt"}
+    allowed_exts = {"csv", "json", "npy", "txt", "png", "jpg", "jpeg", "webp", "bmp", "tiff", "hea", "dat"}
     ext = raw_ext if raw_ext in allowed_exts else "csv"
     saved_filename = f"{ecg_id}.{ext}"
     filepath = os.path.join(UPLOAD_DIR, saved_filename)

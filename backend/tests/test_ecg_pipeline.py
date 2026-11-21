@@ -208,3 +208,53 @@ def test_real_ptbxl_samples_all_classes(analyzer, sample_dir):
         assert scores[cls_name] >= 0.0
 
     print("=" * 70)
+
+
+# ── Test 11: 12-Lead Optical ECG Image Scan Digitization & Analysis ─────────
+def test_image_scan_digitization_and_inference(analyzer):
+    """
+    Synthesizes a 12-lead ECG printout image (PNG) and verifies that the optical
+    digitization pipeline parses it into a valid (1000, 12) array and completes
+    ResNet1D inference with optical scan quality annotations.
+    """
+    import io
+    from PIL import Image, ImageDraw
+
+    # Create 600x400 synthetic 12-lead ECG image
+    img = Image.new("RGB", (600, 400), color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+
+    # Grid background lines
+    for x in range(0, 600, 20):
+        draw.line([(x, 0), (x, 400)], fill=(245, 225, 225))
+    for y in range(0, 400, 20):
+        draw.line([(0, y), (600, y)], fill=(245, 225, 225))
+
+    # Draw simulated QRS-like waveforms across 3 rows x 4 columns
+    for r in range(3):
+        for c in range(4):
+            x0 = c * 150
+            y0 = r * 100 + 50
+            points = [(x0 + i, y0 + int(18 * np.sin(i / 6.0))) for i in range(150)]
+            draw.line(points, fill=(15, 23, 42), width=2)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    png_bytes = buf.getvalue()
+
+    result = analyzer.analyze_digital_ecg(png_bytes, filename="ecg_photo_scan.png", content_type="image/png")
+
+    assert result["status"] in ("ok", "uncertain")
+    assert result["model_version"] == "ptbxl-resnet1d-v1.0"
+    assert len(result["conditions"]) == 5
+    assert result["image_quality_note"] is not None
+    assert "optical digitization" in result["image_quality_note"].lower()
+
+
+def test_corrupt_image_returns_unavailable(analyzer):
+    """Verifies that an unparseable or corrupted image returns analysis_unavailable cleanly."""
+    corrupt_bytes = b"\x89PNG\r\n\x1a\nNotAValidImage"
+    result = analyzer.analyze_digital_ecg(corrupt_bytes, filename="bad_scan.png", content_type="image/png")
+    assert result["status"] == "analysis_unavailable"
+    assert result["urgency"] == "unavailable"
+

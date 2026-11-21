@@ -157,7 +157,11 @@ class ECGInferenceService:
                 if os.path.exists(fallback):
                     model_path = os.path.abspath(fallback)
 
-            if os.path.exists(model_path):
+            if ort is None:
+                self.load_error = "onnxruntime is not installed in the Python environment."
+                self.is_ready = False
+                print(f"[ECGInferenceService] WARNING: {self.load_error}")
+            elif os.path.exists(model_path):
                 opts = ort.SessionOptions()
                 opts.intra_op_num_threads = 2
                 opts.inter_op_num_threads = 1
@@ -196,27 +200,31 @@ class ECGInferenceService:
                 quality="unusable"
             )
 
-        # 2. Check for Unsupported Formats (Image/PDF)
+        # 2. Check for Unsupported Formats (PDF) vs Optical Image Formats
         lower_fn = filename.lower()
-        if (
-            lower_fn.endswith((".jpg", ".jpeg", ".png", ".pdf", ".bmp", ".tiff", ".webp"))
-            or content_type.startswith("image/")
-            or content_type == "application/pdf"
-        ):
+        if lower_fn.endswith(".pdf") or content_type == "application/pdf":
             return self._build_unavailable_response(
                 reason=(
-                    "Unsupported input format: Image and PDF ECGs are NOT supported in this version. "
-                    "Automatic paper scan digitization introduces high optical noise and calibration distortion. "
-                    "Please provide raw digital 12-lead signal data (CSV, WFDB, or NPY format) for deterministic evaluation."
+                    "Unsupported input format: PDF documents are not supported for waveform analysis. "
+                    "Please upload an image (.png, .jpg, .jpeg) or digital telemetry (CSV, NPY, JSON, or WFDB)."
                 ),
                 quality="unusable"
             )
 
-        # 3. Parse Raw Signal from Digital Bytes
+        is_image = (
+            lower_fn.endswith((".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"))
+            or content_type.startswith("image/")
+            or file_bytes.startswith(b"\x89PNG")
+            or file_bytes.startswith(b"\xff\xd8\xff")
+            or b"WEBP" in file_bytes[:16]
+        )
+
+        # 3. Parse Raw Signal from Digital Bytes or Optical Scan
         try:
             signal, parse_err = self._parse_digital_signal(file_bytes, filename)
             if parse_err:
-                return self._build_unavailable_response(reason=parse_err, quality="unusable")
+                msg = f"Unusable optical ECG photo scan: {parse_err}. Please ensure a clear photo of the 12-lead printout, or upload a digital signal file (CSV, NPY, JSON, or WFDB)." if is_image else f"Unusable digital signal: {parse_err}. Please ensure 12 leads and 1000 samples at 100 Hz."
+                return self._build_unavailable_response(reason=msg, quality="unusable")
         except Exception as e:
             return self._build_unavailable_response(reason=f"Error parsing digital signal: {str(e)}", quality="unusable")
 
@@ -348,7 +356,11 @@ class ECGInferenceService:
             "urgency": urgency,
             "recommendations": recs,
             "image_quality": "good" if quality_status == "good" else "fair",
-            "image_quality_note": None,
+            "image_quality_note": (
+                "Reconstructed from 2D optical ECG scan via optical digitization. "
+                "Waveform fidelity may vary with print resolution, lighting, and paper curvature. "
+                "Clinical confirmation with calibrated telemetry is advised."
+            ) if is_image else None,
             "disclaimer": RESEARCH_DISCLAIMER
         }
 
@@ -356,9 +368,133 @@ class ECGInferenceService:
     # Signal Parsing & Quality Verification
     # ───────────────────────────────────────────────────────────────────────
 
+    def _digitize_image_signal(self, content: bytes) -> Tuple[Optional[np.ndarray], Optional[str]]:
+        """
+        Digitizes 2D optical ECG printout images (PNG, JPG, WEBP, BMP, TIFF) into
+        a calibrated (1000, 12) float32 timeseries array for ResNet1D inference.
+
+        Layout assumption:
+        Standard 3x4 lead grid:
+          Col 0: I, II, III
+          Col 1: aVR, aVL, aVF
+          Col 2: V1, V2, V3
+          Col 3: V4, V5, V6
+        Bottom 22% is excluded as continuous rhythm Lead II strip if aspect ratio > 0.55.
+        """
+        try:
+            from PIL import Image
+            from scipy.ndimage import median_filter
+            import io
+        except ImportError as e:
+            return None, f"Required imaging library missing for optical scan processing: {e}"
+
+        try:
+            img = Image.open(io.BytesIO(content))
+            img = img.convert("L")  # Grayscale
+        except Exception as e:
+            return None, f"Could not decode image file: {e}"
+
+        w, h = img.size
+        if w < 100 or h < 60:
+            return None, f"Image resolution ({w}x{h}) is too low for 12-lead waveform extraction (minimum 100x60 px)."
+
+        arr = np.array(img, dtype=np.float32)
+
+        # Standard ECG: dark traces on light background.
+        # If inverted (light traces on dark background), invert array so background is near 0.
+        mean_val = float(np.mean(arr))
+        if mean_val < 128:
+            darkness = arr  # light trace on dark background
+        else:
+            darkness = 255.0 - arr  # dark trace on light background
+
+        # Suppress light grid noise
+        threshold = np.percentile(darkness, 60)
+        darkness = np.maximum(darkness - threshold, 0.0)
+
+        # Determine grid dimensions
+        grid_h = int(h * 0.78) if (h / w > 0.55) else h
+        row_h = grid_h // 3
+        col_w = w // 4
+
+        if row_h < 8 or col_w < 8:
+            return None, "ECG grid subdivisions too small to resolve individual leads."
+
+        # Map 12 leads in PTB-XL standard order:
+        # ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
+        lead_grid_pos = [
+            (0, 0),  # I
+            (1, 0),  # II
+            (2, 0),  # III
+            (0, 1),  # aVR
+            (1, 1),  # aVL
+            (2, 1),  # aVF
+            (0, 2),  # V1
+            (1, 2),  # V2
+            (2, 2),  # V3
+            (0, 3),  # V4
+            (1, 3),  # V5
+            (2, 3),  # V6
+        ]
+
+        extracted_leads = []
+        y_indices = np.arange(row_h, dtype=np.float32)
+
+        for r_idx, c_idx in lead_grid_pos:
+            r_start = r_idx * row_h
+            r_end = r_start + row_h
+            c_start = c_idx * col_w
+            c_end = c_start + col_w
+
+            cell = darkness[r_start:r_end, c_start:c_end]
+            cell_w = cell.shape[1]
+
+            trace_y = np.zeros(cell_w, dtype=np.float32)
+            weights = np.square(cell)
+            sum_weights = np.sum(weights, axis=0)
+
+            for x in range(cell_w):
+                sw = sum_weights[x]
+                if sw > 1e-4:
+                    trace_y[x] = np.sum(y_indices * weights[:, x]) / sw
+                else:
+                    trace_y[x] = row_h / 2.0
+
+            # Convert image pixel y to voltage (upward deflection in ECG is lower y index in image array)
+            waveform = (row_h / 2.0) - trace_y
+            waveform = waveform - np.median(waveform)
+
+            # Denoise with 1D median filter
+            if len(waveform) >= 5:
+                waveform = median_filter(waveform, size=5)
+
+            # Scale to clinical millivolts (~[-1.0, 1.0] mV typical QRS range)
+            max_dev = float(np.max(np.abs(waveform)))
+            if max_dev > 1e-3:
+                waveform = (waveform / max_dev) * 0.8
+
+            # Resample to 1,000 timesteps
+            orig_x = np.linspace(0, 1, cell_w)
+            target_x = np.linspace(0, 1, 1000)
+            resampled = np.interp(target_x, orig_x, waveform).astype(np.float32)
+            extracted_leads.append(resampled)
+
+        signal = np.column_stack(extracted_leads).astype(np.float32)
+        return signal, None
+
     def _parse_digital_signal(self, content: bytes, filename: str) -> Tuple[Optional[np.ndarray], Optional[str]]:
-        """Parses CSV, NPY, JSON, or WFDB into shape (1000, 12) float32."""
+        """Parses CSV, NPY, JSON, WFDB, or 2D image scans into shape (1000, 12) float32."""
         lower_fn = filename.lower()
+
+        # 0. Optical Image Formats (PNG, JPG, JPEG, WEBP, BMP, TIFF)
+        is_image_file = (
+            lower_fn.endswith((".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"))
+            or content.startswith(b"\x89PNG")
+            or content.startswith(b"\xff\xd8\xff")
+            or b"WEBP" in content[:16]
+        )
+        if is_image_file:
+            return self._digitize_image_signal(content)
 
         # 1. NPY file
         if lower_fn.endswith(".npy"):

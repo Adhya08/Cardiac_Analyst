@@ -93,7 +93,8 @@ def test_ecg_upload_stores_file_bytes_in_database(client):
 
 def test_alembic_head_revision_is_valid():
     """Verify Alembic configuration correctly registers the initial schema migration."""
-    alembic_cfg = Config("alembic.ini")
+    ini_path = "backend/alembic.ini" if os.path.exists("backend/alembic.ini") else "alembic.ini"
+    alembic_cfg = Config(ini_path)
     script = ScriptDirectory.from_config(alembic_cfg)
     heads = script.get_heads()
     assert len(heads) == 1

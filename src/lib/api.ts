@@ -46,12 +46,13 @@ export interface VitalsResponse {
   risk_tier: 'Low' | 'Borderline' | 'Elevated';
   lgbm_probability: number;
   framingham_risk: number;
-  confidence_interval: { lower: number; upper: number };
+  confidence_interval?: { lower: number; upper: number } | null;
   shap_top5: ShapFactor[];
   ecg_prompt: boolean;
   trend_delta: number;
   vitals: VitalsPayload;
   timestamp: string;
+  disclaimer?: string;
 }
 
 export interface HistoryRecord {

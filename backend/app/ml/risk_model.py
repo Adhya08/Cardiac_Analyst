@@ -319,15 +319,17 @@ class RiskModel:
             "framingham_risk": round(framingham_risk, 2),
             "combined_probability": round(risk_score, 2),
             "risk_tier": risk_tier,
-            "confidence_interval": {
-                "lower": max(0.0, round(risk_score - 4.5, 2)),
-                "upper": min(100.0, round(risk_score + 4.5, 2)),
-            },
+            "confidence_interval": None,  # Truthful: omit unvalidated ±4.5 fixed margin
             "shap_top5": shap_top5,
             "ecg_prompt": ecg_prompt,
             "trend_delta": 0.0,  # Computed by router using DB
             "model_status": model_status,
             "experimental_warning": experimental_warning,
+            "disclaimer": (
+                "Cardiac Analyst is a research and educational prototype. "
+                "This vitals risk score is an experimental relative index (0-100) based on UCI Heart Disease data, "
+                "not a clinically validated 10-year absolute ASCVD event projection."
+            ),
         }
 
     def _format_shap(self, shap_dict: dict) -> list:

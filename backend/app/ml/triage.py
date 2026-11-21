@@ -17,13 +17,17 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any, Union, Optional
 
-# Load shared clinical rules JSON
-_RULES_PATH = Path(os.getenv("TRIAGE_RULES_PATH", Path(__file__).resolve().parents[3] / "shared" / "triage_rules.json"))
-if not _RULES_PATH.is_file():
-    # Fallback to local shared location if relative structure differs
-    alt_path = Path(__file__).resolve().parents[2] / "shared" / "triage_rules.json"
-    if alt_path.is_file():
-        _RULES_PATH = alt_path
+# Load shared clinical rules JSON with robust multi-context fallback
+_candidate_paths = [
+    Path(os.getenv("TRIAGE_RULES_PATH", "")),
+    Path(__file__).resolve().parents[3] / "shared" / "triage_rules.json",
+    Path(__file__).resolve().parents[2] / "shared" / "triage_rules.json",
+    Path("/app/shared/triage_rules.json"),
+    Path(__file__).resolve().parent / "triage_rules.json",
+]
+_RULES_PATH = next((p for p in _candidate_paths if p and p.is_file()), None)
+if _RULES_PATH is None:
+    raise FileNotFoundError("Could not locate triage_rules.json in any standard candidate path.")
 
 with open(_RULES_PATH, "r", encoding="utf-8") as f:
     RULES: Dict[str, Any] = json.load(f)

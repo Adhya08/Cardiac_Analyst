@@ -50,24 +50,40 @@ async def upload_ecg(
     filename_orig = file.filename or "ecg.csv"
     content_type = file.content_type or "text/csv"
 
-    # ── Read file bytes
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(status_code=413, detail="File too large (max 20 MB).")
+    # ── Read file bytes with bounded stream quota (max 20 MB)
+    chunks = []
+    total_bytes = 0
+    chunk_size = 64 * 1024  # 64 KB
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        total_bytes += len(chunk)
+        if total_bytes > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(status_code=413, detail="File too large (exceeds 20 MB limit).")
+        chunks.append(chunk)
+    content = b"".join(chunks)
 
     # ── Check empty file
     if len(content) == 0:
         analyzer = get_ecg_analyzer()
-        err_res = analyzer._build_unavailable_response(
+        return analyzer._build_unavailable_response(
             reason="Uploaded file is completely empty (0 bytes).",
             quality="unusable"
         )
-        return err_res
+
+    # ── Extension check before disk write
+    raw_ext = os.path.splitext(filename_orig)[1].lstrip(".").lower()
+    allowed_exts = {"csv", "json", "npy", "txt", "png", "jpg", "jpeg", "webp", "bmp", "tiff", "hea", "dat"}
+    if raw_ext and raw_ext not in allowed_exts:
+        analyzer = get_ecg_analyzer()
+        return analyzer._build_unavailable_response(
+            reason=f"Unsupported file format '.{raw_ext}'. Please upload an image (.png, .jpg) or digital signal file (.csv, .npy, .json, .hea, .dat).",
+            quality="unusable"
+        )
 
     # ── Save upload to disk
     ecg_id = str(uuid.uuid4())
-    raw_ext = os.path.splitext(filename_orig)[1].lstrip(".").lower()
-    allowed_exts = {"csv", "json", "npy", "txt", "png", "jpg", "jpeg", "webp", "bmp", "tiff", "hea", "dat"}
     ext = raw_ext if raw_ext in allowed_exts else "csv"
     saved_filename = f"{ecg_id}.{ext}"
     filepath = os.path.join(UPLOAD_DIR, saved_filename)
@@ -96,21 +112,24 @@ async def upload_ecg(
         patient_context=patient_context
     )
 
-    # ── Determine top condition (prefer abnormal if detected)
+    # ── Determine top condition (prefer abnormal ONLY IF DETECTED by threshold)
     top_cond = None
     top_score = 0.0
     for c in result.get("conditions", []):
-        score = float(c.get("model_score", 0.0))
-        if score > top_score and c.get("code") != "NORM":
-            top_score = score
-            top_cond = c.get("name")
-    if top_cond is None and result.get("conditions"):
-        top_cond = result["conditions"][0].get("name")
-        top_score = float(result["conditions"][0].get("model_score", 0.0))
+        if c.get("detected") and c.get("code") != "NORM":
+            score = float(c.get("model_score", 0.0))
+            if score > top_score:
+                top_score = score
+                top_cond = c.get("name")
+    if top_cond is None:
+        # Default to Normal ECG if no abnormal findings crossed decision threshold
+        norm_cond = next((c for c in result.get("conditions", []) if c.get("code") == "NORM"), None)
+        top_cond = norm_cond.get("name", "Normal ECG") if norm_cond else "Normal ECG"
+        top_score = float(norm_cond.get("model_score", 0.0)) if norm_cond else 0.0
 
     result["ecg_id"] = ecg_id
 
-    # ── Persist to Database
+    # ── Persist to Database with atomic cleanup on failure
     try:
         record = ECGAnalysis(
             id=ecg_id,
@@ -132,6 +151,12 @@ async def upload_ecg(
         db.commit()
     except Exception as e:
         db.rollback()
+        # Clean up disk file so no orphan unindexed files remain
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
         print(f"[Database] Warning persisting ECG record: {e}")
         result["ecg_id"] = None
         result["persistence_error"] = f"Failed to persist analysis to database: {str(e)}"

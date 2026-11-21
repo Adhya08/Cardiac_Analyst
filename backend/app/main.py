@@ -94,15 +94,25 @@ async def root():
 @app.get("/api/v1/health", tags=["health"])
 async def health():
     from .routers.vitals import get_risk_model
-    from .ml.local_ecg_model import get_local_ecg_model
+    from .ml.ecg_analyzer import get_ecg_analyzer
     risk_model = get_risk_model()
-    ecg_model = get_local_ecg_model()
-    is_ecg_ready = ecg_model.is_ready()
+    analyzer = get_ecg_analyzer()
+    is_ecg_ready = analyzer.is_ready
+    is_vitals_ready = risk_model.is_loaded
+
+    git_sha = os.getenv("RENDER_GIT_COMMIT", os.getenv("VERCEL_GIT_COMMIT_SHA", os.getenv("GIT_COMMIT", "local-dev")))
+
     return {
-        "status": "healthy",
-        "model_loaded": is_ecg_ready or risk_model.is_loaded,
+        "status": "healthy" if (is_ecg_ready or is_vitals_ready) else "degraded",
+        "release": {
+            "version": "2.0.0",
+            "git_commit": git_sha[:8] if git_sha else "unknown",
+            "environment": os.getenv("ENVIRONMENT", "production"),
+        },
+        "model_loaded": is_ecg_ready or is_vitals_ready,
         "ecg_model_loaded": is_ecg_ready,
-        "vitals_model_loaded": risk_model.is_loaded,
-        "vitals_model_status": "experimental, not validated",
+        "ecg_model_version": analyzer.model_version if is_ecg_ready else None,
+        "vitals_model_loaded": is_vitals_ready,
+        "vitals_model_status": "loaded" if is_vitals_ready else "experimental, not validated",
         "model_accuracy": "92.65% Macro AUROC (PTB-XL Fold 10 held-out test)" if is_ecg_ready else "experimental, not validated",
     }

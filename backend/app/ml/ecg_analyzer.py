@@ -297,27 +297,27 @@ class ECGInferenceService:
         # 9. Triage Urgency Calculation
         if has_critical_condition:
             urgency = "emergency"
-            assessment = "EMERGENCY: Model scores indicate acute myocardial injury/infarction. Seek immediate emergency medical care."
+            assessment = "HIGH PRIORITY: Model features consistent with Myocardial Infarction superclass (ResNet1D pattern detection). Clinical correlation required to rule out acute coronary events."
             recs = [
-                "Call emergency medical services (112 or local emergency number) IMMEDIATELY.",
+                "Call emergency medical services (112 or local emergency number) IMMEDIATELY if experiencing chest pain, tightness, or breathlessness.",
                 "Remain seated or lying down; do not attempt to drive.",
-                "Have someone stay with you and show this report to arriving paramedics."
+                "Have someone stay with you and show this waveform analysis to arriving paramedics."
             ]
         elif has_abnormal_condition:
             urgency = "see_doctor_today"
-            assessment = "ABNORMAL: Significant ECG abnormalities detected (conduction delay, repolarization changes, or hypertrophy)."
+            assessment = "ABNORMAL: Significant ECG abnormalities detected (conduction delay, repolarization changes, or hypertrophy crossing decision thresholds)."
             recs = [
                 "Schedule a clinical evaluation with a cardiologist or physician today.",
-                "Avoid strenuous physical exertion until clinically cleared.",
-                "Keep a log of any chest tightness, shortness of breath, or dizziness."
+                "Avoid strenuous physical exertion until clinically evaluated.",
+                "Keep a log of any chest tightness, palpitations, shortness of breath, or dizziness."
             ]
         else:
             urgency = "routine"
-            assessment = "NORMAL: No acute diagnostic abnormalities detected by the 12-lead Residual CNN."
+            assessment = "NO ABNORMALITIES DETECTED: No diagnostic superclass abnormalities detected by the 12-lead Residual CNN. Note: A normal resting ECG cannot exclude acute coronary syndrome (NICE CG95)."
             recs = [
                 "Maintain routine cardiovascular wellness checkups.",
-                "Continue monitoring vitals if you have underlying cardiovascular risk factors.",
-                "Consult a physician if you experience any sudden onset of symptoms."
+                "NICE CG95 Clinical Guidance: A normal resting 12-lead ECG does NOT exclude acute coronary syndrome.",
+                "Seek immediate emergency medical attention if you experience sudden chest discomfort, pressure, or shortness of breath."
             ]
 
         # 10. Status Determination

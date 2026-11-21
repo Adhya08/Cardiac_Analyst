@@ -109,10 +109,13 @@ def submit_triage(
         hr=data.hr,
     )
 
-    # ── Real hospital lookup (fallback to Delhi if location not provided)
-    use_lat = data.lat if data.lat is not None else 28.6139
-    use_lon = data.lon if data.lon is not None else 77.2090
-    hospitals = fetch_nearby_hospitals(use_lat, use_lon)
+    # ── Real hospital lookup (optional enrichment; failsafe on timeout/error)
+    hospitals = []
+    if data.lat is not None and data.lon is not None:
+        try:
+            hospitals = fetch_nearby_hospitals(data.lat, data.lon)
+        except Exception as exc:
+            hospitals = []
 
     # ── Ambulance directory (always include govt services)
     ambulances = [

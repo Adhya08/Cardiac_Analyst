@@ -114,7 +114,7 @@ def generate_free_navigation_links(user_lat: float, user_lon: float, dest_lat: f
 
 
 class PlacesService:
-    def __init__(self, api_key: Optional[str] = None, cache_ttl: int = DEFAULT_CACHE_TTL_SECONDS, timeout: int = 8):
+    def __init__(self, api_key: Optional[str] = None, cache_ttl: int = DEFAULT_CACHE_TTL_SECONDS, timeout: float = 2.5):
         self.api_key = api_key or os.getenv("GEOAPIFY_API_KEY", "")
         self.cache_ttl = cache_ttl
         self.timeout = timeout
@@ -124,18 +124,23 @@ class PlacesService:
         # Quantize to ~1km resolution to increase cache hit rate
         return f"{round(lat, 2)}:{round(lon, 2)}:{int(radius_km)}"
 
-    def get_fallback_hospitals(self, user_lat: float, user_lon: float) -> List[Dict[str, Any]]:
+    def get_fallback_hospitals(self, user_lat: float, user_lon: float, max_radius_km: float = 35.0) -> List[Dict[str, Any]]:
         results = []
         for h in CURATED_OFFLINE_HOSPITALS:
             dist = haversine_km(user_lat, user_lon, h["lat"], h["lon"])
-            links = generate_free_navigation_links(user_lat, user_lon, h["lat"], h["lon"], h["name"])
-            results.append({
-                **h,
-                "distance_km": dist,
-                "maps_url": links["maps_url"],
-                "osm_url": links["osm_url"],
-                "geo_uri": links["geo_uri"],
-            })
+            # Only include fallback hospitals if within radius (e.g. caller is in the Delhi NCR region)
+            if dist <= max_radius_km:
+                links = generate_free_navigation_links(user_lat, user_lon, h["lat"], h["lon"], h["name"])
+                results.append({
+                    **h,
+                    "distance_km": dist,
+                    "rating": None,  # Truthful: omit unverified ratings
+                    "total_ratings": None,
+                    "open_now": None,  # Call to confirm emergency availability
+                    "maps_url": links["maps_url"],
+                    "osm_url": links["osm_url"],
+                    "geo_uri": links["geo_uri"],
+                })
         results.sort(key=lambda x: x["distance_km"])
         return results
 
@@ -153,14 +158,14 @@ class PlacesService:
                     "cached": True,
                 }
 
-        # If API key not present, use curated fallback
+        # If API key not present, check if caller is within regional directory radius
         if not self.api_key or not self.api_key.strip():
-            logger.info("GEOAPIFY_API_KEY not configured. Serving curated offline directory.")
-            hospitals = self.get_fallback_hospitals(lat, lon)
+            logger.info("GEOAPIFY_API_KEY not configured. Checking regional directory within radius.")
+            hospitals = self.get_fallback_hospitals(lat, lon, max_radius_km=radius_km)
             res = {
                 "hospitals": hospitals,
                 "total_found": len(hospitals),
-                "source": "offline_directory",
+                "source": "offline_directory" if hospitals else "none_in_radius",
                 "attribution": ATTRIBUTION_NOTICE,
                 "cached": False,
             }
@@ -178,8 +183,8 @@ class PlacesService:
         try:
             resp = requests.get(GEOAPIFY_API_URL, params=params, timeout=self.timeout)
             if resp.status_code == 429:
-                logger.warning("Geoapify Places API quota exceeded (HTTP 429). Falling back to offline directory.")
-                hospitals = self.get_fallback_hospitals(lat, lon)
+                logger.warning("Geoapify Places API quota exceeded (HTTP 429).")
+                hospitals = self.get_fallback_hospitals(lat, lon, max_radius_km=radius_km)
                 return {
                     "hospitals": hospitals,
                     "total_found": len(hospitals),
@@ -188,8 +193,8 @@ class PlacesService:
                     "cached": False,
                 }
             if resp.status_code != 200:
-                logger.warning(f"Geoapify Places API error (HTTP {resp.status_code}). Falling back to offline directory.")
-                hospitals = self.get_fallback_hospitals(lat, lon)
+                logger.warning(f"Geoapify Places API error (HTTP {resp.status_code}).")
+                hospitals = self.get_fallback_hospitals(lat, lon, max_radius_km=radius_km)
                 return {
                     "hospitals": hospitals,
                     "total_found": len(hospitals),
@@ -213,20 +218,24 @@ class PlacesService:
 
                 dist_m = props.get("distance")
                 dist_km = round(dist_m / 1000.0, 1) if dist_m is not None else haversine_km(lat, lon, h_lat, h_lon)
-                links = generate_free_navigation_links(lat, lon, h_lat, h_lon, h_name)
 
+                # Strict radius enforcement
+                if dist_km > radius_km:
+                    continue
+
+                links = generate_free_navigation_links(lat, lon, h_lat, h_lon, h_name)
                 contact = props.get("contact", {}).get("phone") if isinstance(props.get("contact"), dict) else props.get("phone")
 
                 hospitals.append({
                     "name": h_name,
-                    "address": props.get("address_line2") or props.get("formatted") or "Emergency Care",
+                    "address": props.get("address_line2") or props.get("formatted") or "Emergency Care Facility",
                     "lat": h_lat,
                     "lon": h_lon,
                     "distance_km": dist_km,
-                    "rating": 4.5,  # Geoapify places don't include user stars; default to accredited tier
-                    "total_ratings": 100,
-                    "open_now": True,
-                    "contact": contact or "+91-112",
+                    "rating": None,  # Truthful: omit unverified ratings
+                    "total_ratings": None,
+                    "open_now": None,  # Unverified by basic places lookup; call to confirm emergency care
+                    "contact": contact,
                     "place_id": props.get("place_id", f"geo_{h_lat}_{h_lon}"),
                     "maps_url": links["maps_url"],
                     "osm_url": links["osm_url"],
@@ -234,14 +243,14 @@ class PlacesService:
                 })
 
             if not hospitals:
-                logger.info("Geoapify returned 0 hospitals for area. Falling back to regional centers.")
-                hospitals = self.get_fallback_hospitals(lat, lon)
+                logger.info(f"Zero facilities found in {radius_km}km radius. Checking regional directory.")
+                hospitals = self.get_fallback_hospitals(lat, lon, max_radius_km=radius_km)
 
             hospitals.sort(key=lambda x: x["distance_km"])
             result_payload = {
                 "hospitals": hospitals[:8],
                 "total_found": len(hospitals),
-                "source": "geoapify",
+                "source": "geoapify" if hospitals else "none_in_radius",
                 "attribution": ATTRIBUTION_NOTICE,
             }
 
@@ -257,8 +266,8 @@ class PlacesService:
             }
 
         except Exception as e:
-            logger.warning(f"Error querying Geoapify Places ({e}). Using offline directory.")
-            hospitals = self.get_fallback_hospitals(lat, lon)
+            logger.warning(f"Error querying Geoapify Places ({e}).")
+            hospitals = self.get_fallback_hospitals(lat, lon, max_radius_km=radius_km)
             return {
                 "hospitals": hospitals,
                 "total_found": len(hospitals),

@@ -82,12 +82,13 @@ class VitalsOut(BaseModel):
     risk_tier: str  # "Low" | "Borderline" | "Elevated"
     lgbm_probability: float
     framingham_risk: float
-    confidence_interval: Dict[str, float]
+    confidence_interval: Optional[Dict[str, float]] = None
     shap_top5: List[ShapFactorOut]
     ecg_prompt: bool
     trend_delta: float
     vitals: Dict[str, Any]
     timestamp: datetime
+    disclaimer: Optional[str] = None
 
 
 # ─────────────────────────────────────────────

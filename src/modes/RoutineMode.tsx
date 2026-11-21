@@ -436,8 +436,9 @@ export const RoutineMode: React.FC = () => {
                       ))}
                     </div>
 
-                    <p className="text-[10px] text-slate-400 leading-relaxed italic border-t border-border pt-3">
-                      Confidence Interval: {risk.confidence_interval.lower}%–{risk.confidence_interval.upper}%. Server-side SHAP values.
+                    <p className="text-[10px] text-slate-500 leading-relaxed italic border-t border-border pt-3">
+                      {risk.confidence_interval ? `Confidence Interval: ${risk.confidence_interval.lower}%–${risk.confidence_interval.upper}%. ` : ''}
+                      {risk.disclaimer || 'Relative index (0–100) based on UCI Heart Disease reference data. Experimental research prototype.'}
                     </p>
                   </div>
                 )}

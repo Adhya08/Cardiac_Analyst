@@ -163,4 +163,27 @@ def test_places_service_unconfigured_key_serves_offline_directory():
 
     res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=10.0)
     assert res["source"] == "offline_directory"
-    assert len(res["hospitals"]) >= 4
+    assert len(res["hospitals"]) >= 1
+
+
+def test_places_service_truthful_metadata_and_radius_enforcement():
+    """Validates truthful metadata (rating is None, open_now is None) and strict radius cutoff."""
+    service = PlacesService(api_key="mock")
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = MOCK_GEOAPIFY_GEOJSON
+
+    with patch("requests.get", return_value=mock_resp):
+        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=10.0)
+
+    # Truthful ratings and hours
+    for h in res["hospitals"]:
+        assert h["rating"] is None, "Ratings must not be fabricated"
+        assert h["total_ratings"] is None, "Total ratings must not be fabricated"
+        assert h["open_now"] is None, "Emergency 24x7 status must not be assumed without provider verification"
+
+    # Distant caller (Mumbai coordinates 19.0760, 72.8777) must NOT be served Delhi hospitals within 10 km
+    mumbai_res = service.find_nearby_hospitals(lat=19.0760, lon=72.8777, radius_km=10.0)
+    assert mumbai_res["total_found"] == 0 or all(h["distance_km"] <= 10.0 for h in mumbai_res["hospitals"])
+

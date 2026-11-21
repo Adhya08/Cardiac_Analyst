@@ -140,15 +140,12 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'cardiac-clinical-v2',
+      // Privacy & Security: Only persist non-sensitive UI workstation preferences.
+      // Clinical history and vitals are kept in-memory and retrieved securely via authenticated API.
       partialize: (s) => ({
-        user: s.user,
-        authUser: s.authUser,
-        isProfileComplete: s.isProfileComplete,
         language: s.language,
         currentMode: s.currentMode,
         isSidebarCollapsed: s.isSidebarCollapsed,
-        latestRisk: s.latestRisk,
-        vitalsHistory: s.vitalsHistory,
       }),
     }
   )

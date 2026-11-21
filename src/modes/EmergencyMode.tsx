@@ -442,6 +442,7 @@ export const EmergencyMode: React.FC = () => {
                               {h.rating && <span className="text-amber-700">⭐ {h.rating}</span>}
                               {h.open_now === true && <span className="text-emerald-700">● Open</span>}
                               {h.open_now === false && <span className="text-red-600">● Closed</span>}
+                              {h.open_now == null && <span className="text-slate-500">● Hours unverified</span>}
                             </div>
                             {h.address && <p className="text-[11px] text-slate-500 pl-7">{h.address}</p>}
                           </div>

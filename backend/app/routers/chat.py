@@ -159,19 +159,21 @@ async def chat_message(
 ):
     """
     Patient Q&A — grounded in verified ECG findings.
-    Strictly authenticated.
+    Strictly authenticated. Verifies data subject (patient) consent prior to external transmission.
     """
-    check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
-
-    # Load verified ECG context if requested
+    target_patient_id = current_user.id
     ecg_context = None
+
     if req.ecg_id:
-        ecg_context = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
-        if ecg_context is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"ECG session '{req.ecg_id}' not found.",
-            )
+        record = db.query(ECGAnalysis).filter(ECGAnalysis.id == req.ecg_id).first()
+        if not record:
+            raise HTTPException(status_code=404, detail=f"ECG session '{req.ecg_id}' not found.")
+        verify_patient_access(current_user=current_user, patient_id=record.user_id, db=db)
+        target_patient_id = record.user_id
+        if record.analysis_json:
+            ecg_context = json.loads(record.analysis_json)
+
+    check_server_side_consent(target_patient_id, db, req.consent_third_party_ai)
 
     groq = get_groq_explainer()
     history = [{"role": m.role, "content": m.content} for m in (req.history or [])]
@@ -204,22 +206,34 @@ async def summarize_ecg(
 ):
     """
     Generate a plain-language summary of an ECG report.
-    - Requires authenticated access and server-side consent verification.
-    - If Groq is available, generates patient-friendly explanation with anti-hallucination validation.
-    - If Groq is unavailable, rate-limited (HTTP 429), or errors, seamlessly returns the deterministic report.
+    - Requires authenticated access.
+    - If the data subject (patient) granted consent and Groq is available, explains with anti-hallucination guardrails.
+    - If patient has not consented to cloud transmission, or Groq is unconfigured/rate-limited,
+      safely returns the 100% deterministic local structured report (zero external data flow).
     """
+    # Explicit consent check upfront (raises 403 if caller opted out or lacks active server-side consent)
     check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
 
-    ecg_analysis = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
-    if ecg_analysis is None:
+    record = db.query(ECGAnalysis).filter(ECGAnalysis.id == req.ecg_id).first()
+    if not record:
         raise HTTPException(
             status_code=404,
             detail=f"ECG session '{req.ecg_id}' not found.",
         )
+    verify_patient_access(current_user=current_user, patient_id=record.user_id, db=db)
+
+    # If clinician is viewing a patient's record, verify that data subject (patient) also granted consent
+    if record.user_id != current_user.id:
+        check_server_side_consent(record.user_id, db, req.consent_third_party_ai)
+
+    ecg_analysis = json.loads(record.analysis_json) if record.analysis_json else None
+    if not ecg_analysis:
+        raise HTTPException(
+            status_code=404,
+            detail=f"ECG analysis data for session '{req.ecg_id}' is empty.",
+        )
 
     groq = get_groq_explainer()
-
-    # If Groq is available and configured, explain with strict grounding
     if groq.is_available:
         result = groq.explain_report(ecg_analysis, language=req.language)
     else:

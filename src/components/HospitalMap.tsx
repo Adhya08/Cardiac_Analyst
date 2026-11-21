@@ -13,11 +13,17 @@ import {
   setWorkerUrl,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Hospital } from '../lib/api';
 
-// Explicitly register bundled worker URL for MapLibre GL JS v6 under Vite
-setWorkerUrl(maplibreWorkerUrl);
+// Explicitly register static public worker URL for MapLibre GL JS v6
+// Using the static /maplibre-gl-worker.mjs file in public/ prevents hash-mismatches and Vite bundling conflicts
+if (typeof window !== 'undefined') {
+  try {
+    setWorkerUrl(`${window.location.origin}/maplibre-gl-worker.mjs`);
+  } catch {
+    setWorkerUrl('/maplibre-gl-worker.mjs');
+  }
+}
 
 interface HospitalMapProps {
   userLat: number;
@@ -174,7 +180,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
 
           const careSpan = document.createElement('span');
           careSpan.style.cssText = 'background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#38bdf8;font-weight:700;';
-          careSpan.textContent = h.open_now !== false ? '● Emergency Care' : '● Medical Facility';
+          careSpan.textContent = h.open_now === true ? '● Open' : (h.open_now === false ? '● Closed' : '● Emergency (Hours unverified)');
           badgeRow.appendChild(careSpan);
 
           popupCard.appendChild(badgeRow);
@@ -223,10 +229,14 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
 
       map.on('error', (e: any) => {
         console.warn('MapLibre GL tile loading notice:', e);
-        const errStr = String(e?.error?.message || e?.message || e || '');
-        if (errStr.toLowerCase().includes('worker') || errStr.toLowerCase().includes('failed to load')) {
+        const errStr = String(e?.error?.message || e?.message || e?.error || e || '');
+        if (
+          errStr.toLowerCase().includes('worker') ||
+          errStr.toLowerCase().includes('failed to load') ||
+          errStr.toLowerCase().includes('webgl')
+        ) {
           clearTimeout(loadTimeout);
-          setErrorMsg('Vector map worker could not initialize. Please hard-refresh (Ctrl+F5) to clear stale worker cache, or use the direct facility directions below.');
+          setErrorMsg('Interactive vector map tiles unavailable. Direct navigation links are ready below.');
           setStatus('error');
         }
       });
@@ -250,13 +260,54 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
   }, [userLat, userLon, hospitals]);
 
   if (status === 'error') {
+    const topHospitals = hospitals.slice(0, 2);
     return (
-      <div className="w-full h-72 rounded-2xl bg-slate-900 border border-slate-700 flex flex-col items-center justify-center p-6 text-center">
-        <p className="text-amber-400 text-xs font-semibold mb-2">
-          🗺️ Offline Map Notice
-        </p>
-        <p className="text-slate-400 text-xs max-w-md">
-          {errorMsg || 'Interactive map tiles unavailable. You can still use the direct directions links in the hospital list below.'}
+      <div className="w-full min-h-72 rounded-2xl bg-slate-900 border border-slate-700/80 p-5 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-amber-400 text-sm">📍</span>
+            <span className="text-slate-200 text-xs font-semibold">Immediate Facility Dispatch (Direct Routing)</span>
+          </div>
+          <p className="text-slate-400 text-xs mb-3">
+            {errorMsg || 'Interactive map tiles unavailable. Quick routing links are ready below:'}
+          </p>
+        </div>
+
+        {topHospitals.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+            {topHospitals.map((h, i) => (
+              <div key={`${h.name}-${i}`} className="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
+                <div className="font-semibold text-xs text-white truncate mb-1">
+                  #{i + 1} {h.name}
+                </div>
+                <div className="text-[11px] text-teal-400 font-medium mb-2">
+                  📍 {h.distance_km} km away
+                </div>
+                <div className="flex gap-2">
+                  <a
+                    href={h.maps_url || `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${h.lat},${h.lon}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 text-center bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-1.5 px-2 rounded-lg transition-colors"
+                  >
+                    Google Maps
+                  </a>
+                  <a
+                    href={h.osm_url || `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLat}%2C${userLon}%3B${h.lat}%2C${h.lon}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 text-center bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium py-1.5 px-2 rounded-lg transition-colors"
+                  >
+                    OSM Route
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <p className="text-[11px] text-slate-400 text-center">
+          For immediate medical emergency dispatch, call <span className="text-rose-400 font-bold">112</span> or <span className="text-rose-400 font-bold">108</span>.
         </p>
       </div>
     );

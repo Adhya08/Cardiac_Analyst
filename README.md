@@ -477,6 +477,14 @@ Cardiac_Analyst/
 │   ├── requirements.txt             # Backend Python dependencies
 │   ├── start.bat                    # One-click Windows launch script
 │   └── test_local_ecg.py            # Standalone ONNX runtime test
+├── docs/                            # Centralized Engineering & Clinical Documentation
+│   ├── architecture/                # Architecture audit and production readiness checklist
+│   ├── clinical/                    # Clinician sign-off document for triage rules
+│   ├── history/                     # Chronological development record
+│   ├── specifications/              # PRD / FRD specifications (v2)
+│   └── workflows/                   # Kaggle training and conversion workflows
+├── notebooks/                       # Interactive Data Science & ML Notebooks
+│   └── cardiac_analyst_ptbxl_training.ipynb
 ├── ml_training/                     # PTB-XL GPU Training Pipeline
 │   ├── config.py                    # Hyperparameters, split folds, lead definitions
 │   ├── data_loader.py               # PhysioNet PTB-XL multi-label loader
@@ -484,8 +492,10 @@ Cardiac_Analyst/
 │   ├── model.py                     # ResNet1D PyTorch / Keras architectures
 │   ├── preprocess.py                # Per-lead normalization & filter logic
 │   ├── train.py                     # Training loop with early stopping
-│   ├── kaggle_train/                # Kaggle remote training scripts
-│   └── kaggle_convert/              # ONNX conversion scripts
+│   ├── kaggle_convert/              # ONNX conversion scripts
+│   ├── kaggle_eval/                 # Held-out Fold 10 benchmark evaluation
+│   ├── kaggle_smoke/                # Rapid verification smoke tests
+│   └── kaggle_train/                # Kaggle remote training scripts
 ├── public/
 │   ├── samples/                     # Real PTB-XL benchmark samples for quick trials
 │   ├── manifest.json                # PWA web application manifest
@@ -497,8 +507,7 @@ Cardiac_Analyst/
 │   │   ├── AppShell.tsx             # Responsive workstation frame
 │   │   ├── DualAnalysisReport.tsx   # Dual clinical & family reporting
 │   │   ├── ECGViewer.tsx            # High-DPI canvas pink grid ECG viewer
-│   │   ├── HospitalMap.tsx          # Leaflet live hospital map
-│   │   ├── Navbar.tsx               # Top navigational bar
+│   │   ├── HospitalMap.tsx          # MapLibre GL JS & OpenFreeMap vector map
 │   │   ├── ProfileModal.tsx         # Account authentication & demographics
 │   │   ├── RiskArc.tsx              # Calibrated ASCVD risk gauge
 │   │   ├── Sidebar.tsx              # Navigation rail with active pills
@@ -521,9 +530,6 @@ Cardiac_Analyst/
 │   └── main.tsx                     # React 19 entry point
 ├── LICENSE                          # MIT License with Clinical Terms of Use
 ├── PRIVACY.md                       # Comprehensive privacy policy & zero-PII guarantees
-├── PROGRESS.md                      # Complete chronological development record
-├── READINESS.md                     # Production readiness & clinical security audit
-├── RULES_FOR_CLINICIAN_REVIEW.md    # Clinician sign-off document for triage rules
 ├── TERMS.md                         # Terms of service and liability limitations
 ├── package.json                     # Frontend dependencies
 ├── tailwind.config.js               # Clinical palette & styling config

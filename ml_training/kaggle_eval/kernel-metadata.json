@@ -1,7 +1,7 @@
 {
-  "id": "cyberfocus2410/cardiac-analyst-ptb-xl-training",
-  "title": "Cardiac Analyst PTB-XL Training",
-  "code_file": "train_kaggle.py",
+  "id": "cyberfocus2410/cardiac-analyst-fold10-eval",
+  "title": "Cardiac Analyst Fold 10 Evaluation",
+  "code_file": "evaluate_fold10_kaggle.py",
   "language": "python",
   "kernel_type": "script",
   "is_private": "true",

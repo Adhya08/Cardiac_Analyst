@@ -3,7 +3,7 @@ import {
   Heart, Activity, FileText, ArrowUpRight, Plus, AlertTriangle, ChevronRight
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { api, type ECGHistoryItem, type HistoryRecord } from '../lib/api';
+import { api, isAuthenticated, type ECGHistoryItem, type HistoryRecord } from '../lib/api';
 import { formatScorePercentage } from './ECGMode';
 import evaluationMetrics from '../data/evaluation_metrics.json';
 
@@ -17,6 +17,10 @@ export const OverviewMode: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     const loadOverviewData = async () => {
+      if (!isAuthenticated()) {
+        if (mounted) setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const [ecgRes, vitalsRes] = await Promise.allSettled([

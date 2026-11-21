@@ -11,7 +11,7 @@ import {
   Heart, BarChart2, AlertTriangle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { api, type HistoryRecord } from '../lib/api';
+import { api, isAuthenticated, type HistoryRecord } from '../lib/api';
 import { translations } from '../lib/translations';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -116,14 +116,15 @@ const VitalsChart: React.FC<{ history: HistoryRecord[] }> = ({ history }) => {
 // Main RoutineMode
 // ─────────────────────────────────────────────
 export const RoutineMode: React.FC = () => {
-  const { user, setMode, latestRisk, setLatestRisk, vitalsHistory, setVitalsHistory, language } = useStore();
+  const { user, setMode, latestRisk, setLatestRisk, vitalsHistory, setVitalsHistory, language, openAuthModal } = useStore();
   const t = translations[language];
   const [showForm, setShowForm] = useState(!latestRisk);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load history on mount
+  // Load history on mount (only when authenticated)
   useEffect(() => {
+    if (!isAuthenticated()) return;
     api.getVitalsHistory(30).then(data => {
       if (data.records) setVitalsHistory(data.records);
     }).catch(() => {});
@@ -131,8 +132,15 @@ export const RoutineMode: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+
+    if (!isAuthenticated()) {
+      openAuthModal('account');
+      setError('Authentication required: Please sign in or register to record patient vitals and calculate risk.');
+      return;
+    }
+
+    setLoading(true);
 
     const fd = new FormData(e.currentTarget);
     const payload = {
@@ -198,11 +206,37 @@ export const RoutineMode: React.FC = () => {
         </div>
       </div>
 
+      {/* Guest notice banner */}
+      {!isAuthenticated() && (
+        <div className="p-3.5 bg-teal-50 border border-teal-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-teal-900">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-teal-600 flex-shrink-0" />
+            <span>Browsing as guest. Sign in or create an account to record vitals and track your 30-day longitudinal risk history.</span>
+          </div>
+          <button
+            onClick={() => openAuthModal('account')}
+            className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-all shadow-xs flex-shrink-0"
+          >
+            Sign In / Register
+          </button>
+        </div>
+      )}
+
       {/* Error banner */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs flex items-start gap-3">
-          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-          <p>{error}</p>
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs flex items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <p>{error.includes('401') || error.includes('Not authenticated') ? 'Session expired or not authenticated. Please sign in to record vitals.' : error}</p>
+          </div>
+          {(error.includes('401') || error.includes('authenticated') || error.includes('Authentication required')) && (
+            <button
+              onClick={() => openAuthModal('account')}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg flex-shrink-0 transition-all text-xs"
+            >
+              Sign In
+            </button>
+          )}
         </div>
       )}
 

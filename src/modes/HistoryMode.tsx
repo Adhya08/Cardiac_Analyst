@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Activity, Heart, Search, ArrowUpRight, RefreshCw, Clock
+  Activity, Heart, Search, ArrowUpRight, RefreshCw, Clock, Lock
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { api, type ECGHistoryItem, type HistoryRecord } from '../lib/api';
+import { api, isAuthenticated, type ECGHistoryItem, type HistoryRecord } from '../lib/api';
 
 export const HistoryMode: React.FC = () => {
-  const { setActiveECGStudyId, setMode } = useStore();
+  const { setActiveECGStudyId, setMode, openAuthModal } = useStore();
   const [activeFilter, setActiveFilter] = useState<'all' | 'ecg' | 'vitals'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [ecgHistory, setEcgHistory] = useState<ECGHistoryItem[]>([]);
@@ -14,6 +14,10 @@ export const HistoryMode: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchRecords = async () => {
+    if (!isAuthenticated()) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [ecgRes, vitalsRes] = await Promise.allSettled([
@@ -161,89 +165,109 @@ export const HistoryMode: React.FC = () => {
         </div>
       </div>
 
-      {/* Ledger Table */}
-      <div className="clinical-card overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-xs text-slate-400">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto text-teal-600 mb-2" />
-            <span>Fetching longitudinal records from database...</span>
+      {/* Ledger Table or Auth Gate */}
+      {!isAuthenticated() ? (
+        <div className="clinical-card p-12 text-center space-y-4 max-w-lg mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center mx-auto">
+            <Lock className="w-6 h-6" />
           </div>
-        ) : filteredRecords.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-border text-slate-500 uppercase text-[10px] font-bold">
-                <tr>
-                  <th className="px-5 py-3">Type</th>
-                  <th className="px-5 py-3">Study / Entry</th>
-                  <th className="px-5 py-3">Clinical Metrics</th>
-                  <th className="px-5 py-3">Recorded At</th>
-                  <th className="px-5 py-3">Triage Urgency</th>
-                  <th className="px-5 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border font-medium">
-                {filteredRecords.map((item) => (
-                  <tr key={`${item.type}-${item.id}`} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                        item.type === 'ecg'
-                          ? 'bg-teal-50 border border-teal-200 text-teal-700'
-                          : 'bg-blue-50 border border-blue-200 text-blue-700'
-                      }`}>
-                        {item.type === 'ecg' ? <Heart className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-bold text-navy-850">{item.title}</p>
-                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">{item.subtitle}</p>
-                    </td>
-                    <td className="px-5 py-4 font-mono text-[11px] text-slate-600">
-                      {item.metrics}
-                    </td>
-                    <td className="px-5 py-4 text-slate-500 text-[11px] font-mono">
-                      {new Date(item.timestamp).toLocaleString()}
-                    </td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          item.urgency === 'emergency'
-                            ? 'bg-red-50 text-red-600 border border-red-200'
-                            : item.urgency === 'see_doctor_today'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}
-                      >
-                        {item.urgency.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      {item.type === 'ecg' ? (
-                        <button
-                          onClick={() => handleInspectECG(item.id)}
-                          className="btn-clinical-secondary py-1 px-3 text-[11px]"
-                        >
-                          <span>Open Study</span>
-                          <ArrowUpRight className="w-3 h-3" />
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-slate-400 font-mono">Vitals Logged</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-12 text-center space-y-3">
-            <Clock className="w-8 h-8 mx-auto text-slate-300" />
-            <h4 className="text-sm font-bold text-navy-850">No Records Found</h4>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              No clinical studies match the current search or filter criteria.
+          <div>
+            <h3 className="text-base font-bold text-navy-850">Authentication Required for Clinical History</h3>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              In compliance with patient health information privacy standards, longitudinal 12-lead ECG records and vitals history are protected. Sign in or register to securely access your diagnostic ledger.
             </p>
           </div>
-        )}
-      </div>
+          <button
+            onClick={() => openAuthModal('account')}
+            className="btn-clinical-primary text-xs px-6 py-2.5 mx-auto shadow-md"
+          >
+            Sign In / Register
+          </button>
+        </div>
+      ) : (
+        <div className="clinical-card overflow-hidden">
+          {loading ? (
+            <div className="p-12 text-center text-xs text-slate-400">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-teal-600 mb-2" />
+              <span>Fetching longitudinal records from database...</span>
+            </div>
+          ) : filteredRecords.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-border text-slate-500 uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="px-5 py-3">Type</th>
+                    <th className="px-5 py-3">Study / Entry</th>
+                    <th className="px-5 py-3">Clinical Metrics</th>
+                    <th className="px-5 py-3">Recorded At</th>
+                    <th className="px-5 py-3">Triage Urgency</th>
+                    <th className="px-5 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-medium">
+                  {filteredRecords.map((item) => (
+                    <tr key={`${item.type}-${item.id}`} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                          item.type === 'ecg'
+                            ? 'bg-teal-50 border border-teal-200 text-teal-700'
+                            : 'bg-blue-50 border border-blue-200 text-blue-700'
+                        }`}>
+                          {item.type === 'ecg' ? <Heart className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-bold text-navy-850">{item.title}</p>
+                        <p className="text-[11px] text-slate-400 font-mono mt-0.5">{item.subtitle}</p>
+                      </td>
+                      <td className="px-5 py-4 font-mono text-[11px] text-slate-600">
+                        {item.metrics}
+                      </td>
+                      <td className="px-5 py-4 text-slate-500 text-[11px] font-mono">
+                        {new Date(item.timestamp).toLocaleString()}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            item.urgency === 'emergency'
+                              ? 'bg-red-50 text-red-600 border border-red-200'
+                              : item.urgency === 'see_doctor_today'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}
+                        >
+                          {item.urgency.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        {item.type === 'ecg' ? (
+                          <button
+                            onClick={() => handleInspectECG(item.id)}
+                            className="btn-clinical-secondary py-1 px-3 text-[11px]"
+                          >
+                            <span>Open Study</span>
+                            <ArrowUpRight className="w-3 h-3" />
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 font-mono">Vitals Logged</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-12 text-center space-y-3">
+              <Clock className="w-8 h-8 mx-auto text-slate-300" />
+              <h4 className="text-sm font-bold text-navy-850">No Records Found</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                No clinical studies match the current search or filter criteria.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

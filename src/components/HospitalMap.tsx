@@ -3,7 +3,14 @@
  * Displays user location and nearby cardiac emergency facilities with zero API keys or billable quotas.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import {
+  Map,
+  Marker,
+  Popup,
+  NavigationControl,
+  AttributionControl,
+  LngLatBounds,
+} from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Hospital } from '../lib/api';
 
@@ -15,10 +22,19 @@ interface HospitalMapProps {
 
 const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
+const isWebGLSupported = (): boolean => {
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+  } catch {
+    return false;
+  }
+};
+
 const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
+  const mapInstance = useRef<Map | null>(null);
+  const markersRef = useRef<Marker[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -26,7 +42,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
     if (!mapContainerRef.current) return;
 
     // Check WebGL support
-    if (!maplibregl.supported()) {
+    if (!isWebGLSupported()) {
       setErrorMsg('WebGL is not supported or disabled in this browser. Please use the list below.');
       setStatus('error');
       return;
@@ -41,7 +57,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
     }
 
     try {
-      const map = new maplibregl.Map({
+      const map = new Map({
         container: mapContainerRef.current,
         style: OPENFREEMAP_STYLE,
         center: [userLon, userLat],
@@ -50,9 +66,9 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
       });
 
       // Add navigation controls
-      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+      map.addControl(new NavigationControl({ showCompass: true }), 'top-right');
       map.addControl(
-        new maplibregl.AttributionControl({
+        new AttributionControl({
           compact: true,
           customAttribution: '© <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> | © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> | Geoapify',
         }),
@@ -73,13 +89,13 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
         userEl.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.7)';
         userEl.style.cursor = 'pointer';
 
-        const userPopup = new maplibregl.Popup({ offset: 15, closeButton: false }).setHTML(
+        const userPopup = new Popup({ offset: 15, closeButton: false }).setHTML(
           `<div style="font-family:sans-serif;font-size:12px;font-weight:700;color:#0f172a;padding:4px 8px;">
             📍 Your Current Location
           </div>`
         );
 
-        const userMarker = new maplibregl.Marker({ element: userEl })
+        const userMarker = new Marker({ element: userEl })
           .setLngLat([userLon, userLat])
           .setPopup(userPopup)
           .addTo(map);
@@ -87,7 +103,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
         markersRef.current.push(userMarker);
 
         // ── 2. Hospital Markers (Numbered Red Pins)
-        const bounds = new maplibregl.LngLatBounds();
+        const bounds = new LngLatBounds();
         bounds.extend([userLon, userLat]);
 
         hospitals.forEach((h, idx) => {
@@ -140,9 +156,9 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
             </div>
           `;
 
-          const popup = new maplibregl.Popup({ offset: 20 }).setHTML(popupContent);
+          const popup = new Popup({ offset: 20 }).setHTML(popupContent);
 
-          const marker = new maplibregl.Marker({ element: el })
+          const marker = new Marker({ element: el })
             .setLngLat([h.lon, h.lat])
             .setPopup(popup)
             .addTo(map);
@@ -159,7 +175,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
         }
       });
 
-      map.on('error', (e) => {
+      map.on('error', (e: any) => {
         console.warn('MapLibre GL tile loading notice:', e);
       });
 

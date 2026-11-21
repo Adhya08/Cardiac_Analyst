@@ -115,3 +115,25 @@ def test_revoke_consent_immediately_blocks_chat(client):
     )
     assert chat_resp.status_code == 403
     assert "revoked" in chat_resp.json()["detail"].lower() or "consent" in chat_resp.json()["detail"].lower()
+
+
+def test_chat_succeeds_when_consent_granted(client):
+    """When consent is properly granted, chat endpoint does not raise 403."""
+    token, user_id = register_user(client, "valid_consent")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Grant consent
+    client.post(
+        "/api/v1/consent/grant",
+        json={"consent_type": "third_party_ai", "policy_version": "v1.1"},
+        headers=headers,
+    )
+
+    # Chat call should not return 403 Forbidden
+    resp = client.post(
+        "/api/v1/chat/message",
+        json={"message": "What is normal resting heart rate?", "consent_third_party_ai": True},
+        headers=headers,
+    )
+    assert resp.status_code == 200, f"Expected 200 OK with valid consent, got {resp.status_code}: {resp.text}"
+    assert "reply" in resp.json()

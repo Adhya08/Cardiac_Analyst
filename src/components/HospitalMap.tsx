@@ -10,9 +10,14 @@ import {
   NavigationControl,
   AttributionControl,
   LngLatBounds,
+  setWorkerUrl,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Hospital } from '../lib/api';
+
+// Explicitly register bundled worker URL for MapLibre GL JS v6 under Vite
+setWorkerUrl(maplibreWorkerUrl);
 
 interface HospitalMapProps {
   userLat: number;
@@ -89,11 +94,12 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
         userEl.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.7)';
         userEl.style.cursor = 'pointer';
 
-        const userPopup = new Popup({ offset: 15, closeButton: false }).setHTML(
-          `<div style="font-family:sans-serif;font-size:12px;font-weight:700;color:#0f172a;padding:4px 8px;">
-            📍 Your Current Location
-          </div>`
-        );
+        // User location popup (safe text node)
+        const userPopupEl = document.createElement('div');
+        userPopupEl.style.cssText = 'font-family:sans-serif;font-size:12px;font-weight:700;color:#0f172a;padding:4px 8px;';
+        userPopupEl.textContent = '📍 Your Current Location';
+
+        const userPopup = new Popup({ offset: 15, closeButton: false }).setDOMContent(userPopupEl);
 
         const userMarker = new Marker({ element: userEl })
           .setLngLat([userLon, userLat])
@@ -129,34 +135,61 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
           const osmUrl = h.osm_url || `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLat}%2C${userLon}%3B${h.lat}%2C${h.lon}`;
           const mapsUrl = h.maps_url || `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${h.lat},${h.lon}`;
 
-          const popupContent = `
-            <div style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:10px;
-                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-                        min-width:210px;max-width:260px;line-height:1.4;">
-              <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:#f8fafc;">${h.name}</div>
-              <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${h.address || ''}</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-                <span style="background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#10b981;font-weight:700;">
-                  📍 ${h.distance_km} km away
-                </span>
-                ${h.open_now !== false ? '<span style="background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#38bdf8;font-weight:700;">● 24x7 Emergency</span>' : ''}
-              </div>
-              <div style="display:flex;gap:6px;">
-                <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
-                   style="flex:1;text-align:center;background:#dc2626;color:white;padding:6px 4px;border-radius:6px;
-                          font-size:11px;font-weight:700;text-decoration:none;display:block;">
-                  Directions
-                </a>
-                <a href="${osmUrl}" target="_blank" rel="noopener noreferrer"
-                   style="flex:1;text-align:center;background:#334155;color:white;padding:6px 4px;border-radius:6px;
-                          font-size:11px;font-weight:700;text-decoration:none;display:block;">
-                  OpenStreetMap
-                </a>
-              </div>
-            </div>
-          `;
+          // Safe DOM-based popup construction to prevent HTML injection (XSS)
+          const popupCard = document.createElement('div');
+          popupCard.style.cssText = 'background:#0f172a;color:#f8fafc;padding:12px;border-radius:10px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;min-width:210px;max-width:260px;line-height:1.4;';
 
-          const popup = new Popup({ offset: 20 }).setHTML(popupContent);
+          const nameHeading = document.createElement('div');
+          nameHeading.style.cssText = 'font-size:13px;font-weight:700;margin-bottom:4px;color:#f8fafc;';
+          nameHeading.textContent = h.name || 'Healthcare Facility';
+          popupCard.appendChild(nameHeading);
+
+          if (h.address) {
+            const addrDiv = document.createElement('div');
+            addrDiv.style.cssText = 'font-size:11px;color:#94a3b8;margin-bottom:8px;';
+            addrDiv.textContent = h.address;
+            popupCard.appendChild(addrDiv);
+          }
+
+          const badgeRow = document.createElement('div');
+          badgeRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;';
+
+          const distSpan = document.createElement('span');
+          distSpan.style.cssText = 'background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#10b981;font-weight:700;';
+          distSpan.textContent = `📍 ${h.distance_km} km away`;
+          badgeRow.appendChild(distSpan);
+
+          const careSpan = document.createElement('span');
+          careSpan.style.cssText = 'background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#38bdf8;font-weight:700;';
+          careSpan.textContent = h.open_now !== false ? '● Emergency Care' : '● Medical Facility';
+          badgeRow.appendChild(careSpan);
+
+          popupCard.appendChild(badgeRow);
+
+          const actionsRow = document.createElement('div');
+          actionsRow.style.cssText = 'display:flex;gap:6px;';
+
+          const sanitizeUrl = (u: string) => (u.startsWith('https://') || u.startsWith('http://') ? u : '#');
+
+          const navA = document.createElement('a');
+          navA.href = sanitizeUrl(mapsUrl);
+          navA.target = '_blank';
+          navA.rel = 'noopener noreferrer';
+          navA.style.cssText = 'flex:1;text-align:center;background:#dc2626;color:white;padding:6px 4px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;display:block;';
+          navA.textContent = 'Directions';
+          actionsRow.appendChild(navA);
+
+          const osmA = document.createElement('a');
+          osmA.href = sanitizeUrl(osmUrl);
+          osmA.target = '_blank';
+          osmA.rel = 'noopener noreferrer';
+          osmA.style.cssText = 'flex:1;text-align:center;background:#334155;color:white;padding:6px 4px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;display:block;';
+          osmA.textContent = 'OpenStreetMap';
+          actionsRow.appendChild(osmA);
+
+          popupCard.appendChild(actionsRow);
+
+          const popup = new Popup({ offset: 20 }).setDOMContent(popupCard);
 
           const marker = new Marker({ element: el })
             .setLngLat([h.lon, h.lat])

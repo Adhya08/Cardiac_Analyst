@@ -161,12 +161,7 @@ async def chat_message(
     Patient Q&A — grounded in verified ECG findings.
     Strictly authenticated.
     """
-    has_consent = check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
-    if not has_consent:
-        raise HTTPException(
-            status_code=403,
-            detail="Third-party AI processing disabled: Server-side consent has not been granted or has been revoked. You must grant consent via /api/v1/consent/grant to use cloud assistant features.",
-        )
+    check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
 
     # Load verified ECG context if requested
     ecg_context = None

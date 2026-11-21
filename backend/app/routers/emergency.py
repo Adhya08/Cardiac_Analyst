@@ -59,7 +59,10 @@ def emergency_sos(
     check_rate_limit(request, limit=60, window_seconds=60, scope="emergency_sos", db=db)
     use_lat = payload.lat if (payload and payload.lat is not None) else 28.6139
     use_lon = payload.lon if (payload and payload.lon is not None) else 77.2090
-    hospitals = fetch_hospitals_from_google(use_lat, use_lon)
+    try:
+        hospitals = fetch_nearby_hospitals(use_lat, use_lon)
+    except Exception as exc:
+        hospitals = []
 
     return {
         "status": "emergency_active",

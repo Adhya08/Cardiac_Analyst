@@ -21,9 +21,9 @@ from ..schemas import TriageIn, TriageOut
 from ..auth import get_current_user, get_optional_current_user, verify_patient_access
 from ..rate_limiter import check_rate_limit
 from ..ml.triage import assess_emergency, TRIAGE_QUESTIONS
+from ..services.places_service import get_places_service
 
 router = APIRouter(prefix="/api/v1/emergency", tags=["emergency"])
-GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 
 class SOSRequest(BaseModel):
@@ -31,90 +31,11 @@ class SOSRequest(BaseModel):
     lon: Optional[float] = Field(None, description="Optional caller longitude")
 
 
-def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    R = 6371.0
-    φ1, φ2 = math.radians(lat1), math.radians(lat2)
-    dφ = math.radians(lat2 - lat1)
-    dλ = math.radians(lon2 - lon1)
-    a = math.sin(dφ / 2) ** 2 + math.cos(φ1) * math.cos(φ2) * math.sin(dλ / 2) ** 2
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-
-def fetch_hospitals_from_google(lat: float, lon: float) -> List[dict]:
-    """Real Google Places Nearby Search for cardiac hospitals with mock fallback."""
-    mock_names = [
-        ("Fortis Escorts Heart Institute", "Okhla Rd, New Delhi, Delhi", 1.8),
-        ("Max Super Speciality Hospital", "Saket, New Delhi, Delhi", 3.2),
-        ("Medanta - The Medicity", "Gurugram, Haryana", 12.5),
-        ("Indraprastha Apollo Hospital", "Sarita Vihar, New Delhi, Delhi", 4.5),
-        ("Metro Hospital & Heart Institute", "Noida, Uttar Pradesh", 8.1),
-    ]
-    
-    def get_mock_hospitals():
-        results = []
-        for i, (name, addr, base_dist) in enumerate(mock_names):
-            results.append({
-                "name": name,
-                "address": addr,
-                "lat": lat + (0.005 * i * (-1 if i % 2 == 0 else 1)),
-                "lon": lon + (0.005 * i * (1 if i % 2 == 0 else -1)),
-                "distance_km": base_dist,
-                "rating": round(4.2 + (i * 0.15) % 0.7, 1),
-                "total_ratings": 140 + i * 85,
-                "open_now": True,
-                "maps_url": f"https://www.google.com/maps/search/?api=1&query={requests.utils.quote(name)}",
-                "place_id": f"mock_place_{i}",
-                "contact": "+91-11-4277-6222",
-            })
-        return results
-
-    if not GOOGLE_MAPS_API_KEY:
-        return get_mock_hospitals()[:5]
-
-    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-    params = {
-        "location": f"{lat},{lon}",
-        "radius": 15000,  # 15 km
-        "type": "hospital",
-        "keyword": "cardiac heart cardiology emergency",
-        "key": GOOGLE_MAPS_API_KEY,
-        "rankby": "prominence",
-    }
-    try:
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        hospitals = []
-        for place in data.get("results", [])[:8]:
-            g = place.get("geometry", {}).get("location", {})
-            h_lat, h_lon = g.get("lat", 0), g.get("lng", 0)
-            dist = haversine_km(lat, lon, h_lat, h_lon)
-            name = place.get("name", "Unknown Hospital")
-            place_id = place.get("place_id", "")
-            hospitals.append({
-                "name": name,
-                "address": place.get("vicinity", ""),
-                "lat": h_lat,
-                "lon": h_lon,
-                "distance_km": round(dist, 1),
-                "rating": place.get("rating"),
-                "total_ratings": place.get("user_ratings_total", 0),
-                "open_now": place.get("opening_hours", {}).get("open_now"),
-                "maps_url": (
-                    f"https://www.google.com/maps/search/?api=1"
-                    f"&query={requests.utils.quote(name)}"
-                    f"&query_place_id={place_id}"
-                ),
-                "contact": "Call hospital for ICU/cath lab availability",
-                "place_id": place_id,
-            })
-        if not hospitals:
-            return get_mock_hospitals()[:5]
-        hospitals.sort(key=lambda h: h["distance_km"])
-        return hospitals[:5]
-    except Exception as e:
-        print(f"[Emergency] Google Places API error: {e}")
-        return get_mock_hospitals()[:5]
+def fetch_nearby_hospitals(lat: float, lon: float) -> List[dict]:
+    """Fetch nearby cardiac hospitals using PlacesService with in-memory caching and offline fallback."""
+    service = get_places_service()
+    result = service.find_nearby_hospitals(lat=lat, lon=lon, radius_km=15.0)
+    return result.get("hospitals", [])
 
 
 @router.get("/questions")
@@ -188,7 +109,7 @@ def submit_triage(
     # ── Real hospital lookup (fallback to Delhi if location not provided)
     use_lat = data.lat if data.lat is not None else 28.6139
     use_lon = data.lon if data.lon is not None else 77.2090
-    hospitals = fetch_hospitals_from_google(use_lat, use_lon)
+    hospitals = fetch_nearby_hospitals(use_lat, use_lon)
 
     # ── Ambulance directory (always include govt services)
     ambulances = [

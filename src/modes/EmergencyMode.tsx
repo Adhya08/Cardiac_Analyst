@@ -446,7 +446,7 @@ export const EmergencyMode: React.FC = () => {
                             {h.address && <p className="text-[11px] text-slate-500 pl-7">{h.address}</p>}
                           </div>
 
-                          <div className="flex gap-2 w-full sm:w-auto">
+                          <div className="flex gap-2 w-full sm:w-auto items-center">
                             {h.contact && (
                               <a
                                 href={`tel:${h.contact.replace(/\D/g, '')}`}
@@ -460,11 +460,23 @@ export const EmergencyMode: React.FC = () => {
                               href={h.maps_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="btn-clinical-secondary p-2"
-                              title="Directions on Google Maps"
+                              className="btn-clinical-secondary py-1.5 px-2.5 text-xs font-semibold flex items-center gap-1"
+                              title="Directions"
                             >
-                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Navigate</span>
+                              <ExternalLink className="w-3 h-3" />
                             </a>
+                            {h.osm_url && (
+                              <a
+                                href={h.osm_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-clinical-secondary py-1.5 px-2 text-[11px] text-slate-500 hover:text-slate-700"
+                                title="Open in OpenStreetMap"
+                              >
+                                OSM
+                              </a>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -474,6 +486,12 @@ export const EmergencyMode: React.FC = () => {
                       {location ? 'No hospital facilities returned for this radius.' : 'Enable browser location to view nearby cardiac hospitals.'}
                     </div>
                   )}
+
+                  {/* Data Attribution Notice */}
+                  <div className="pt-2 border-t border-border/60 text-[10px] text-slate-400 flex flex-col sm:flex-row justify-between items-center gap-1 font-mono">
+                    <span>Places: Geoapify &bull; Map: OpenFreeMap</span>
+                    <span>&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="hover:underline">OpenStreetMap contributors</a></span>
+                  </div>
                 </div>
               </div>
 

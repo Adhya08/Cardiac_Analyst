@@ -1,13 +1,14 @@
 """
-Sarvam AI Chat & Report Router
---------------------------------
-POST /api/v1/chat/message       — Patient Q&A chat (with optional ECG context)
-POST /api/v1/chat/summarize     — Generate plain-language ECG report summary
-POST /api/v1/chat/advice        — Generate personalised lifestyle advice from vitals
-GET  /api/v1/chat/health        — Check Sarvam AI availability
+Structured Report & Grounded Patient Explainer Router
+-----------------------------------------------------
+POST /api/v1/chat/message       — Patient Q&A chat (strictly grounded in verified ECG context)
+POST /api/v1/chat/summarize     — Deterministic report generator + optional Groq patient explanation
+POST /api/v1/chat/advice        — Evidence-based lifestyle and vitals guidance
+GET  /api/v1/chat/health        — Report engine and AI provider health probe
 """
 import os
 import json
+import logging
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -17,8 +18,10 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models_db import ECGAnalysis, User, UserConsent
 from ..auth import get_current_user, verify_patient_access
-from ..ml.sarvam_assistant import get_sarvam_assistant
+from ..ml.report_generator import generate_deterministic_report, generate_deterministic_advice
+from ..ml.groq_explainer import get_groq_explainer
 
+logger = logging.getLogger("cardiac_analyst.chat")
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
 
@@ -43,6 +46,7 @@ class ChatResponse(BaseModel):
     reply: str
     is_emergency: bool
     emergency_notice: Optional[str] = None
+    source: Optional[str] = "groq_chat"
 
 
 class SummarizeRequest(BaseModel):
@@ -63,6 +67,9 @@ class SummarizeResponse(BaseModel):
     summary_hi: str
     key_points: List[str]
     next_step: str
+    source: Optional[str] = "deterministic_engine"
+    urgency: Optional[str] = "routine"
+    is_emergency: Optional[bool] = False
 
 
 class AdviceRequest(BaseModel):
@@ -86,6 +93,7 @@ class AdviceResponse(BaseModel):
     do_list: List[str]
     avoid_list: List[str]
     follow_up: str
+    source: Optional[str] = "deterministic_engine"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -132,15 +140,14 @@ def check_server_side_consent(user_id: str, db: Session, client_flag: Optional[b
 
 @router.get("/health")
 async def chat_health():
-    """Check whether Sarvam AI is configured and reachable (public status probe, no user data)."""
-    api_key = os.getenv("SARVAM_API_KEY")
-    if not api_key:
-        return {"status": "unavailable", "reason": "SARVAM_API_KEY not set"}
+    """Check report generator status and Groq AI availability."""
+    groq = get_groq_explainer()
     return {
         "status": "available",
-        "model": "sarvam-m",
-        "provider": "Sarvam AI",
-        "base_url": "https://api.sarvam.ai/v1",
+        "report_engine": "deterministic_structured_generator",
+        "groq_status": "available" if groq.is_available else "offline_fallback_active",
+        "model": groq.model if groq.is_available else "deterministic",
+        "provider": "Groq API (Free Tier)" if groq.is_available else "Local Deterministic Engine",
     }
 
 
@@ -151,13 +158,17 @@ async def chat_message(
     db: Session = Depends(get_db),
 ):
     """
-    Patient Q&A — ask anything about cardiac health.
+    Patient Q&A — grounded in verified ECG findings.
     Strictly authenticated.
-    Requires server-side stored consent before transmitting de-identified queries to Sarvam AI.
     """
-    check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
+    has_consent = check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
+    if not has_consent:
+        raise HTTPException(
+            status_code=403,
+            detail="Third-party AI processing disabled: Server-side consent has not been granted or has been revoked. You must grant consent via /api/v1/consent/grant to use cloud assistant features.",
+        )
 
-    # Load verified ECG context if requested (Access control verified before external call)
+    # Load verified ECG context if requested
     ecg_context = None
     if req.ecg_id:
         ecg_context = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
@@ -167,22 +178,16 @@ async def chat_message(
                 detail=f"ECG session '{req.ecg_id}' not found.",
             )
 
-    try:
-        assistant = get_sarvam_assistant()
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
-    # Convert history to plain dicts (no identifying personal info)
+    groq = get_groq_explainer()
     history = [{"role": m.role, "content": m.content} for m in (req.history or [])]
-
-    result = assistant.patient_chat(
-        user_message=req.message,
-        ecg_context=ecg_context,
+    result = groq.explain_chat_message(
+        message=req.message,
+        ecg_analysis=ecg_context,
         chat_history=history,
     )
 
     emergency_notice = None
-    if result["is_emergency"]:
+    if result.get("is_emergency"):
         emergency_notice = (
             "🚨 This sounds like a medical emergency. "
             "Please call 112 (India) or go to the nearest emergency room immediately."
@@ -190,8 +195,9 @@ async def chat_message(
 
     return ChatResponse(
         reply=result["reply"],
-        is_emergency=result["is_emergency"],
+        is_emergency=result.get("is_emergency", False),
         emergency_notice=emergency_notice,
+        source=result.get("source", "groq_chat"),
     )
 
 
@@ -203,12 +209,12 @@ async def summarize_ecg(
 ):
     """
     Generate a plain-language summary of an ECG report.
-    Strictly authenticated and verified to patient record.
-    Requires server-side stored consent.
+    - Requires authenticated access and server-side consent verification.
+    - If Groq is available, generates patient-friendly explanation with anti-hallucination validation.
+    - If Groq is unavailable, rate-limited (HTTP 429), or errors, seamlessly returns the deterministic report.
     """
     check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
 
-    # Access control verification before external API assistant initialization
     ecg_analysis = _fetch_verified_ecg_analysis(req.ecg_id, current_user, db)
     if ecg_analysis is None:
         raise HTTPException(
@@ -216,19 +222,23 @@ async def summarize_ecg(
             detail=f"ECG session '{req.ecg_id}' not found.",
         )
 
-    try:
-        assistant = get_sarvam_assistant()
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    groq = get_groq_explainer()
 
-    # Only anonymized clinical metrics are sent to Sarvam AI (no name, email, IP, user_id)
-    result = assistant.summarize_report(ecg_analysis, language=req.language)
+    # If Groq is available and configured, explain with strict grounding
+    if groq.is_available:
+        result = groq.explain_report(ecg_analysis, language=req.language)
+    else:
+        # 100% Deterministic structured report
+        result = generate_deterministic_report(ecg_analysis, language=req.language)
 
     return SummarizeResponse(
         summary_en=result.get("summary_en", ""),
         summary_hi=result.get("summary_hi", ""),
         key_points=result.get("key_points", []),
         next_step=result.get("next_step", "Consult your cardiologist."),
+        source=result.get("source", "deterministic_engine"),
+        urgency=result.get("urgency", "routine"),
+        is_emergency=result.get("is_emergency", False),
     )
 
 
@@ -240,15 +250,9 @@ async def get_advice(
 ):
     """
     Generate personalised cardiac lifestyle advice based on patient vitals and risk tier.
-    Strictly authenticated and requires server-side stored consent.
+    Uses deterministic evidence-based rules with zero dependence on external LLMs.
     """
     check_server_side_consent(current_user.id, db, req.consent_third_party_ai)
-
-    try:
-        assistant = get_sarvam_assistant()
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
     vitals = {
         "bp_sys": req.bp_sys,
         "bp_dia": req.bp_dia,
@@ -259,7 +263,7 @@ async def get_advice(
         "weight": req.weight,
     }
 
-    result = assistant.generate_advice(
+    result = generate_deterministic_advice(
         vitals=vitals,
         risk_tier=req.risk_tier,
         ecg_urgency=req.ecg_urgency,
@@ -270,4 +274,5 @@ async def get_advice(
         do_list=result.get("do_list", []),
         avoid_list=result.get("avoid_list", []),
         follow_up=result.get("follow_up", "Consult your cardiologist."),
+        source=result.get("source", "deterministic_engine"),
     )

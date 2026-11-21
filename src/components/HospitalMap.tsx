@@ -1,12 +1,11 @@
 /**
- * Google Maps component — shows user location + nearby hospitals as markers.
- * Uses @googlemaps/js-api-loader for clean async loading.
+ * HospitalMap — Open-source MapLibre GL JS & OpenFreeMap vector map component.
+ * Displays user location and nearby cardiac emergency facilities with zero API keys or billable quotas.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Hospital } from '../lib/api';
-
-const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 
 interface HospitalMapProps {
   userLat: number;
@@ -14,173 +13,193 @@ interface HospitalMapProps {
   hospitals: Hospital[];
 }
 
-const DARK_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#cbd5e1' }] },
-  { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#334155' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#334155' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0c1930' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#334155' }] },
-];
+const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }) => {
-  const mapRef = useRef<HTMLDivElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
-  const mapInstance = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<google.maps.Marker[]>([]);
 
   useEffect(() => {
-    if (!MAPS_KEY) {
-      setErrorMsg('Google Maps API key not configured.');
+    if (!mapContainerRef.current) return;
+
+    // Check WebGL support
+    if (!maplibregl.supported()) {
+      setErrorMsg('WebGL is not supported or disabled in this browser. Please use the list below.');
       setStatus('error');
       return;
     }
 
-    const loader = new Loader({
-      apiKey: MAPS_KEY,
-      version: 'weekly',
-      libraries: ['places', 'geometry'],
-    });
+    setStatus('loading');
 
-    loader.load().then(() => {
-      if (!mapRef.current) return;
+    // Clean up previous instance
+    if (mapInstance.current) {
+      mapInstance.current.remove();
+      mapInstance.current = null;
+    }
 
-      const map = new google.maps.Map(mapRef.current, {
-        center: { lat: userLat, lng: userLon },
+    try {
+      const map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: OPENFREEMAP_STYLE,
+        center: [userLon, userLat],
         zoom: 13,
-        styles: DARK_STYLES,
-        disableDefaultUI: false,
-        zoomControl: true,
-        streetViewControl: false,
-        fullscreenControl: false,
-        mapTypeControl: false,
+        attributionControl: false,
+      });
+
+      // Add navigation controls
+      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+      map.addControl(
+        new maplibregl.AttributionControl({
+          compact: true,
+          customAttribution: '© <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> | © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> | Geoapify',
+        }),
+        'bottom-right'
+      );
+
+      map.on('load', () => {
+        setStatus('ready');
+
+        // ── 1. User Location Marker (Pulsing Emerald)
+        const userEl = document.createElement('div');
+        userEl.className = 'user-map-pin';
+        userEl.style.width = '22px';
+        userEl.style.height = '22px';
+        userEl.style.borderRadius = '50%';
+        userEl.style.backgroundColor = '#10b981';
+        userEl.style.border = '3px solid #ffffff';
+        userEl.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.7)';
+        userEl.style.cursor = 'pointer';
+
+        const userPopup = new maplibregl.Popup({ offset: 15, closeButton: false }).setHTML(
+          `<div style="font-family:sans-serif;font-size:12px;font-weight:700;color:#0f172a;padding:4px 8px;">
+            📍 Your Current Location
+          </div>`
+        );
+
+        const userMarker = new maplibregl.Marker({ element: userEl })
+          .setLngLat([userLon, userLat])
+          .setPopup(userPopup)
+          .addTo(map);
+
+        markersRef.current.push(userMarker);
+
+        // ── 2. Hospital Markers (Numbered Red Pins)
+        const bounds = new maplibregl.LngLatBounds();
+        bounds.extend([userLon, userLat]);
+
+        hospitals.forEach((h, idx) => {
+          bounds.extend([h.lon, h.lat]);
+
+          const el = document.createElement('div');
+          el.className = 'hospital-map-pin';
+          el.style.width = '28px';
+          el.style.height = '28px';
+          el.style.borderRadius = '50%';
+          el.style.backgroundColor = '#dc2626';
+          el.style.color = '#ffffff';
+          el.style.display = 'flex';
+          el.style.alignItems = 'center';
+          el.style.justifyContent = 'center';
+          el.style.fontSize = '12px';
+          el.style.fontWeight = 'bold';
+          el.style.border = '2px solid #ffffff';
+          el.style.boxShadow = '0 3px 8px rgba(0,0,0,0.35)';
+          el.style.cursor = 'pointer';
+          el.innerText = String(idx + 1);
+
+          const osmUrl = h.osm_url || `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLat}%2C${userLon}%3B${h.lat}%2C${h.lon}`;
+          const mapsUrl = h.maps_url || `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${h.lat},${h.lon}`;
+
+          const popupContent = `
+            <div style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:10px;
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+                        min-width:210px;max-width:260px;line-height:1.4;">
+              <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:#f8fafc;">${h.name}</div>
+              <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${h.address || ''}</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                <span style="background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#10b981;font-weight:700;">
+                  📍 ${h.distance_km} km away
+                </span>
+                ${h.open_now !== false ? '<span style="background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#38bdf8;font-weight:700;">● 24x7 Emergency</span>' : ''}
+              </div>
+              <div style="display:flex;gap:6px;">
+                <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
+                   style="flex:1;text-align:center;background:#dc2626;color:white;padding:6px 4px;border-radius:6px;
+                          font-size:11px;font-weight:700;text-decoration:none;display:block;">
+                  Directions
+                </a>
+                <a href="${osmUrl}" target="_blank" rel="noopener noreferrer"
+                   style="flex:1;text-align:center;background:#334155;color:white;padding:6px 4px;border-radius:6px;
+                          font-size:11px;font-weight:700;text-decoration:none;display:block;">
+                  OpenStreetMap
+                </a>
+              </div>
+            </div>
+          `;
+
+          const popup = new maplibregl.Popup({ offset: 20 }).setHTML(popupContent);
+
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat([h.lon, h.lat])
+            .setPopup(popup)
+            .addTo(map);
+
+          markersRef.current.push(marker);
+        });
+
+        // Fit map viewport to encompass user and hospital pins
+        if (hospitals.length > 0) {
+          map.fitBounds(bounds, {
+            padding: { top: 40, bottom: 40, left: 40, right: 40 },
+            maxZoom: 14,
+          });
+        }
+      });
+
+      map.on('error', (e) => {
+        console.warn('MapLibre GL tile loading notice:', e);
       });
 
       mapInstance.current = map;
-
-      // ── User location marker (green)
-      new google.maps.Marker({
-        position: { lat: userLat, lng: userLon },
-        map,
-        title: 'Your Location',
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: '#10b981',
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 2.5,
-        },
-        zIndex: 100,
-      });
-
-      // ── Pulse ring around user
-      new google.maps.Circle({
-        center: { lat: userLat, lng: userLon },
-        radius: 300,
-        map,
-        fillColor: '#10b981',
-        fillOpacity: 0.08,
-        strokeColor: '#10b981',
-        strokeOpacity: 0.3,
-        strokeWeight: 1,
-      });
-
-      // ── Hospital markers (red, numbered)
-      markersRef.current.forEach((m) => m.setMap(null));
-      markersRef.current = [];
-
-      hospitals.forEach((hospital, idx) => {
-        const marker = new google.maps.Marker({
-          position: { lat: hospital.lat, lng: hospital.lon },
-          map,
-          title: hospital.name,
-          label: {
-            text: String(idx + 1),
-            color: '#ffffff',
-            fontSize: '11px',
-            fontWeight: 'bold',
-          },
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 14,
-            fillColor: '#ef4444',
-            fillOpacity: 0.95,
-            strokeColor: '#ffffff',
-            strokeWeight: 2,
-          },
-          zIndex: 50 - idx,
-        });
-
-        const content = `
-          <div style="background:#1e293b;color:#f8fafc;padding:14px;border-radius:10px;
-                      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-                      min-width:200px;max-width:260px;box-shadow:0 4px 20px #0005">
-            <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:#f8fafc">${hospital.name}</div>
-            <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">${hospital.address || ''}</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-              <span style="background:#0f172a;padding:2px 8px;border-radius:20px;font-size:10px;color:#10b981;font-weight:600">
-                📍 ${hospital.distance_km} km away
-              </span>
-              ${hospital.rating ? `<span style="background:#0f172a;padding:2px 8px;border-radius:20px;font-size:10px;color:#f59e0b;font-weight:600">⭐ ${hospital.rating}</span>` : ''}
-              ${hospital.open_now === true ? '<span style="background:#0f172a;padding:2px 8px;border-radius:20px;font-size:10px;color:#10b981;font-weight:600">● Open Now</span>' : ''}
-            </div>
-            <a href="${hospital.maps_url}" target="_blank" rel="noopener noreferrer"
-               style="display:block;text-align:center;background:#ef4444;color:white;padding:7px;border-radius:6px;
-                      font-size:12px;font-weight:700;text-decoration:none;transition:background 0.2s">
-              → Open in Google Maps
-            </a>
-          </div>
-        `;
-
-        const info = new google.maps.InfoWindow({ content });
-        marker.addListener('click', () => {
-          markersRef.current.forEach(() => info.close());
-          info.open({ map, anchor: marker });
-        });
-
-        markersRef.current.push(marker);
-      });
-
-      // Fit bounds to show all markers
-      if (hospitals.length > 0) {
-        const bounds = new google.maps.LatLngBounds();
-        bounds.extend({ lat: userLat, lng: userLon });
-        hospitals.forEach((h) => bounds.extend({ lat: h.lat, lng: h.lon }));
-        map.fitBounds(bounds, 50);
-      }
-
-      setStatus('ready');
-    }).catch((err) => {
-      console.error('Google Maps load error:', err);
-      setErrorMsg(String(err));
+    } catch (err: any) {
+      console.error('Failed to initialize MapLibre map:', err);
+      setErrorMsg(err.message || 'Error initializing open map.');
       setStatus('error');
-    });
+    }
+
+    return () => {
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
   }, [userLat, userLon, hospitals]);
 
   if (status === 'error') {
     return (
-      <div className="w-full h-72 rounded-2xl bg-slate-900 border border-red-500/20 flex items-center justify-center">
-        <p className="text-red-400 text-sm text-center px-4">
-          ⚠ Map unavailable: {errorMsg || 'Google Maps not loaded'}
+      <div className="w-full h-72 rounded-2xl bg-slate-900 border border-slate-700 flex flex-col items-center justify-center p-6 text-center">
+        <p className="text-amber-400 text-xs font-semibold mb-2">
+          🗺️ Offline Map Notice
+        </p>
+        <p className="text-slate-400 text-xs max-w-md">
+          {errorMsg || 'Interactive map tiles unavailable. You can still use the direct directions links in the hospital list below.'}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-80 rounded-2xl overflow-hidden bg-slate-900">
-      <div ref={mapRef} className="w-full h-full" />
+    <div className="relative w-full h-80 rounded-2xl overflow-hidden border border-border bg-slate-900 shadow-sm">
+      <div ref={mapContainerRef} className="w-full h-full" />
       {status === 'loading' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400 text-xs">Loading map…</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-900/80 backdrop-blur-sm z-10">
+          <div className="w-7 h-7 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-300 text-xs font-medium">Loading OpenFreeMap vector tiles…</p>
         </div>
       )}
     </div>

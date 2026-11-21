@@ -137,6 +137,8 @@ export interface Hospital {
   rating?: number;
   total_ratings?: number;
   maps_url: string;
+  osm_url?: string;
+  geo_uri?: string;
   open_now?: boolean;
   contact?: string;
   place_id?: string;

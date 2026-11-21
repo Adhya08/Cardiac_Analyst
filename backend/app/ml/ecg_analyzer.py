@@ -23,7 +23,10 @@ import os
 import io
 import json
 import numpy as np
-import onnxruntime as ort
+try:
+    import onnxruntime as ort
+except ImportError:
+    ort = None
 from typing import Dict, Any, List, Optional, Tuple
 from scipy.signal import find_peaks
 

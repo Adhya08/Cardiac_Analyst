@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import HospitalMap from '../components/HospitalMap';
-import { api, type TriageResponse, type Hospital } from '../lib/api';
+import { api, type TriageResponse } from '../lib/api';
 import { translations } from '../lib/translations';
 import { useStore } from '../store/useStore';
 import {
@@ -18,66 +18,6 @@ import {
 } from '../lib/triageEvaluator';
 
 type Step = 'triage' | 'analyzing' | 'result';
-
-const DEFAULT_OFFLINE_HOSPITALS: Hospital[] = [
-  {
-    name: 'All India Institute of Medical Sciences (AIIMS) - Emergency Cardiac Center',
-    address: 'Sri Aurobindo Marg, Ansari Nagar, New Delhi, Delhi 110029',
-    lat: 28.5672,
-    lon: 77.2100,
-    distance_km: 2.5,
-    rating: 4.8,
-    open_now: true,
-    contact: '+91-11-26588500',
-    maps_url: 'https://maps.google.com/?q=AIIMS+New+Delhi+Emergency',
-  },
-  {
-    name: 'Fortis Escorts Heart Institute (24x7 Cath Lab & Emergency)',
-    address: 'Okhla Road, Sukhdev Vihar, New Delhi, Delhi 110025',
-    lat: 28.5603,
-    lon: 77.2790,
-    distance_km: 5.1,
-    rating: 4.6,
-    open_now: true,
-    contact: '+91-11-47135000',
-    maps_url: 'https://maps.google.com/?q=Fortis+Escorts+Heart+Institute',
-  },
-  {
-    name: 'Apollo Hospital - Emergency & Interventional Cardiology',
-    address: 'Sarita Vihar, Delhi Mathura Road, New Delhi, Delhi 110076',
-    lat: 28.5355,
-    lon: 77.2874,
-    distance_km: 7.8,
-    rating: 4.7,
-    open_now: true,
-    contact: '+91-11-26925858',
-    maps_url: 'https://maps.google.com/?q=Indraprastha+Apollo+Hospital',
-  },
-  {
-    name: 'Max Super Speciality Hospital - Cardiac Emergency',
-    address: '1, 2, Press Enclave Marg, Saket, New Delhi, Delhi 110017',
-    lat: 28.5284,
-    lon: 77.2115,
-    distance_km: 6.2,
-    rating: 4.5,
-    open_now: true,
-    contact: '+91-11-26515050',
-    maps_url: 'https://maps.google.com/?q=Max+Hospital+Saket',
-  },
-];
-
-const getCachedHospitals = (): Hospital[] => {
-  try {
-    const raw = localStorage.getItem('cardiac_cached_hospitals');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (e) {
-    // ignore
-  }
-  return DEFAULT_OFFLINE_HOSPITALS;
-};
 
 export const EmergencyMode: React.FC = () => {
   const { language } = useStore();
@@ -89,9 +29,17 @@ export const EmergencyMode: React.FC = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number>(10);
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
+  const [isUpdatingRadius, setIsUpdatingRadius] = useState<boolean>(false);
 
-  // Get real geolocation on mount
+  // Clear any legacy mock hospital cache from localStorage on mount
   useEffect(() => {
+    try {
+      localStorage.removeItem('cardiac_cached_hospitals');
+    } catch {
+      // ignore
+    }
     getLocation();
   }, []);
 
@@ -138,25 +86,18 @@ export const EmergencyMode: React.FC = () => {
         symptoms,
         lat: location?.lat,
         lon: location?.lon,
+        radius_km: radiusKm,
       });
-      if (result.hospitals && result.hospitals.length > 0) {
-        try {
-          localStorage.setItem('cardiac_cached_hospitals', JSON.stringify(result.hospitals));
-        } catch {
-          // ignore localStorage errors
-        }
-      }
       setTriageResult(result);
       setStep('result');
     } catch (err: any) {
       setApiError(err.message);
-      // Fallback result — deterministic offline evaluation matching shared rules exactly
+      // Fallback result — deterministic offline clinical evaluation
       const evalRes = evaluateTriage(finalAnswers);
-      const offlineHospitals = getCachedHospitals();
 
       setTriageResult({
         ...evalRes,
-        hospitals: offlineHospitals,
+        hospitals: [],
         ambulances: [
           { service: 'National Emergency Helpline (112)', contact: '112', type: 'government', notes: 'Immediate all-in-one emergency dispatch (police/fire/medical)' },
           { service: 'Govt Medical Ambulance (108)', contact: '108', type: 'government', notes: '24/7 free cardiac ambulance & basic/advanced life support' },
@@ -165,6 +106,21 @@ export const EmergencyMode: React.FC = () => {
         triage_id: 'offline',
       });
       setStep('result');
+    }
+  };
+
+  const handleRadiusChange = async (newRadius: number) => {
+    setRadiusKm(newRadius);
+    if (!location) return;
+
+    setIsUpdatingRadius(true);
+    try {
+      const res = await api.getNearbyHospitals(location.lat, location.lon, newRadius);
+      setTriageResult((prev) => (prev ? { ...prev, hospitals: res.hospitals || [] } : null));
+    } catch (err: any) {
+      console.warn('Failed to update hospital radius search:', err);
+    } finally {
+      setIsUpdatingRadius(false);
     }
   };
 
@@ -403,88 +359,143 @@ export const EmergencyMode: React.FC = () => {
               {/* Nearby Hospitals (8 Cols) */}
               <div className="md:col-span-8 space-y-4">
                 <div className="clinical-card p-5 space-y-4 bg-white">
-                  <div className="flex items-center justify-between border-b border-border pb-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-navy-850 flex items-center gap-2">
-                      <Navigation className="w-4 h-4 text-teal-600" />
-                      {t.nearest_hospitals}
-                    </h3>
-                    <span className="text-[10px] font-mono font-bold">
-                      {triageResult.triage_id === 'offline' ? (
-                        <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                          Offline Emergency Directory
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">Live Hospital Locator</span>
-                      )}
-                    </span>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-3">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-navy-850 flex items-center gap-2">
+                        <Navigation className="w-4 h-4 text-teal-600" />
+                        {t.nearest_hospitals}
+                      </h3>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {triageResult.hospitals.length} verified {triageResult.hospitals.length === 1 ? 'facility' : 'facilities'} within {radiusKm} km
+                      </p>
+                    </div>
+
+                    {/* Configurable Radius Selector */}
+                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-border">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase px-1.5">Radius:</span>
+                      {[2, 5, 10, 20].map((r) => (
+                        <button
+                          key={r}
+                          disabled={isUpdatingRadius}
+                          onClick={() => handleRadiusChange(r)}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${
+                            radiusKm === r
+                              ? 'bg-teal-600 text-white shadow-sm'
+                              : 'text-slate-600 hover:text-navy-850 hover:bg-slate-200'
+                          } ${isUpdatingRadius ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {r} km
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {location && triageResult.hospitals.length > 0 && (
-                    <HospitalMap userLat={location.lat} userLon={location.lon} hospitals={triageResult.hospitals} />
+                    <HospitalMap
+                      userLat={location.lat}
+                      userLon={location.lon}
+                      hospitals={triageResult.hospitals}
+                      selectedHospitalId={selectedHospitalId}
+                      onSelectHospital={setSelectedHospitalId}
+                    />
                   )}
 
                   {triageResult.hospitals.length > 0 ? (
                     <div className="space-y-3">
-                      {triageResult.hospitals.map((h, i) => (
-                        <div
-                          key={h.place_id || i}
-                          className="p-4 bg-surface-secondary rounded-xl border border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-slate-300 transition-all"
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0">
-                                {i + 1}
-                              </span>
-                              <h4 className="text-xs font-bold text-navy-850">{h.name}</h4>
-                            </div>
-                            <div className="flex gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-7 font-mono">
-                              <span className="text-teal-700">{h.distance_km} km</span>
-                              {h.rating && <span className="text-amber-700">⭐ {h.rating}</span>}
-                              {h.open_now === true && <span className="text-emerald-700">● Open</span>}
-                              {h.open_now === false && <span className="text-red-600">● Closed</span>}
-                              {h.open_now == null && <span className="text-slate-500">● Hours unverified</span>}
-                            </div>
-                            {h.address && <p className="text-[11px] text-slate-500 pl-7">{h.address}</p>}
-                          </div>
+                      {triageResult.hospitals.map((h, i) => {
+                        const hId = h.id || h.place_id || `hosp_${i}`;
+                        const isSelected = selectedHospitalId === hId;
 
-                          <div className="flex gap-2 w-full sm:w-auto items-center">
-                            {h.contact && (
-                              <a
-                                href={`tel:${h.contact.replace(/\D/g, '')}`}
-                                className="btn-clinical-primary text-xs py-1.5 px-3 flex-1 sm:flex-none"
-                              >
-                                <PhoneCall className="w-3 h-3" />
-                                <span>CALL</span>
-                              </a>
-                            )}
-                            <a
-                              href={h.maps_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn-clinical-secondary py-1.5 px-2.5 text-xs font-semibold flex items-center gap-1"
-                              title="Directions"
-                            >
-                              <span>Navigate</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                            {h.osm_url && (
-                              <a
-                                href={h.osm_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn-clinical-secondary py-1.5 px-2 text-[11px] text-slate-500 hover:text-slate-700"
-                                title="Open in OpenStreetMap"
-                              >
-                                OSM
-                              </a>
-                            )}
+                        return (
+                          <div
+                            key={hId}
+                            onClick={() => setSelectedHospitalId(hId)}
+                            className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-teal-50/60 border-teal-500 ring-2 ring-teal-500/30 shadow-sm'
+                                : 'bg-surface-secondary border-border hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
+                                    isSelected ? 'bg-teal-600' : 'bg-red-600'
+                                  }`}>
+                                    {i + 1}
+                                  </span>
+                                  <h4 className="text-xs font-bold text-navy-850">{h.name}</h4>
+                                  {isSelected && (
+                                    <span className="text-[10px] bg-teal-600 text-white font-bold px-1.5 py-0.2 rounded">Focused</span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap gap-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-7 font-mono">
+                                  <span className="text-teal-700">📍 {h.distance_km} km (straight-line)</span>
+                                  <span className="text-slate-400">● Source: {h.source || 'Geoapify'}</span>
+                                  <span className="text-amber-700">● Hours & capacity unverified</span>
+                                </div>
+                                {h.address && <p className="text-[11px] text-slate-500 pl-7">{h.address}</p>}
+                              </div>
+
+                              <div className="flex gap-2 w-full sm:w-auto items-center" onClick={(e) => e.stopPropagation()}>
+                                {h.contact && (
+                                  <a
+                                    href={`tel:${h.contact.replace(/\D/g, '')}`}
+                                    className="btn-clinical-primary text-xs py-1.5 px-3 flex-1 sm:flex-none"
+                                  >
+                                    <PhoneCall className="w-3 h-3" />
+                                    <span>CALL</span>
+                                  </a>
+                                )}
+                                <a
+                                  href={h.maps_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn-clinical-secondary py-1.5 px-2.5 text-xs font-semibold flex items-center gap-1"
+                                  title="Google Maps Directions"
+                                >
+                                  <span>Navigate</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                                {h.osm_url && (
+                                  <a
+                                    href={h.osm_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn-clinical-secondary py-1.5 px-2 text-[11px] text-slate-500 hover:text-slate-700"
+                                    title="OpenStreetMap Route"
+                                  >
+                                    OSM
+                                  </a>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-slate-400 text-xs">
-                      {location ? 'No hospital facilities returned for this radius.' : 'Enable browser location to view nearby cardiac hospitals.'}
+                    <div className="text-center py-8 px-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 space-y-3">
+                      <p className="text-xs font-bold text-navy-850">
+                        No accredited cardiac emergency facilities found within {radiusKm} km.
+                      </p>
+                      <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                        In an acute cardiac emergency, do not delay transit. Dial national emergency dispatch immediately or expand your search distance:
+                      </p>
+                      <div className="flex justify-center gap-3 pt-1">
+                        <button
+                          onClick={() => handleRadiusChange(20)}
+                          className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          Expand Search to 20 km
+                        </button>
+                        <a
+                          href="tel:112"
+                          className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                        >
+                          <PhoneCall className="w-3 h-3" /> Call 112
+                        </a>
+                      </div>
                     </div>
                   )}
 

@@ -34,6 +34,7 @@ def get_nearby_hospitals(
         "hospitals": result["hospitals"],
         "total_found": result["total_found"],
         "search_center": f"{lat},{lon}",
+        "search_radius_km": radius_km,
         "source": result.get("source", "places_service"),
         "attribution": result.get("attribution", "Powered by Geoapify | © OpenStreetMap contributors"),
         "cached": result.get("cached", False),

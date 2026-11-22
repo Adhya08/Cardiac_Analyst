@@ -184,17 +184,25 @@ class TriageIn(BaseModel):
     hr: Optional[int] = None
     lat: Optional[float] = None
     lon: Optional[float] = None
+    radius_km: Optional[float] = Field(default=10.0, ge=1.0, le=50.0, description="Search radius in kilometers")
     user_id: str = "default_user"
 
 
 class HospitalOut(BaseModel):
+    id: Optional[str] = None
     name: str
     address: Optional[str] = None
     lat: float
     lon: float
     distance_km: float
+    distance_type: str = "straight_line"
+    source: str = "geoapify"
+    verified: bool = True
+    retrieved_at: Optional[str] = None
     rating: Optional[float] = None
     maps_url: str
+    osm_url: Optional[str] = None
+    geo_uri: Optional[str] = None
     open_now: Optional[bool] = None
     contact: Optional[str] = None
     place_id: Optional[str] = None

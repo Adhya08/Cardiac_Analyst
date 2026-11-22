@@ -13,22 +13,21 @@ import {
   setWorkerUrl,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Hospital } from '../lib/api';
 
-// Explicitly register static public worker URL for MapLibre GL JS v6
-// Using the static /maplibre-gl-worker.mjs file in public/ prevents hash-mismatches and Vite bundling conflicts
+// Explicitly register bundled worker URL via Vite's worker bundler
+// Vite's ?worker&url handles module/classic encapsulation, MIME types, and cache-busting hashing
 if (typeof window !== 'undefined') {
-  try {
-    setWorkerUrl(`${window.location.origin}/maplibre-gl-worker.mjs`);
-  } catch {
-    setWorkerUrl('/maplibre-gl-worker.mjs');
-  }
+  setWorkerUrl(workerUrl);
 }
 
 interface HospitalMapProps {
   userLat: number;
   userLon: number;
   hospitals: Hospital[];
+  selectedHospitalId?: string | null;
+  onSelectHospital?: (hospitalId: string) => void;
 }
 
 const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
@@ -42,12 +41,35 @@ const isWebGLSupported = (): boolean => {
   }
 };
 
-const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }) => {
+const HospitalMap: React.FC<HospitalMapProps> = ({
+  userLat,
+  userLon,
+  hospitals,
+  selectedHospitalId,
+  onSelectHospital,
+}) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
   const markersRef = useRef<Marker[]>([]);
+  const hospitalMarkersMap = useRef<globalThis.Map<string, { marker: Marker; popup: Popup; lat: number; lon: number }>>(new globalThis.Map());
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Handle programmatic selection / focusing from list card clicks
+  useEffect(() => {
+    if (!mapInstance.current || !selectedHospitalId) return;
+    const target = hospitalMarkersMap.current.get(selectedHospitalId);
+    if (target) {
+      mapInstance.current.flyTo({
+        center: [target.lon, target.lat],
+        zoom: 14,
+        essential: true,
+      });
+      if (!target.popup.isOpen()) {
+        target.marker.togglePopup();
+      }
+    }
+  }, [selectedHospitalId]);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -133,6 +155,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
 
         hospitals.forEach((h, idx) => {
           bounds.extend([h.lon, h.lat]);
+          const hId = h.id || h.place_id || `hosp_${idx}`;
 
           const el = document.createElement('div');
           el.className = 'hospital-map-pin';
@@ -150,6 +173,10 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
           el.style.boxShadow = '0 3px 8px rgba(0,0,0,0.35)';
           el.style.cursor = 'pointer';
           el.innerText = String(idx + 1);
+
+          el.addEventListener('click', () => {
+            onSelectHospital?.(hId);
+          });
 
           const osmUrl = h.osm_url || `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLat}%2C${userLon}%3B${h.lat}%2C${h.lon}`;
           const mapsUrl = h.maps_url || `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${h.lat},${h.lon}`;
@@ -175,12 +202,12 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
 
           const distSpan = document.createElement('span');
           distSpan.style.cssText = 'background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#10b981;font-weight:700;';
-          distSpan.textContent = `📍 ${h.distance_km} km away`;
+          distSpan.textContent = `📍 ${h.distance_km} km (straight-line)`;
           badgeRow.appendChild(distSpan);
 
           const careSpan = document.createElement('span');
           careSpan.style.cssText = 'background:#1e293b;padding:2px 7px;border-radius:12px;font-size:10px;color:#38bdf8;font-weight:700;';
-          careSpan.textContent = h.open_now === true ? '● Open' : (h.open_now === false ? '● Closed' : '● Emergency (Hours unverified)');
+          careSpan.textContent = h.open_now === true ? '● Open' : (h.open_now === false ? '● Closed' : '● Hours unverified');
           badgeRow.appendChild(careSpan);
 
           popupCard.appendChild(badgeRow);
@@ -216,6 +243,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
             .addTo(map);
 
           markersRef.current.push(marker);
+          hospitalMarkersMap.current.set(hId, { marker, popup, lat: h.lat, lon: h.lon });
         });
 
         // Fit map viewport to encompass user and hospital pins
@@ -252,6 +280,7 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
       clearTimeout(loadTimeout);
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
+      hospitalMarkersMap.current.clear();
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
@@ -316,6 +345,12 @@ const HospitalMap: React.FC<HospitalMapProps> = ({ userLat, userLon, hospitals }
   return (
     <div className="relative w-full h-80 rounded-2xl overflow-hidden border border-border bg-slate-900 shadow-sm">
       <div ref={mapContainerRef} className="w-full h-full" />
+      {status === 'ready' && hospitals.length > 0 && (
+        <div className="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700/80 text-[11px] font-semibold text-slate-200 z-10 flex items-center gap-1.5 shadow-md pointer-events-none">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>{hospitals.length} verified {hospitals.length === 1 ? 'facility' : 'facilities'} mapped</span>
+        </div>
+      )}
       {status === 'loading' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-900/80 backdrop-blur-sm z-10">
           <div className="w-7 h-7 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />

@@ -29,12 +29,13 @@ router = APIRouter(prefix="/api/v1/emergency", tags=["emergency"])
 class SOSRequest(BaseModel):
     lat: Optional[float] = Field(None, description="Optional caller latitude")
     lon: Optional[float] = Field(None, description="Optional caller longitude")
+    radius_km: Optional[float] = Field(default=10.0, ge=1.0, le=50.0, description="Search radius in kilometers")
 
 
-def fetch_nearby_hospitals(lat: float, lon: float) -> List[dict]:
+def fetch_nearby_hospitals(lat: float, lon: float, radius_km: float = 10.0) -> List[dict]:
     """Fetch nearby cardiac hospitals using PlacesService with in-memory caching and offline fallback."""
     service = get_places_service()
-    result = service.find_nearby_hospitals(lat=lat, lon=lon, radius_km=15.0)
+    result = service.find_nearby_hospitals(lat=lat, lon=lon, radius_km=radius_km)
     return result.get("hospitals", [])
 
 
@@ -59,8 +60,9 @@ def emergency_sos(
     check_rate_limit(request, limit=60, window_seconds=60, scope="emergency_sos", db=db)
     use_lat = payload.lat if (payload and payload.lat is not None) else 28.6139
     use_lon = payload.lon if (payload and payload.lon is not None) else 77.2090
+    use_radius = payload.radius_km if (payload and payload.radius_km is not None) else 10.0
     try:
-        hospitals = fetch_nearby_hospitals(use_lat, use_lon)
+        hospitals = fetch_nearby_hospitals(use_lat, use_lon, radius_km=use_radius)
     except Exception as exc:
         hospitals = []
 
@@ -113,7 +115,8 @@ def submit_triage(
     hospitals = []
     if data.lat is not None and data.lon is not None:
         try:
-            hospitals = fetch_nearby_hospitals(data.lat, data.lon)
+            req_radius = data.radius_km if data.radius_km is not None else 10.0
+            hospitals = fetch_nearby_hospitals(data.lat, data.lon, radius_km=req_radius)
         except Exception as exc:
             hospitals = []
 

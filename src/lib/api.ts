@@ -130,18 +130,23 @@ export interface ECGResponse {
 }
 
 export interface Hospital {
+  id?: string;
   name: string;
   address?: string;
   lat: number;
   lon: number;
   distance_km: number;
-  rating?: number;
-  total_ratings?: number;
+  distance_type?: string;
+  source?: string;
+  verified?: boolean;
+  retrieved_at?: string;
+  rating?: number | null;
+  total_ratings?: number | null;
   maps_url: string;
   osm_url?: string;
   geo_uri?: string;
-  open_now?: boolean;
-  contact?: string;
+  open_now?: boolean | null;
+  contact?: string | null;
   place_id?: string;
 }
 
@@ -160,6 +165,7 @@ export interface TriagePayload {
   hr?: number;
   lat?: number;
   lon?: number;
+  radius_km?: number;
   user_id?: string;
 }
 
@@ -393,7 +399,7 @@ export const api = {
   },
 
   // ── Hospitals
-  async getNearbyHospitals(lat: number, lon: number, radius = 10): Promise<{ hospitals: Hospital[]; total_found: number }> {
+  async getNearbyHospitals(lat: number, lon: number, radius = 10): Promise<{ hospitals: Hospital[]; total_found: number; source?: string; search_radius_km?: number }> {
     return request(`${BASE}/hospitals/nearby?lat=${lat}&lon=${lon}&radius_km=${radius}`);
   },
 

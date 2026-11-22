@@ -59,7 +59,7 @@ def test_places_service_successful_query():
     mock_resp.json.return_value = MOCK_GEOAPIFY_GEOJSON
 
     with patch("requests.get", return_value=mock_resp):
-        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=10.0)
+        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=15.0)
 
     assert res["source"] == "geoapify"
     assert res["attribution"] == ATTRIBUTION_NOTICE
@@ -102,7 +102,7 @@ def test_places_service_quota_exhaustion_http_429():
     mock_resp.text = "Monthly API quota exceeded"
 
     with patch("requests.get", return_value=mock_resp):
-        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=10.0)
+        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=15.0)
 
     assert "offline_fallback" in res["source"]
     assert len(res["hospitals"]) > 0
@@ -119,7 +119,7 @@ def test_places_service_provider_error_http_500():
     mock_resp.text = "Internal Server Error"
 
     with patch("requests.get", return_value=mock_resp):
-        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=10.0)
+        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=15.0)
 
     assert "offline_fallback" in res["source"]
     assert len(res["hospitals"]) > 0
@@ -150,7 +150,7 @@ def test_places_service_malformed_geojson():
     mock_resp.json.return_value = malformed_json
 
     with patch("requests.get", return_value=mock_resp):
-        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=10.0)
+        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=15.0)
 
     # Valid hospital parsed safely despite broken sibling feature
     assert len(res["hospitals"]) == 1
@@ -175,7 +175,7 @@ def test_places_service_truthful_metadata_and_radius_enforcement():
     mock_resp.json.return_value = MOCK_GEOAPIFY_GEOJSON
 
     with patch("requests.get", return_value=mock_resp):
-        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=10.0)
+        res = service.find_nearby_hospitals(lat=28.6139, lon=77.2090, radius_km=15.0)
 
     # Truthful ratings and hours
     for h in res["hospitals"]:

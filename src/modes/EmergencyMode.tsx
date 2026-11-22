@@ -440,7 +440,7 @@ export const EmergencyMode: React.FC = () => {
                               <div className="flex gap-2 w-full sm:w-auto items-center" onClick={(e) => e.stopPropagation()}>
                                 {h.contact && (
                                   <a
-                                    href={`tel:${h.contact.replace(/\D/g, '')}`}
+                                    href={`tel:${String(h.contact).replace(/\D/g, '')}`}
                                     className="btn-clinical-primary text-xs py-1.5 px-3 flex-1 sm:flex-none"
                                   >
                                     <PhoneCall className="w-3 h-3" />
@@ -526,7 +526,7 @@ export const EmergencyMode: React.FC = () => {
                             {amb.eta_info && <p className="text-[10px] text-teal-700 font-bold mt-0.5">{amb.eta_info}</p>}
                           </div>
                           <a
-                            href={`tel:${amb.contact.replace(/\D/g, '')}`}
+                            href={`tel:${String(amb.contact || '112').replace(/\D/g, '')}`}
                             className="btn-clinical-primary p-2 text-xs"
                           >
                             <PhoneCall className="w-3 h-3" />

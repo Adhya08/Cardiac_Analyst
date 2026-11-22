@@ -31,7 +31,7 @@ DEFAULT_CACHE_TTL_SECONDS = 1800  # 30 minutes
 # Used when live provider is unavailable, quota is exhausted, or for offline directory lookups.
 # Every hospital record has exact, verified coordinates. No coordinates are ever fabricated or jittered.
 CURATED_OFFLINE_HOSPITALS = [
-    # ── Vaishali, Kaushambi & Ghaziabad
+    # ── Vaishali & Kaushambi (Immediate Local Area)
     {
         "id": "curated_max_vaishali",
         "place_id": "curated_max_vaishali",
@@ -50,7 +50,90 @@ CURATED_OFFLINE_HOSPITALS = [
         "lon": 77.3240,
         "contact": "+91-120-4182000",
     },
-    # ── Noida
+    {
+        "id": "curated_paras_vaishali",
+        "place_id": "curated_paras_vaishali",
+        "name": "Paras Hospital, Vaishali",
+        "address": "Plot No. 1, Sector 4, Vaishali, Ghaziabad, Uttar Pradesh 201010",
+        "lat": 28.6475,
+        "lon": 77.3375,
+        "contact": "+91-120-4888888",
+    },
+    {
+        "id": "curated_chandra_laxmi_vaishali",
+        "place_id": "curated_chandra_laxmi_vaishali",
+        "name": "Chandra Laxmi Hospital, Vaishali",
+        "address": "Plot No. 337, Sector 4, Vaishali, Ghaziabad, Uttar Pradesh 201010",
+        "lat": 28.6492,
+        "lon": 77.3361,
+        "contact": "+91-120-2771210",
+    },
+    {
+        "id": "curated_aarogya_vaishali",
+        "place_id": "curated_aarogya_vaishali",
+        "name": "Aarogya Hospital, Vaishali",
+        "address": "Sector 6, Vaishali, Ghaziabad, Uttar Pradesh 201010",
+        "lat": 28.6360,
+        "lon": 77.3380,
+        "contact": "+91-120-4155155",
+    },
+    # ── Indirapuram & Vasundhara (2 - 5 km)
+    {
+        "id": "curated_shanti_gopal_indirapuram",
+        "place_id": "curated_shanti_gopal_indirapuram",
+        "name": "Shanti Gopal Hospital, Indirapuram (Emergency & Critical Care)",
+        "address": "Mall Road, Ahinsa Khand 2, Indirapuram, Ghaziabad, Uttar Pradesh 201014",
+        "lat": 28.6375,
+        "lon": 77.3680,
+        "contact": "+91-120-4777000",
+    },
+    {
+        "id": "curated_ami_care_indirapuram",
+        "place_id": "curated_ami_care_indirapuram",
+        "name": "Ami Care Hospital, Indirapuram",
+        "address": "1, Judges Enclave, Ahinsa Khand 2, Indirapuram, Ghaziabad 201014",
+        "lat": 28.6410,
+        "lon": 77.3710,
+        "contact": "+91-120-4150500",
+    },
+    {
+        "id": "curated_atal_bihari_vasundhara",
+        "place_id": "curated_atal_bihari_vasundhara",
+        "name": "Atal Bihari Vajpayee Hospital, Vasundhara",
+        "address": "Sector 16, Vasundhara, Ghaziabad, Uttar Pradesh 201012",
+        "lat": 28.6620,
+        "lon": 77.3650,
+        "contact": "+91-120-2882200",
+    },
+    # ── East Delhi & Anand Vihar / Patparganj (3 - 6 km)
+    {
+        "id": "curated_max_patparganj",
+        "place_id": "curated_max_patparganj",
+        "name": "Max Super Speciality Hospital, Patparganj (Cardiac Sciences)",
+        "address": "108A, I.P. Extension, Patparganj, New Delhi, Delhi 110092",
+        "lat": 28.6300,
+        "lon": 77.3050,
+        "contact": "+91-11-43033333",
+    },
+    {
+        "id": "curated_dharamshila_narayana",
+        "place_id": "curated_dharamshila_narayana",
+        "name": "Dharamshila Narayana Superspeciality Hospital",
+        "address": "Metro Station Road, Vasundhara Enclave, New Delhi, Delhi 110096",
+        "lat": 28.6015,
+        "lon": 77.3220,
+        "contact": "+91-11-43044444",
+    },
+    {
+        "id": "curated_pushpanjali_medical",
+        "place_id": "curated_pushpanjali_medical",
+        "name": "Pushpanjali Medical Centre",
+        "address": "A-15, Vikas Marg Ext, Anand Vihar, Delhi 110092",
+        "lat": 28.6470,
+        "lon": 77.3080,
+        "contact": "+91-11-43077777",
+    },
+    # ── Noida & Central Ghaziabad (4 - 10 km)
     {
         "id": "curated_fortis_noida",
         "place_id": "curated_fortis_noida",
@@ -59,6 +142,24 @@ CURATED_OFFLINE_HOSPITALS = [
         "lat": 28.6186,
         "lon": 77.3725,
         "contact": "+91-120-4300222",
+    },
+    {
+        "id": "curated_kailash_noida",
+        "place_id": "curated_kailash_noida",
+        "name": "Kailash Hospital & Heart Institute, Noida",
+        "address": "H-33, Sector 27, Noida, Uttar Pradesh 201301",
+        "lat": 28.5772,
+        "lon": 77.3315,
+        "contact": "+91-120-2444444",
+    },
+    {
+        "id": "curated_manipal_ghaziabad",
+        "place_id": "curated_manipal_ghaziabad",
+        "name": "Manipal Hospital, Ghaziabad (formerly Columbia Asia)",
+        "address": "NH-24, Hapur Bypass Road, Pandav Nagar, Ghaziabad 201002",
+        "lat": 28.6420,
+        "lon": 77.4450,
+        "contact": "+91-120-6812000",
     },
     {
         "id": "curated_jaypee_noida",
